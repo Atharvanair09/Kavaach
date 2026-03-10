@@ -1,34 +1,24 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=7C5CFC&height=200&section=header&text=Atharva&fontSize=70&fontColor=ffffff&fontAlignY=38&desc=Building%20things%20that%20matter&descAlignY=58&descSize=18&descColor=A78BFA" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=7C5CFC&height=200&section=header&text=Kavaach&fontSize=70&fontColor=ffffff&fontAlignY=38&desc=Building%20things%20that%20matter&descAlignY=58&descSize=18&descColor=A78BFA" width="100%"/>
 
 </div>
 
 <div align="center">
 
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Syne&weight=700&size=22&pause=1000&color=A78BFA&center=true&vCenter=true&width=600&lines=Flutter+%26+Dart+Developer;ML+Engineer+in+the+Making;Embedded+Systems+Enthusiast;Building+SafeText+%F0%9F%9B%A1%EF%B8%8F)](https://git.io/typing-svg)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Syne&weight=700&size=22&pause=1000&color=A78BFA&center=true&vCenter=true&width=600&lines=Flutter+%26+Dart+Developer;ML+Engineer+in+the+Making;Embedded+Systems+Enthusiast;Building+Kavaach+%F0%9F%9B%A1%EF%B8%8F)](https://git.io/typing-svg)
 
 </div>
 
 ---
 
-## 👋 Hey, I'm Atharva
-
-> *"Code should solve real problems for real people."*
-
-I'm a Computer Engineering student at **SFIT**, Mumbai — building across the full stack of modern tech: mobile apps, machine learning, and embedded systems. My work lives at the intersection of software and social impact.
-
-Currently building **SafeText** — a discreet AI-powered safety app for women that detects distress through natural conversation, triggers silent emergency alerts, and connects users to nearby support — all without looking like an emergency app.
-
----
-
-## 🛡️ Featured Project — SafeText
+## 🛡️ Featured Project — Kavaach
 
 <div align="center">
 
 ```
 ╔══════════════════════════════════════════════════════╗
-║                    🛡  SafeText                      ║
+║                    🛡  Kavaach                       ║
 ║         Discreet AI Safety App for Women             ║
 ╠══════════════════════════════════════════════════════╣
 ║  "You are not alone."                                ║
@@ -52,7 +42,7 @@ Currently building **SafeText** — a discreet AI-powered safety app for women t
 | ☁️ Database | Firebase Firestore |
 | 🔐 Privacy | Anonymous IDs · Auto-clear sessions · Stealth mode |
 
-**SafeText detects risk in 3 levels:**
+**Kavaach detects risk in 3 levels:**
 - 🟢 **Low** — Calm, supportive UI with helpline suggestions
 - 🟡 **Medium** — Elevated glow, trusted contact nudge
 - 🔴 **High** — Silent escalation, emergency contact alert, nearby services
@@ -97,7 +87,7 @@ Hardware projects combining **ESP32-CAM**, **Arduino Uno**, **HC-05 Bluetooth**,
 
 | Project | Stack | What it does |
 |---------|-------|-------------|
-| 🛡️ **SafeText** | Flutter · FastAPI · BERT · Firebase | AI safety app for women with silent emergency triggers |
+| 🛡️ **Kavaach** | Flutter · FastAPI · BERT · Firebase | AI safety app for women with silent emergency triggers |
 | 🧠 **Jarvis** | Python · HuggingFace · PyTorch | Fine-tuned mental health text classifier |
 | 🎨 **Annatar Forge** | Flutter | Dark-themed AI image generation UI |
 | 🚗 **Speed Monitor** | ESP32-CAM · Arduino · HB100 | Doppler radar overspeed detection + ANPR |
@@ -126,7 +116,7 @@ Hardware projects combining **ESP32-CAM**, **Arduino Uno**, **HC-05 Bluetooth**,
 
 ## 🌱 Currently
 
-- 🔨 Building **SafeText** end-to-end — Flutter + FastAPI + ML pipeline
+- 🔨 Building **Kavaach** end-to-end — Flutter + FastAPI + ML pipeline
 - 📚 Exploring **continuous learning** strategies for Jarvis (behavioral feedback → semi-automated retraining)
 - 🔬 Researching figurative language edge cases in distress detection
 - 💪 Hitting the gym (back & biceps are the priority, clearly)
