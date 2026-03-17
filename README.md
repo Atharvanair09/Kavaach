@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 <div align="center">
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=7C5CFC&height=200&section=header&text=Kavaach&fontSize=70&fontColor=ffffff&fontAlignY=38&desc=Building%20things%20that%20matter&descAlignY=58&descSize=18&descColor=A78BFA" width="100%"/>
