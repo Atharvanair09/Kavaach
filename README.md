@@ -37,8 +37,8 @@
 | Layer | Tech |
 |-------|------|
 | 📱 Mobile | Flutter · Dart |
-| ⚙️ Backend | FastAPI · Python |
-| 🤖 ML Model | `Jarvis` — fine-tuned `mental-bert` / `roberta-base` |
+| ⚙️ Backend | NodeJS · Python |
+| 🤖 ML Model | `Jarvis` — fine-tuned `mobileBert' |
 | ☁️ Database | Firebase Firestore |
 | 🔐 Privacy | Anonymous IDs · Auto-clear sessions · Stealth mode |
 
@@ -58,12 +58,9 @@
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
 ![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
 ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
 ![HuggingFace](https://img.shields.io/badge/HuggingFace-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)
-![Arduino](https://img.shields.io/badge/Arduino-00979D?style=for-the-badge&logo=arduino&logoColor=white)
-![C++](https://img.shields.io/badge/C++-00599C?style=for-the-badge&logo=cplusplus&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 
 </div>
@@ -78,9 +75,6 @@ Full-featured Flutter apps with Firebase integration, custom animations, glassmo
 ### 🤖 Machine Learning
 Fine-tuning transformer models (`mental-bert`, `roberta-base`) for real-world classification tasks. End-to-end ML pipelines with FastAPI serving — model persistence in PyTorch, TensorFlow, and Scikit-Learn.
 
-### ⚡ Embedded Systems
-Hardware projects combining **ESP32-CAM**, **Arduino Uno**, **HC-05 Bluetooth**, **NEO-6M GPS**, and **HB100 Doppler radar** — including license plate recognition and vehicle overspeed detection systems. Comfortable with LM358 op-amp circuit design and SoftwareSerial debugging.
-
 ---
 
 ## 📦 Projects at a Glance
@@ -89,10 +83,6 @@ Hardware projects combining **ESP32-CAM**, **Arduino Uno**, **HC-05 Bluetooth**,
 |---------|-------|-------------|
 | 🛡️ **Kavaach** | Flutter · FastAPI · BERT · Firebase | AI safety app for women with silent emergency triggers |
 | 🧠 **Jarvis** | Python · HuggingFace · PyTorch | Fine-tuned mental health text classifier |
-| 🎨 **Annatar Forge** | Flutter | Dark-themed AI image generation UI |
-| 🚗 **Speed Monitor** | ESP32-CAM · Arduino · HB100 | Doppler radar overspeed detection + ANPR |
-| 🎬 **Cinema Booking** | Flutter · Firebase | Retro-themed ticket booking UI |
-| 🍽️ **Dining Booking** | Flutter · Firebase | Luxury fine dining reservation form |
 
 ---
 
@@ -119,7 +109,6 @@ Hardware projects combining **ESP32-CAM**, **Arduino Uno**, **HC-05 Bluetooth**,
 - 🔨 Building **Kavaach** end-to-end — Flutter + FastAPI + ML pipeline
 - 📚 Exploring **continuous learning** strategies for Jarvis (behavioral feedback → semi-automated retraining)
 - 🔬 Researching figurative language edge cases in distress detection
-- 💪 Hitting the gym (back & biceps are the priority, clearly)
 
 ---
 
