@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "383341250956",
+    "project_id": "ai-studio-applet-webapp-7b76a",
+    "storage_bucket": "ai-studio-applet-webapp-7b76a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:383341250956:android:681806bbfc0f51623e6ea9",
+        "android_client_info": {
+          "package_name": "com.example.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "383341250956-doc0hqekq2njvg1r88dh3pvlhpfit53s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2KtZgbtqpzlHMgxGd5y9ZqmcrY2_tD4M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "383341250956-doc0hqekq2njvg1r88dh3pvlhpfit53s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

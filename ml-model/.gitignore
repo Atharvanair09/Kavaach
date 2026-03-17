@@ -1,0 +1,23 @@
+# Virtual environment
+bert_gpu/
+
+# Model Checkpoints and generated artifacts
+jarvis/checkpoint-5427/
+jarvis/checkpoint-5917/
+jarvis/checkpoint-5927/
+jarvis/checkpoint-10854/
+jarvis/checkpoint-11834/
+jarvis/checkpoint-11854/
+jarvis/checkpoint-16281/
+jarvis/checkpoint-17751/
+jarvis/checkpoint-17781/
+
+jarvis/model.safetensors
+jarvis/training_args.bin
+
+# Stray temp files
+1.1.0
+1.1.0'
+
+# Ignore common jupyter checkpoints
+.ipynb_checkpoints/

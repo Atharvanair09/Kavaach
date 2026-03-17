@@ -1,18 +1,3 @@
-// ============================================================
-//  SafeText — Complete Single-File Flutter Application
-//  A discreet emergency support app for women
-//  All screens, navigation, animations, and state in one file
-// ============================================================
-//
-//  pubspec.yaml dependencies required:
-//  dependencies:
-//    flutter:
-//      sdk: flutter
-//    google_fonts: ^6.1.0
-//
-//  Run: flutter run lib/main.dart
-// ============================================================
-
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -33,36 +18,36 @@ void main() {
 
 class ST {
   // Backgrounds
-  static const bg = Color(0xFF080B14);
-  static const bgCard = Color(0xFF0D1220);
-  static const surface = Color(0xFF111827);
-  static const surfaceHover = Color(0xFF1A2540);
+  static const bg = Color(0xFF0F172A);
+  static const bgCard = Color(0xFF1E293B);
+  static const surface = Color(0xFF334155);
+  static const surfaceHover = Color(0xFF475569);
 
   // Accents
-  static const purple = Color(0xFF7C5CFC);
-  static const purpleLight = Color(0xFFA78BFA);
-  static const purpleDim = Color(0x1F7C5CFC);
-  static const pink = Color(0xFFF472B6);
-  static const pinkDim = Color(0x26F472B6);
-  static const pinkGlow = Color(0x59F472B6);
-  static const teal = Color(0xFF2DD4BF);
-  static const tealDim = Color(0x262DD4BF);
-  static const amber = Color(0xFFFBBF24);
-  static const amberDim = Color(0x26FBBF24);
+  static const purple = Color(0xFF10B981);
+  static const purpleLight = Color(0xFF34D399);
+  static const purpleDim = Color(0x1F10B981);
+  static const pink = Color(0xFF3B82F6);
+  static const pinkDim = Color(0x263B82F6);
+  static const pinkGlow = Color(0x593B82F6);
+  static const teal = Color(0xFF8B5CF6);
+  static const tealDim = Color(0x268B5CF6);
+  static const amber = Color(0xFFF59E0B);
+  static const amberDim = Color(0x26F59E0B);
 
   // Text
-  static const textPrimary = Color(0xFFF1F5F9);
-  static const textSecondary = Color(0xFF94A3B8);
-  static const textMuted = Color(0xFF4B5563);
+  static const textPrimary = Color(0xFFF8FAFC);
+  static const textSecondary = Color(0xFFCBD5E1);
+  static const textMuted = Color(0xFF64748B);
 
   // Borders
-  static const border = Color(0x1494A3B8);
-  static const borderGlow = Color(0x4D7C5CFC);
+  static const border = Color(0x1F94A3B8);
+  static const borderGlow = Color(0x4D10B981);
 
   // Risk colours
-  static const riskLow = teal;
+  static const riskLow = purple;
   static const riskMed = amber;
-  static const riskHigh = pink;
+  static const riskHigh = Color(0xFFEF4444);
 
   // Gradients
   static const gradPrimary = LinearGradient(
@@ -71,26 +56,26 @@ class ST {
     end: Alignment.bottomRight,
   );
   static const gradPurple = LinearGradient(
-    colors: [Color(0xFF7C5CFC), Color(0xFFA78BFA)],
+    colors: [Color(0xFF10B981), Color(0xFF3B82F6)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   static const gradBubbleUser = LinearGradient(
-    colors: [Color(0xFF7C5CFC), Color(0xFFA78BFA)],
+    colors: [Color(0xFF10B981), Color(0xFF34D399)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   // Typography helpers
   static TextStyle display(double size, {FontWeight weight = FontWeight.w800, Color color = textPrimary}) =>
-      GoogleFonts.syne(fontSize: size, fontWeight: weight, color: color, letterSpacing: -0.5);
+      GoogleFonts.outfit(fontSize: size, fontWeight: weight, color: color, letterSpacing: -0.5);
 
   static TextStyle body(double size, {FontWeight weight = FontWeight.w400, Color color = textPrimary}) =>
-      GoogleFonts.dmSans(fontSize: size, fontWeight: weight, color: color);
+      GoogleFonts.inter(fontSize: size, fontWeight: weight, color: color);
 
   // Glassmorphism decoration
   static BoxDecoration glass({Color? borderColor, double radius = 16}) => BoxDecoration(
-    color: const Color(0xB8080B14),
+    color: const Color(0xB80F172A),
     borderRadius: BorderRadius.circular(radius),
     border: Border.all(color: borderColor ?? border, width: 1),
   );
@@ -120,7 +105,7 @@ class SafeTextApp extends StatelessWidget {
           secondary: ST.pink,
           surface: ST.surface,
         ),
-        textTheme: GoogleFonts.dmSansTextTheme(ThemeData.dark().textTheme),
+        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
         pageTransitionsTheme: const PageTransitionsTheme(
