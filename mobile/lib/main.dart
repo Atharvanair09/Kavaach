@@ -878,6 +878,70 @@ class _PinScreenState extends State<PinScreen> {
     if (pin.isNotEmpty) setState(() => pin.removeLast());
   }
 
+  void _triggerSOS(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        backgroundColor: ST.surfaceContainerLowest,
+        shape: RoundedRectangleBorder(borderRadius: ST.radiusMd),
+        icon: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: ST.tertiaryFixed,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.sos, color: ST.tertiary, size: 30),
+        ),
+        title: const Text(
+          'SOS Alert Sent',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: 'Rockwell',
+            fontWeight: FontWeight.w700,
+            fontSize: 22,
+            color: ST.onSurface,
+          ),
+        ),
+        content: const Text(
+          'Your emergency contacts and location have been shared silently. Help is on the way.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            color: ST.onSurfaceVariant,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ST.tertiary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: ST.radiusFull),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'OK, I\'m Safe Now',
+                style: TextStyle(
+                  fontFamily: 'Bernard MT Condensed',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+        actionsAlignment: MainAxisAlignment.center,
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -986,7 +1050,7 @@ class _PinScreenState extends State<PinScreen> {
                       ],
                     ),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 36),
+                        horizontal: 32, vertical: 24),
                     child: Column(
                       children: [
                         // Dots
@@ -1009,11 +1073,11 @@ class _PinScreenState extends State<PinScreen> {
                             );
                           }),
                         ),
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 24),
                         // Numpad
                         ...List.generate(3, (row) {
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 20),
+                            padding: const EdgeInsets.only(bottom: 12),
                             child: Row(
                               mainAxisAlignment:
                               MainAxisAlignment.spaceEvenly,
@@ -1056,42 +1120,56 @@ class _PinScreenState extends State<PinScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
-                // Biometric
-                Column(
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: ST.primary,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: ST.primary.withOpacity(0.4),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
+                const SizedBox(height: 20),
+                // Biometric + SOS side by side
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 48),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // SOS Button
+                      _SosButton(onConfirmedSOS: () => _triggerSOS(context)),
+                      const SizedBox(width: 44),
+                      // Biometric
+                      Column(
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: ST.primary,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: ST.primary.withOpacity(0.4),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.face,
+                                color: Colors.white, size: 28),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Tap for Biometric\nEntry',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: ST.secondary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.face,
-                          color: Colors.white, size: 28),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Tap for Biometric Entry',
-                      style: TextStyle(
-                        color: ST.secondary,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const Spacer(),
                 // Privacy tip
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 32),
+                  padding: const EdgeInsets.only(bottom: 24),
                   child: Column(
                     children: [
                       Container(
@@ -1173,6 +1251,160 @@ class _NumKey extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─── SOS Button ───────────────────────────────────────────────────────────────
+class _SosButton extends StatefulWidget {
+  final VoidCallback onConfirmedSOS;
+  const _SosButton({required this.onConfirmedSOS});
+
+  @override
+  State<_SosButton> createState() => _SosButtonState();
+}
+
+class _SosButtonState extends State<_SosButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseCtrl;
+  late Animation<double> _pulseAnim;
+  bool _holding = false;
+  double _holdProgress = 0.0;
+  Timer? _holdTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    _holdTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startHold() {
+    setState(() {
+      _holding = true;
+      _holdProgress = 0.0;
+    });
+    const steps = 30;
+    int count = 0;
+    _holdTimer = Timer.periodic(const Duration(milliseconds: 50), (t) {
+      count++;
+      setState(() => _holdProgress = count / steps);
+      if (count >= steps) {
+        t.cancel();
+        setState(() {
+          _holding = false;
+          _holdProgress = 0.0;
+        });
+        HapticFeedback.heavyImpact();
+        widget.onConfirmedSOS();
+      }
+    });
+  }
+
+  void _cancelHold() {
+    _holdTimer?.cancel();
+    setState(() {
+      _holding = false;
+      _holdProgress = 0.0;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        GestureDetector(
+          onTapDown: (_) => _startHold(),
+          onTapUp: (_) => _cancelHold(),
+          onTapCancel: _cancelHold,
+          child: AnimatedBuilder(
+            animation: _pulseAnim,
+            builder: (_, child) {
+              final scale = _holding ? 0.95 : _pulseAnim.value;
+              return Transform.scale(
+                scale: scale,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Pulsing outer ring
+                    if (!_holding)
+                      Container(
+                        width: 74,
+                        height: 74,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: ST.tertiary.withOpacity(0.15),
+                        ),
+                      ),
+                    // Progress ring when holding
+                    if (_holding)
+                      SizedBox(
+                        width: 74,
+                        height: 74,
+                        child: CircularProgressIndicator(
+                          value: _holdProgress,
+                          strokeWidth: 3,
+                          backgroundColor: ST.tertiaryFixed,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                              ST.tertiary),
+                        ),
+                      ),
+                    // Main button
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: ST.tertiary,
+                        boxShadow: [
+                          BoxShadow(
+                            color: ST.tertiary.withOpacity(0.45),
+                            blurRadius: 18,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'SOS',
+                          style: TextStyle(
+                            fontFamily: 'Bernard MT Condensed',
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            color: Colors.white,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _holding ? 'Hold to send SOS…' : 'Hold for Emergency SOS',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: _holding ? ST.tertiary : ST.onSurfaceVariant.withOpacity(0.7),
+          ),
+        ),
+      ],
     );
   }
 }
