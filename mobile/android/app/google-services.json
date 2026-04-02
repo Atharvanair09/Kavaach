@@ -1,33 +1,41 @@
 {
   "project_info": {
-    "project_number": "383341250956",
-    "project_id": "ai-studio-applet-webapp-7b76a",
-    "storage_bucket": "ai-studio-applet-webapp-7b76a.firebasestorage.app"
+    "project_number": "851304119288",
+    "project_id": "kavaach-ee691",
+    "storage_bucket": "kavaach-ee691.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:383341250956:android:681806bbfc0f51623e6ea9",
+        "mobilesdk_app_id": "1:851304119288:android:39ac9be5d978ec8efbb40d",
         "android_client_info": {
-          "package_name": "com.example.mobile"
+          "package_name": "com.kavaach.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "383341250956-doc0hqekq2njvg1r88dh3pvlhpfit53s.apps.googleusercontent.com",
+          "client_id": "851304119288-v7cp0m2ockil2t2lqh512q7vgr91lm0n.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kavaach.app",
+            "certificate_hash": "29e3b5846392de976bc5313d6fe5337578ad1f08"
+          }
+        },
+        {
+          "client_id": "851304119288-cn59ifp4uth5qd90i9443g4embck3t87.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyB2KtZgbtqpzlHMgxGd5y9ZqmcrY2_tD4M"
+          "current_key": "AIzaSyBDvJ-EVsgZBmW4QGXOLnp-E88tUuYyeqE"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "383341250956-doc0hqekq2njvg1r88dh3pvlhpfit53s.apps.googleusercontent.com",
+              "client_id": "851304119288-cn59ifp4uth5qd90i9443g4embck3t87.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

@@ -1,5 +1,6 @@
 #Node.js
 backend/node_modules
+backend/users.json
 
 #Flutter
 mobile/.dart_tool/
@@ -7,6 +8,7 @@ mobile/.packages
 mobile/build/
 mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
+mobile/android/app/google-services.json
 
 #Flutter generated
 mobile/ios/Flutter/Flutter.framework
@@ -14,3 +16,8 @@ mobile/ios/Flutter/Flutter.podspec
 mobile/ios/Flutter/Generated.xcconfig
 mobile/ios/Flutter/Generated.xcconfig
 mobile/.metadata
+mobile/pubspec.lock
+mobile/android/build/
+
+.env
+.idea/

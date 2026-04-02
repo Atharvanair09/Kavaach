@@ -1,4 +1,4 @@
-package com.example.mobile
+package com.kavaach.app
 
 import io.flutter.embedding.android.FlutterActivity
 

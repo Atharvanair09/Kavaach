@@ -1,13 +1,20 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'auth_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'auth_gate.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final hasToken = await AuthService.hasToken();
+  await Firebase.initializeApp();
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
   ));
-  runApp(const SafeTextApp());
+  runApp(SafeTextApp(hasToken: hasToken));
 }
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
@@ -59,7 +66,8 @@ class ST {
 
 // ─── App Root ─────────────────────────────────────────────────────────────────
 class SafeTextApp extends StatelessWidget {
-  const SafeTextApp({super.key});
+  final bool hasToken;
+  const SafeTextApp({super.key, required this.hasToken});
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +84,7 @@ class SafeTextApp extends StatelessWidget {
         fontFamily: 'Rockwell',
         useMaterial3: true,
       ),
-      home: const OnboardingScreen1(),
+      home: hasToken ? const PinScreen() : const OnboardingScreen1(),
     );
   }
 }
@@ -787,7 +795,7 @@ class OnboardingScreen3 extends StatelessWidget {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => const PinScreen()),
+                              builder: (_) => const SignUpScreen()),
                         ),
                         child: Container(
                           height: 52,
@@ -825,7 +833,11 @@ class OnboardingScreen3 extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const LoginScreen()),
+                        ),
                         child: const Text(
                           'Restore existing account',
                           style: TextStyle(
@@ -847,6 +859,965 @@ class OnboardingScreen3 extends StatelessWidget {
   }
 }
 
+// ─── Login Screen ─────────────────────────────────────────────────────────────
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _obscurePassword = true;
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFEEF3FA),
+      body: Stack(
+        children: [
+          // Decorative orbs
+          Positioned(
+            top: -80,
+            right: -80,
+            child: Container(
+              width: 260,
+              height: 260,
+              decoration: BoxDecoration(
+                color: ST.primary.withOpacity(0.05),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            top: MediaQuery.of(context).size.height * 0.45,
+            left: -130,
+            child: Container(
+              width: 320,
+              height: 320,
+              decoration: BoxDecoration(
+                color: ST.tertiary.withOpacity(0.04),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                // Top bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.shield, color: ST.primary, size: 22),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Sanctuary',
+                            style: TextStyle(
+                              fontFamily: 'Bernard MT Condensed',
+                              fontWeight: FontWeight.w700,
+                              fontSize: 17,
+                              color: ST.primary,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: ST.surfaceContainerLow.withOpacity(0.85),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.info_outline, color: ST.onSurfaceVariant, size: 18),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 32),
+                        // Logo
+                        Center(
+                          child: Column(
+                            children: [
+                              Text(
+                                'SafeText',
+                                style: TextStyle(
+                                  fontFamily: 'Rockwell',
+                                  fontStyle: FontStyle.italic,
+                                  fontSize: 48,
+                                  fontWeight: FontWeight.w400,
+                                  color: ST.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                width: 48,
+                                height: 3,
+                                decoration: BoxDecoration(
+                                  color: ST.primary.withOpacity(0.2),
+                                  borderRadius: ST.radiusFull,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+                        // Greeting
+                        const Text(
+                          'Welcome Back',
+                          style: TextStyle(
+                            fontFamily: 'Rockwell',
+                            fontSize: 32,
+                            fontWeight: FontWeight.w700,
+                            color: ST.onSurface,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Enter your credentials to access your secure vault.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: ST.secondary,
+                            height: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+                        // Email field
+                        _UnderlineField(
+                          controller: _emailController,
+                          hint: 'Email Address',
+                          icon: Icons.mail_outline,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 28),
+                        // Password field
+                        _UnderlinePasswordField(
+                          controller: _passwordController,
+                          obscure: _obscurePassword,
+                          onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                        const SizedBox(height: 16),
+                        // Forgot password
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {},
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: Size.zero,
+                            ),
+                            child: const Text(
+                              'Forgot Password?',
+                              style: TextStyle(
+                                color: ST.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        // Login button
+                        GestureDetector(
+                          onTap: () async {
+                            try {
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (_) => const Center(child: CircularProgressIndicator()),
+                              );
+                              final result = await AuthService.signInWithEmail(
+                                _emailController.text.trim(),
+                                _passwordController.text,
+                              );
+                              Navigator.pop(context); // Remove progress indicator
+                              if (result != null) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                                );
+                              }
+                            } catch (e) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Login failed: $e')),
+                              );
+                            }
+                          },
+                          child: Container(
+                            height: 56,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [ST.primary, ST.primaryContainer],
+                              ),
+                              borderRadius: ST.radiusFull,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: ST.primary.withOpacity(0.28),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Login',
+                                  style: TextStyle(
+                                    fontFamily: 'Bernard MT Condensed',
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 18,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Icon(Icons.arrow_forward, color: Colors.white, size: 20),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        // Google Login
+                        GestureDetector(
+                          onTap: () async {
+                            try {
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (_) => const Center(child: CircularProgressIndicator()),
+                              );
+                              final result = await AuthService.signInWithGoogle();
+                              Navigator.pop(context); // Remove progress indicator
+                              if (result != null) {
+                                // Navigate on success
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                                );
+                              }
+                            } catch (e) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Login failed: $e')),
+                              );
+                            }
+                          },
+                          child: Container(
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: ST.radiusMd,
+                              border: Border.all(color: ST.outlineVariant.withOpacity(0.5)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.rocket_launch, size: 20, color: ST.primary),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Continue with Google',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: ST.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Biometrics
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const HomeScreen()),
+                          ),
+                          child: Container(
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: ST.surfaceContainerLowest,
+                              borderRadius: ST.radiusMd,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.fingerprint, color: ST.primary, size: 22),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Or login with Biometrics',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: ST.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        // Sign up link
+                        Center(
+                          child: RichText(
+                            text: TextSpan(
+                              style: const TextStyle(fontSize: 13, color: ST.secondary),
+                              children: [
+                                const TextSpan(text: "Don't have an account? "),
+                                WidgetSpan(
+                                  child: GestureDetector(
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const SignUpScreen()),
+                                    ),
+                                    child: const Text(
+                                      'Sign Up',
+                                      style: TextStyle(
+                                        color: ST.primary,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+                ),
+                // Quick Exit footer
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Column(
+                    children: [
+                      GestureDetector(
+                        onTap: () {},
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: ST.tertiary.withOpacity(0.1),
+                            borderRadius: ST.radiusFull,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.logout, color: ST.tertiary, size: 16),
+                              const SizedBox(width: 8),
+                              Text(
+                                'QUICK EXIT',
+                                style: TextStyle(
+                                  fontFamily: 'Bernard MT Condensed',
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11,
+                                  letterSpacing: 2,
+                                  color: ST.tertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.enhanced_encryption_outlined, color: ST.outline.withOpacity(0.3), size: 16),
+                          const SizedBox(width: 24),
+                          Icon(Icons.verified_user_outlined, color: ST.outline.withOpacity(0.3), size: 16),
+                          const SizedBox(width: 24),
+                          Icon(Icons.vpn_key_outlined, color: ST.outline.withOpacity(0.3), size: 16),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Underline Input Field ─────────────────────────────────────────────────────
+class _UnderlineField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final IconData icon;
+  final TextInputType keyboardType;
+
+  const _UnderlineField({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    this.keyboardType = TextInputType.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12, right: 10),
+          child: Icon(icon, color: ST.outlineVariant, size: 20),
+        ),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            style: const TextStyle(fontSize: 15, color: ST.onSurface),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: ST.outlineVariant.withOpacity(0.7), fontSize: 15),
+              border: const UnderlineInputBorder(
+                borderSide: BorderSide(color: Color(0xFFDDE0EC), width: 1.5),
+              ),
+              enabledBorder: const UnderlineInputBorder(
+                borderSide: BorderSide(color: Color(0xFFDDE0EC), width: 1.5),
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: ST.primary, width: 2),
+              ),
+              contentPadding: const EdgeInsets.only(bottom: 10),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _UnderlinePasswordField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool obscure;
+  final VoidCallback onToggle;
+
+  const _UnderlinePasswordField({
+    required this.controller,
+    required this.obscure,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12, right: 10),
+          child: Icon(Icons.lock_outline, color: ST.outlineVariant, size: 20),
+        ),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            obscureText: obscure,
+            style: const TextStyle(fontSize: 15, color: ST.onSurface),
+            decoration: InputDecoration(
+              hintText: 'Password',
+              hintStyle: TextStyle(color: ST.outlineVariant.withOpacity(0.7), fontSize: 15),
+              border: const UnderlineInputBorder(
+                borderSide: BorderSide(color: Color(0xFFDDE0EC), width: 1.5),
+              ),
+              enabledBorder: const UnderlineInputBorder(
+                borderSide: BorderSide(color: Color(0xFFDDE0EC), width: 1.5),
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: ST.primary, width: 2),
+              ),
+              contentPadding: const EdgeInsets.only(bottom: 10),
+              suffixIcon: IconButton(
+                onPressed: onToggle,
+                icon: Icon(
+                  obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  color: ST.outlineVariant,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Sign Up Screen ────────────────────────────────────────────────────────────
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
+
+  @override
+  State<SignUpScreen> createState() => _SignUpScreenState();
+}
+
+class _SignUpScreenState extends State<SignUpScreen> {
+  bool _obscurePassword = true;
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _numberController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _numberController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: ST.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          child: Column(
+            children: [
+              // Header
+              Column(
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: ST.primary.withOpacity(0.07),
+                      borderRadius: ST.radiusSm,
+                    ),
+                    child: const Icon(Icons.shield_outlined, color: ST.primary, size: 32),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'SafeText',
+                    style: TextStyle(
+                      fontFamily: 'Rockwell',
+                      fontStyle: FontStyle.italic,
+                      fontSize: 38,
+                      fontWeight: FontWeight.w700,
+                      color: ST.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Create Your Secure Account',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Rockwell',
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: ST.onSurface,
+                      height: 1.2,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Your privacy is our priority. No data is stored locally.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: ST.onSurfaceVariant,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+              // Form card
+              Container(
+                decoration: BoxDecoration(
+                  color: ST.surfaceContainerLowest,
+                  borderRadius: ST.radiusMd,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 32,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Full Name
+                    _FormLabel(label: 'FULL NAME'),
+                    const SizedBox(height: 6),
+                    _FormField(
+                      controller: _nameController,
+                      hint: 'Enter your name',
+                      icon: Icons.person_outline,
+                    ),
+                    const SizedBox(height: 20),
+                    // Email
+                    _FormLabel(label: 'EMAIL ADDRESS'),
+                    const SizedBox(height: 6),
+                    _FormField(
+                      controller: _emailController,
+                      hint: 'hello@safetext.io',
+                      icon: Icons.alternate_email,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 20),
+                    // Number
+                    _FormLabel(label: 'MOBILE NUMBER'),
+                    const SizedBox(height: 6),
+                    _FormField(
+                      controller: _numberController,
+                      hint: 'Enter your phone number',
+                      icon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 20),
+                    // Password
+                    _FormLabel(label: 'PASSWORD'),
+                    const SizedBox(height: 6),
+                    _FormPasswordField(
+                      controller: _passwordController,
+                      obscure: _obscurePassword,
+                      onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                    const SizedBox(height: 28),
+                        // CTA
+                        GestureDetector(
+                          onTap: () async {
+                            try {
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (_) => const Center(child: CircularProgressIndicator()),
+                              );
+                              final result = await AuthService.signUpWithEmail(
+                                _nameController.text.trim(),
+                                _emailController.text.trim(),
+                                _numberController.text.trim(),
+                                _passwordController.text,
+                              );
+                              Navigator.pop(context); // Remove progress indicator
+                              if (result != null) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                                );
+                              }
+                            } catch (e) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Sign up failed: $e')),
+                              );
+                            }
+                          },
+                          child: Container(
+                            height: 56,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [ST.primary, ST.primaryContainer],
+                              ),
+                              borderRadius: ST.radiusFull,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: ST.primary.withOpacity(0.28),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Create Account',
+                              style: TextStyle(
+                                fontFamily: 'Bernard MT Condensed',
+                                fontWeight: FontWeight.w700,
+                                fontSize: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Icon(Icons.arrow_forward, color: Colors.white, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Google Sign Up
+                    GestureDetector(
+                      onTap: () async {
+                        try {
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (_) => const Center(child: CircularProgressIndicator()),
+                          );
+                          final result = await AuthService.signInWithGoogle();
+                          Navigator.pop(context); // Remove progress indicator
+                          if (result != null) {
+                            // Navigate on success
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (_) => const HomeScreen()),
+                            );
+                          }
+                        } catch (e) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Sign up failed: $e')),
+                          );
+                        }
+                      },
+                      child: Container(
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: ST.radiusMd,
+                          border: Border.all(color: ST.outlineVariant.withOpacity(0.5)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 12,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Image.network('https://cdn-icons-png.flaticon.com/512/3002/3002219.png', width: 20, height: 20),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Sign up with Google',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: ST.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Trust badge
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: ST.secondaryFixed,
+                          borderRadius: ST.radiusFull,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.verified_user, color: ST.onSurfaceVariant, size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              'PRIVACY PROTOCOL ACTIVE',
+                              style: TextStyle(
+                                fontFamily: 'Bernard MT Condensed',
+                                fontWeight: FontWeight.w700,
+                                fontSize: 10,
+                                letterSpacing: 1.5,
+                                color: ST.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
+              // Login link
+              RichText(
+                text: TextSpan(
+                  style: const TextStyle(fontSize: 13, color: ST.onSurfaceVariant),
+                  children: [
+                    const TextSpan(text: 'Already have an account? '),
+                    WidgetSpan(
+                      child: GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen()),
+                        ),
+                        child: const Text(
+                          'Log In',
+                          style: TextStyle(
+                            color: ST.primary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+              // Decorative icons
+              Opacity(
+                opacity: 0.08,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.security, size: 72, color: ST.onSurface),
+                    const SizedBox(width: 16),
+                    Icon(Icons.fingerprint, size: 72, color: ST.onSurface),
+                    const SizedBox(width: 16),
+                    Icon(Icons.enhanced_encryption, size: 72, color: ST.onSurface),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FormLabel extends StatelessWidget {
+  final String label;
+  const _FormLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontFamily: 'Bernard MT Condensed',
+        fontWeight: FontWeight.w700,
+        fontSize: 10,
+        letterSpacing: 2,
+        color: ST.outline,
+      ),
+    );
+  }
+}
+
+class _FormField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final IconData icon;
+  final TextInputType keyboardType;
+
+  const _FormField({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    this.keyboardType = TextInputType.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: ST.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        style: const TextStyle(fontSize: 14, color: ST.onSurface),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: ST.outlineVariant, fontSize: 14),
+          prefixIcon: Icon(icon, color: ST.outlineVariant, size: 20),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+      ),
+    );
+  }
+}
+
+class _FormPasswordField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool obscure;
+  final VoidCallback onToggle;
+
+  const _FormPasswordField({
+    required this.controller,
+    required this.obscure,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: ST.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscure,
+        style: const TextStyle(fontSize: 14, color: ST.onSurface),
+        decoration: InputDecoration(
+          hintText: '••••••••••••',
+          hintStyle: TextStyle(color: ST.outlineVariant, fontSize: 14),
+          prefixIcon: Icon(Icons.lock_outline, color: ST.outlineVariant, size: 20),
+          suffixIcon: IconButton(
+            onPressed: onToggle,
+            icon: Icon(
+              obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+              color: ST.outlineVariant,
+              size: 20,
+            ),
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Screen 4: PIN Entry ──────────────────────────────────────────────────────
 class PinScreen extends StatefulWidget {
   const PinScreen({super.key});
@@ -862,12 +1833,32 @@ class _PinScreenState extends State<PinScreen> {
     if (pin.length < 4) {
       setState(() => pin.add(d));
       if (pin.length == 4) {
-        Future.delayed(const Duration(milliseconds: 350), () {
-          if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
-            );
+        Future.delayed(const Duration(milliseconds: 350), () async {
+          final savedPin = await AuthService.getAppPin();
+          final savedDecoyPin = await AuthService.getDecoyPin();
+          final enteredPin = pin.join();
+
+          if (savedDecoyPin != null && savedDecoyPin.isNotEmpty && enteredPin == savedDecoyPin) {
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const FakeAppScreen()),
+              );
+            }
+          } else if (enteredPin == savedPin) {
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomeScreen()),
+              );
+            }
+          } else {
+            if (mounted) {
+              setState(() => pin.clear());
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Incorrect PIN')),
+              );
+            }
           }
         });
       }
@@ -1208,6 +2199,32 @@ class _PinScreenState extends State<PinScreen> {
                             fontSize: 11,
                             color: ST.secondary.withOpacity(0.6),
                             height: 1.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () async {
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (_) => const Center(child: CircularProgressIndicator()),
+                          );
+                          await AuthService.signOut();
+                          if (context.mounted) {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(builder: (_) => const LoginScreen()),
+                              (route) => false,
+                            );
+                          }
+                        },
+                        child: const Text(
+                          'Forgot PIN? Sign out',
+                          style: TextStyle(
+                            color: ST.secondary,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),
@@ -2733,11 +3750,35 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _decoyPin = true;
+  bool _decoyPin = false;
   bool _shakeToAlert = true;
   bool _disguiseMode = false;
   bool _silentAlerts = true;
   bool _checkinReminders = true;
+  bool _enterPin = true;
+
+  Map<String, dynamic>? _user;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+    _loadDecoyPinStatus();
+  }
+
+  Future<void> _loadDecoyPinStatus() async {
+    final hasDecoy = await AuthService.hasDecoyPin();
+    if (mounted) setState(() => _decoyPin = hasDecoy);
+  }
+
+  Future<void> _loadUser() async {
+    final user = await AuthService.getUser();
+    setState(() {
+      _user = user;
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2795,6 +3836,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: 'Home, Work added',
                   onTap: () => _showComingSoon(context),
                 ),
+                _buildNavRow(
+                  icon: Icons.lock_outline,
+                  iconBg: const Color(0xFFFAEEDA),
+                  iconColor: const Color(0xFF854F0B),
+                  label: 'Enter PIN',
+                  subtitle: 'Seceure your app using PIN',
+                  onTap: () => _showPinScreen(context),
+                ),
                 _buildToggleRow(
                   icon: Icons.lock_outline,
                   iconBg: const Color(0xFFFAEEDA),
@@ -2802,7 +3851,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   label: 'Decoy PIN',
                   subtitle: 'Triggers fake app screen',
                   value: _decoyPin,
-                  onChanged: (v) => setState(() => _decoyPin = v),
+                  onChanged: (v) {
+                    if (v) {
+                      _showDecoyPinSetup(context);
+                    } else {
+                      AuthService.clearDecoyPin();
+                      setState(() => _decoyPin = false);
+                    }
+                  },
                 ),
                 _buildToggleRow(
                   icon: Icons.sensors,
@@ -2900,6 +3956,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // ── Builder helpers ─────────────────────────────────────────────────────────
 
   Widget _buildProfileCard() {
+    if (_isLoading) return const SizedBox.shrink();
+    if (_user == null) return const SizedBox.shrink();
+
+    final name = _user!['name']?.toString() ?? 'Unknown User';
+    final email = _user!['email']?.toString() ?? '';
+    final nameParts = name.trim().split(RegExp(r'\s+'));
+    String initials = '';
+    if (nameParts.isNotEmpty) {
+      initials += nameParts[0].isNotEmpty ? nameParts[0][0].toUpperCase() : '';
+      if (nameParts.length > 1) {
+        initials += nameParts[1].isNotEmpty ? nameParts[1][0].toUpperCase() : '';
+      }
+    }
+
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 20, 20, 4),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
@@ -2923,10 +3993,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: ST.primaryFixed,
               shape: BoxShape.circle,
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'AK',
-                style: TextStyle(
+                initials,
+                style: const TextStyle(
                   fontFamily: 'Bernard MT Condensed',
                   fontWeight: FontWeight.w700,
                   fontSize: 18,
@@ -2940,9 +4010,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Anika K.',
-                  style: TextStyle(
+                Text(
+                  name,
+                  style: const TextStyle(
                     fontFamily: 'Bernard MT Condensed',
                     fontWeight: FontWeight.w700,
                     fontSize: 17,
@@ -2951,8 +4021,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'anika@email.com',
-                  style: TextStyle(
+                  email,
+                  style: const TextStyle(
                     fontSize: 13,
                     color: ST.onSurfaceVariant,
                   ),
@@ -3142,8 +4212,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildDeleteRow(BuildContext context) {
+    bool isLoggedIn = _user != null;
     return InkWell(
-      onTap: () => _showDeleteConfirm(context),
+      onTap: () async {
+        if (isLoggedIn) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => const Center(child: CircularProgressIndicator()),
+          );
+          await AuthService.signOut();
+          if (context.mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              (route) => false,
+            );
+          }
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+          );
+        }
+      },
       child: Container(
         color: ST.surfaceContainerLowest,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -3153,20 +4245,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFDADB),
+                color: isLoggedIn ? const Color(0xFFFFDADB) : ST.primaryFixed,
                 borderRadius: BorderRadius.circular(10),
               ),
               child:
-              const Icon(Icons.delete_outline, color: ST.tertiary, size: 18),
+              Icon(isLoggedIn ? Icons.logout : Icons.login, color: isLoggedIn ? ST.tertiary : ST.primary, size: 18),
             ),
             const SizedBox(width: 14),
-            const Text(
-              'Delete Account & All Data',
+            Text(
+              isLoggedIn ? 'LogOut' : 'LogIn',
               style: TextStyle(
                 fontFamily: 'Bernard MT Condensed',
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
-                color: ST.tertiary,
+                color: isLoggedIn ? ST.tertiary : ST.primary,
               ),
             ),
           ],
@@ -3176,8 +4268,198 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // ── Bottom sheets & dialogs ─────────────────────────────────────────────────
+  void _showPinScreen(BuildContext context) {
+    final pinController = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: ST.surfaceContainerLowest,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 20,
+          right: 20,
+          top: 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter PIN',
+              style: TextStyle(
+                fontFamily: 'Bernard MT Condensed',
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                color: ST.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Secure your app using PIN',
+              style: TextStyle(
+                fontSize: 14,
+                color: ST.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: pinController,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              decoration: InputDecoration(
+                labelText: 'PIN',
+                hintText: 'Enter a 4-digit PIN',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final pin = pinController.text.trim();
+                  if (pin.length == 4) {
+                    await AuthService.saveAppPin(pin);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('PIN successfully saved!')),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('PIN must be 4 digits.')),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ST.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Save PIN',
+                  style: TextStyle(
+                    fontFamily: 'Bernard MT Condensed',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
 
-  void _showComingSoon(BuildContext context) {
+  void _showDecoyPinSetup(BuildContext context) {
+    final pinController = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: ST.surfaceContainerLowest,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 20,
+          right: 20,
+          top: 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Set Decoy PIN',
+              style: TextStyle(
+                fontFamily: 'Bernard MT Condensed',
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                color: ST.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Enter a secondary PIN to open the fake app screen.',
+              style: TextStyle(
+                fontSize: 14,
+                color: ST.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: pinController,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              decoration: InputDecoration(
+                labelText: 'Decoy PIN',
+                hintText: 'Enter a 4-digit PIN',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final pin = pinController.text.trim();
+                  if (pin.length == 4) {
+                    await AuthService.saveDecoyPin(pin);
+                    if (mounted) setState(() => _decoyPin = true);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Decoy PIN saved!')),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('PIN must be 4 digits.')),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ST.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Enable Decoy Mode',
+                  style: TextStyle(
+                    fontFamily: 'Bernard MT Condensed',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }  void _showComingSoon(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Coming soon'),
@@ -3550,3 +4832,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
+
+class FakeAppScreen extends StatelessWidget {
+  const FakeAppScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('My Notes', style: TextStyle(color: Colors.black)),
+        backgroundColor: Colors.yellow[600],
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.black),
+            onPressed: () {},
+          )
+        ],
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: 5,
+        itemBuilder: (context, index) {
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            elevation: 1,
+            color: Colors.yellow[50],
+            child: ListTile(
+              title: Text('Note ${index + 1}'),
+              subtitle: const Text('This is a completely normal note. Nothing to see here.'),
+              trailing: const Icon(Icons.edit_note),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
