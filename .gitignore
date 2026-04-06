@@ -1,6 +1,7 @@
 #Node.js
 backend/node_modules
 backend/users.json
+backend/serviceAccountKey.json
 
 #Flutter
 mobile/.dart_tool/
