@@ -12,7 +12,11 @@ const JWT_SECRET = process.env.JWT_SECRET || "kavaach_super_secret_jwt_key_2026"
 
 const client = new OAuth2Client(CLIENT_ID);
 
+const { db } = require("../firebase");
+
 const usersDbPath = path.join(__dirname, "../users.json");
+
+// --- Helper Functions to Handle Firestore / JSON Fallback ---
 
 // Helper function to read persistent users securely
 function readUsers() {
@@ -26,6 +30,60 @@ function readUsers() {
 // Helper function to save persistent users securely
 function saveUsers(users) {
   fs.writeFileSync(usersDbPath, JSON.stringify(users, null, 2));
+}
+
+// Helper function to fetch a user from Firestore (or fallback JSON)
+async function findUserByEmail(email) {
+  let user = null;
+
+  // 1. Try to find in Firestore
+  if (db) {
+    try {
+      const snapshot = await db.collection("users").where("email", "==", email).get();
+      if (!snapshot.empty) {
+        user = snapshot.docs[0].data();
+      }
+    } catch (e) {
+      console.error("Firestore lookup failed:", e);
+    }
+  }
+  
+  // 2. If not found in Firestore, search in local JSON
+  const users = readUsers();
+  const jsonUser = users.find(u => u.email === email);
+
+  // 3. AUTOMATIC MIGRATION: 
+  // If we found them in JSON but not in Firestore, save them to Firestore now!
+  if (jsonUser && !user && db) {
+    console.log(`Migrating user ${email} from JSON to Firestore...`);
+    user = jsonUser;
+    await storeUser(user); 
+  }
+
+  return user || jsonUser; // Return whichever one we found
+}
+
+// Helper function to save a user to Firestore (and JSON as backup)
+async function storeUser(user) {
+  if (db) {
+    try {
+      // Use Firestore to store or update the user
+      await db.collection("users").doc(user.id).set(user, { merge: true });
+      console.log(`User ${user.email} saved to Firestore successfully.`);
+    } catch (e) {
+      console.error("Firestore save failed:", e);
+    }
+  }
+  
+  // Also save to local JSON for now to ensure no data loss during transition
+  const users = readUsers();
+  const index = users.findIndex(u => u.id === user.id || u.email === user.email);
+  if (index !== -1) {
+    users[index] = { ...users[index], ...user };
+  } else {
+    users.push(user);
+  }
+  saveUsers(users);
 }
 
 router.post("/google", async (req, res) => {
@@ -47,8 +105,7 @@ router.post("/google", async (req, res) => {
     const { sub: googleId, email, name, picture } = payload;
 
     // Check if user exists in database
-    let users = readUsers();
-    let user = users.find(u => u.googleId === googleId || u.email === email);
+    let user = await findUserByEmail(email);
     
     if (!user) {
       // Create a newly registered user
@@ -59,8 +116,7 @@ router.post("/google", async (req, res) => {
         name,
         picture,
       };
-      users.push(user);
-      saveUsers(users);
+      await storeUser(user);
     }
 
     // Generate JWT token for access to our API
@@ -92,8 +148,7 @@ router.post("/signup", async (req, res) => {
     }
 
     // Check if user already exists
-    let users = readUsers();
-    let existingUser = users.find(u => u.email === email);
+    let existingUser = await findUserByEmail(email);
     if (existingUser) {
       return res.status(400).json({ error: "User already exists" });
     }
@@ -108,8 +163,7 @@ router.post("/signup", async (req, res) => {
       password // TODO: encrypt this before saving
     };
     
-    users.push(newUser);
-    saveUsers(users);
+    await storeUser(newUser);
 
     // Generate JWT token
     const sessionToken = jwt.sign(
@@ -139,9 +193,8 @@ router.post("/login", async (req, res) => {
     }
 
     // Find the user
-    let users = readUsers();
-    let user = users.find(u => u.email === email && u.password === password);
-    if (!user) {
+    let user = await findUserByEmail(email);
+    if (!user || user.password !== password) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
