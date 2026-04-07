@@ -18,65 +18,402 @@ class _LocationScreenState extends State<LocationScreen> {
   bool _isLoading = true;
   String? _selectedCategory;
   
-  Set<Marker> _markers = {
-Marker(
-  markerId: const MarkerId('dahisar_ps_east'),
-  position: const LatLng(19.2183, 72.8697), // S.V. Road, Near Union Bank, Dahisar East
-  infoWindow: const InfoWindow(
-    title: 'Dahisar Police Station (East)',
-    snippet: 'S.V. Road, Near Union Bank, Dahisar East - 400068',
-  ),
-  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-),
-
-// 2. M.H.B. Colony Police Station (West)
-Marker(
-  markerId: const MarkerId('mhb_colony_ps'),
-  position: const LatLng(19.2201, 72.8582), // Dr. Vasudevak Shrungi Marg, Dahisar West
-  infoWindow: const InfoWindow(
-    title: 'M.H.B. Colony Police Station',
-    snippet: 'Dr. Vasudevak Shrungi Marg, Dahisar West',
-  ),
-  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-),
-
-// 3. ACP Office - Dahisar Division (within Dahisar PS compound)
-Marker(
-  markerId: const MarkerId('acp_dahisar_division'),
-  position: const LatLng(19.2178, 72.8700), // 1st Floor, Dahisar PS Compound, S.V. Road
-  infoWindow: const InfoWindow(
-    title: 'ACP Office – Dahisar Division',
-    snippet: '1st Floor, Dahisar Police Station Compound, S.V. Road',
-  ),
-  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-),
-
-// 4. DCP Zone 12 Office (Shailendra Nagar, near Dahisar PS)
-Marker(
-  markerId: const MarkerId('dcp_zone_12'),
-  position: const LatLng(19.2190, 72.8695), // Shailendra Nagar, SV Road, Dahisar East
-  infoWindow: const InfoWindow(
-    title: 'DCP Office – Zone 12',
-    snippet: 'Shailendra Nagar, SV Road, Dahisar East - 400068',
-  ),
-  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan),
-),
-
-// 5. Borivali Police Station (closest neighboring station, ~2km south)
-Marker(
-  markerId: const MarkerId('borivali_ps'),
-  position: const LatLng(19.2286, 72.8567), // Opp. Borivali Railway Station, S.V. Road
-  infoWindow: const InfoWindow(
-    title: 'Borivali Police Station',
-    snippet: 'Opp. Borivali Railway Station, S.V. Road, Borivali West - 400092',
-  ),
-  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-),
+  final Set<Marker> _allMarkers = {
+    Marker(
+      markerId: const MarkerId('colaba_police_station'),
+      position: const LatLng(18.9067, 72.8147),
+      infoWindow: const InfoWindow(
+        title: 'Colaba Police Station',
+        snippet: 'Type: POLICE | Contact: 022-22151493',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('azad_maidan_police_station'),
+      position: const LatLng(18.9388, 72.8333),
+      infoWindow: const InfoWindow(
+        title: 'Azad Maidan Police Station',
+        snippet: 'Type: POLICE | Contact: 022-22620697',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('agripada_police_station'),
+      position: const LatLng(18.962, 72.8191),
+      infoWindow: const InfoWindow(
+        title: 'Agripada Police Station',
+        snippet: 'Type: POLICE | Contact: 022-23078213',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('byculla_police_station'),
+      position: const LatLng(18.9726, 72.8368),
+      infoWindow: const InfoWindow(
+        title: 'Byculla Police Station',
+        snippet: 'Type: POLICE | Contact: 022-23027917',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('dadar_police_station'),
+      position: const LatLng(19.0178, 72.8478),
+      infoWindow: const InfoWindow(
+        title: 'Dadar Police Station',
+        snippet: 'Type: POLICE | Contact: 022-24323044',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('dharavi_police_station'),
+      position: const LatLng(19.0387, 72.8536),
+      infoWindow: const InfoWindow(
+        title: 'Dharavi Police Station',
+        snippet: 'Type: POLICE | Contact: 022-24015767',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('bandra_police_station'),
+      position: const LatLng(19.054, 72.8393),
+      infoWindow: const InfoWindow(
+        title: 'Bandra Police Station',
+        snippet: 'Type: POLICE | Contact: 022-26423021',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('andheri__east__police_station'),
+      position: const LatLng(19.1136, 72.8697),
+      infoWindow: const InfoWindow(
+        title: 'Andheri (East) Police Station',
+        snippet: 'Type: POLICE | Contact: 022-26831562',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('juhu_police_station'),
+      position: const LatLng(19.1075, 72.8263),
+      infoWindow: const InfoWindow(
+        title: 'Juhu Police Station',
+        snippet: 'Type: POLICE | Contact: 022-26715000',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('malad__west__police_station'),
+      position: const LatLng(19.1874, 72.8484),
+      infoWindow: const InfoWindow(
+        title: 'Malad (West) Police Station',
+        snippet: 'Type: POLICE | Contact: 022-28821482',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('kandivali__west__police_station'),
+      position: const LatLng(19.205, 72.8457),
+      infoWindow: const InfoWindow(
+        title: 'Kandivali (West) Police Station',
+        snippet: 'Type: POLICE | Contact: 022-28012331',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('borivali_police_station'),
+      position: const LatLng(19.2286, 72.8567),
+      infoWindow: const InfoWindow(
+        title: 'Borivali Police Station',
+        snippet: 'Type: POLICE | Contact: 022-28092331',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('dahisar_police_station'),
+      position: const LatLng(19.2183, 72.8697),
+      infoWindow: const InfoWindow(
+        title: 'Dahisar Police Station',
+        snippet: 'Type: POLICE | Contact: 022-28284024',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('ghatkopar_police_station'),
+      position: const LatLng(19.0863, 72.9076),
+      infoWindow: const InfoWindow(
+        title: 'Ghatkopar Police Station',
+        snippet: 'Type: POLICE | Contact: 022-25012333',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('kurla_police_station'),
+      position: const LatLng(19.0653, 72.8807),
+      infoWindow: const InfoWindow(
+        title: 'Kurla Police Station',
+        snippet: 'Type: POLICE | Contact: 022-25237000',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('worli_police_station'),
+      position: const LatLng(19.0069, 72.8181),
+      infoWindow: const InfoWindow(
+        title: 'Worli Police Station',
+        snippet: 'Type: POLICE | Contact: 022-24955626',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('cuffe_parade_police_station'),
+      position: const LatLng(18.904, 72.8191),
+      infoWindow: const InfoWindow(
+        title: 'Cuffe Parade Police Station',
+        snippet: 'Type: POLICE | Contact: 022-22163200',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('sion_police_station'),
+      position: const LatLng(19.0416, 72.8615),
+      infoWindow: const InfoWindow(
+        title: 'Sion Police Station',
+        snippet: 'Type: POLICE | Contact: 022-24074575',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('chembur_police_station'),
+      position: const LatLng(19.0522, 72.9005),
+      infoWindow: const InfoWindow(
+        title: 'Chembur Police Station',
+        snippet: 'Type: POLICE | Contact: 022-25229345',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('powai_police_station'),
+      position: const LatLng(19.1197, 72.905),
+      infoWindow: const InfoWindow(
+        title: 'Powai Police Station',
+        snippet: 'Type: POLICE | Contact: 022-25702690',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('women_s_helpline_control_room'),
+      position: const LatLng(18.9388, 72.8351),
+      infoWindow: const InfoWindow(
+        title: 'Women\'s Helpline Control Room',
+        snippet: 'Type: POLICE | Contact: 103',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+    ),
+    Marker(
+      markerId: const MarkerId('kem_hospital__parel_'),
+      position: const LatLng(19.0013, 72.8413),
+      infoWindow: const InfoWindow(
+        title: 'KEM Hospital (Parel)',
+        snippet: 'Type: HOSPITAL | Contact: 022-24107000',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+    ),
+    Marker(
+      markerId: const MarkerId('sir_j_j__hospital__byculla_'),
+      position: const LatLng(18.9627, 72.835),
+      infoWindow: const InfoWindow(
+        title: 'Sir J.J. Hospital (Byculla)',
+        snippet: 'Type: HOSPITAL | Contact: 022-23735555',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+    ),
+    Marker(
+      markerId: const MarkerId('byl_nair_hospital__mumbai_central_'),
+      position: const LatLng(18.9699, 72.8196),
+      infoWindow: const InfoWindow(
+        title: 'BYL Nair Hospital (Mumbai Central)',
+        snippet: 'Type: HOSPITAL | Contact: 022-23027600',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+    ),
+    Marker(
+      markerId: const MarkerId('sion_hospital___ltmg__sion_'),
+      position: const LatLng(19.0407, 72.8617),
+      infoWindow: const InfoWindow(
+        title: 'Sion Hospital - LTMG (Sion)',
+        snippet: 'Type: HOSPITAL | Contact: 022-24076381',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+    ),
+    Marker(
+      markerId: const MarkerId('cooper_hospital__vile_parle_'),
+      position: const LatLng(19.1075, 72.8381),
+      infoWindow: const InfoWindow(
+        title: 'Cooper Hospital (Vile Parle)',
+        snippet: 'Type: HOSPITAL | Contact: 022-26207254',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+    ),
+    Marker(
+      markerId: const MarkerId('kasturba_hospital__chinchpokli_'),
+      position: const LatLng(18.9726, 72.8305),
+      infoWindow: const InfoWindow(
+        title: 'Kasturba Hospital (Chinchpokli)',
+        snippet: 'Type: HOSPITAL | Contact: 022-23081500',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+    ),
+    Marker(
+      markerId: const MarkerId('rajawadi_hospital__ghatkopar_east_'),
+      position: const LatLng(19.0761, 72.912),
+      infoWindow: const InfoWindow(
+        title: 'Rajawadi Hospital (Ghatkopar East)',
+        snippet: 'Type: HOSPITAL | Contact: 022-25018000',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+    ),
+    Marker(
+      markerId: const MarkerId('bhabha_hospital__bandra_west_'),
+      position: const LatLng(19.0607, 72.8362),
+      infoWindow: const InfoWindow(
+        title: 'Bhabha Hospital (Bandra West)',
+        snippet: 'Type: HOSPITAL | Contact: 022-26402273',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+    ),
+    Marker(
+      markerId: const MarkerId('bhagwati_hospital__borivali_west_'),
+      position: const LatLng(19.2313, 72.8503),
+      infoWindow: const InfoWindow(
+        title: 'Bhagwati Hospital (Borivali West)',
+        snippet: 'Type: HOSPITAL | Contact: 022-28954747',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+    ),
+    Marker(
+      markerId: const MarkerId('gt_hospital__fort_'),
+      position: const LatLng(18.9366, 72.8349),
+      infoWindow: const InfoWindow(
+        title: 'GT Hospital (Fort)',
+        snippet: 'Type: HOSPITAL | Contact: 022-22621427',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+    ),
+    Marker(
+      markerId: const MarkerId('tata_memorial_hospital__parel_'),
+      position: const LatLng(19.0041, 72.843),
+      infoWindow: const InfoWindow(
+        title: 'Tata Memorial Hospital (Parel)',
+        snippet: 'Type: HOSPITAL | Contact: 022-24177000',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+    ),
+    Marker(
+      markerId: const MarkerId('v_n__desai_hospital__santacruz_east_'),
+      position: const LatLng(19.0822, 72.8559),
+      infoWindow: const InfoWindow(
+        title: 'V.N. Desai Hospital (Santacruz East)',
+        snippet: 'Type: HOSPITAL | Contact: 022-26188080',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+    ),
+    Marker(
+      markerId: const MarkerId('trauma_care_centre___jogeshwari'),
+      position: const LatLng(19.1378, 72.8494),
+      infoWindow: const InfoWindow(
+        title: 'Trauma Care Centre - Jogeshwari',
+        snippet: 'Type: HOSPITAL | Contact: 022-26781234',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+    ),
+    Marker(
+      markerId: const MarkerId('sneha_crisis_centre__santa_cruz_west_'),
+      position: const LatLng(19.0822, 72.8386),
+      infoWindow: const InfoWindow(
+        title: 'SNEHA Crisis Centre (Santa Cruz West)',
+        snippet: 'Type: SHELTER | Contact: 9892278287',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+    ),
+    Marker(
+      markerId: const MarkerId('shantighar_shelter_for_women__andheri_east_'),
+      position: const LatLng(19.1162, 72.8727),
+      infoWindow: const InfoWindow(
+        title: 'Shantighar Shelter for Women (Andheri East)',
+        snippet: 'Type: SHELTER | Contact: 022-28348400',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+    ),
+    Marker(
+      markerId: const MarkerId('urja_trust___shelter_for_homeless_women__dadar_east_'),
+      position: const LatLng(19.0194, 72.8505),
+      infoWindow: const InfoWindow(
+        title: 'Urja Trust - Shelter for Homeless Women (Dadar East)',
+        snippet: 'Type: SHELTER | Contact: 022-24125678',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+    ),
+    Marker(
+      markerId: const MarkerId('bapnu_ghar___women_in_distress__worli_'),
+      position: const LatLng(19.0069, 72.8191),
+      infoWindow: const InfoWindow(
+        title: 'Bapnu Ghar - Women in Distress (Worli)',
+        snippet: 'Type: SHELTER | Contact: 022-24950000',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+    ),
+    Marker(
+      markerId: const MarkerId('apne_aap___women_empowerment__grant_road_'),
+      position: const LatLng(18.964, 72.8178),
+      infoWindow: const InfoWindow(
+        title: 'Apne Aap - Women Empowerment (Grant Road)',
+        snippet: 'Type: SHELTER | Contact: 022-23800000',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+    ),
+    Marker(
+      markerId: const MarkerId('daya_sadan___society_of_helpers_of_mary__dharavi_'),
+      position: const LatLng(19.0387, 72.8536),
+      infoWindow: const InfoWindow(
+        title: 'Daya Sadan - Society of Helpers of Mary (Dharavi)',
+        snippet: 'Type: SHELTER | Contact: 022-24016780',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+    ),
+    Marker(
+      markerId: const MarkerId('kranti___girls_from_difficult_circumstances__kurla_east_'),
+      position: const LatLng(19.0653, 72.8807),
+      infoWindow: const InfoWindow(
+        title: 'Kranti - Girls from Difficult Circumstances (Kurla East)',
+        snippet: 'Type: SHELTER | Contact: 022-25236789',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+    ),
+    Marker(
+      markerId: const MarkerId('sparc_shelter__byculla_'),
+      position: const LatLng(18.9726, 72.8368),
+      infoWindow: const InfoWindow(
+        title: 'SPARC Shelter (Byculla)',
+        snippet: 'Type: SHELTER | Contact: 022-23026000',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+    ),
+    Marker(
+      markerId: const MarkerId('salvation_army___bombay_central'),
+      position: const LatLng(18.9699, 72.8225),
+      infoWindow: const InfoWindow(
+        title: 'Salvation Army - Bombay Central',
+        snippet: 'Type: SHELTER | Contact: 022-23096000',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+    ),
   };
+
+  late Set<Marker> _markers;
 
   @override
   void initState() {
     super.initState();
+    _markers = Set.from(_allMarkers);
     _determinePosition();
   }
 
@@ -99,10 +436,10 @@ Marker(
     if (mounted) {
       setState(() {
         _userPosition = LatLng(position.latitude, position.longitude);
-        _isLoading = true;
+        _isLoading = false; // changed to immediately show fixed markers instead of loading
       });
       _mapController?.animateCamera(CameraUpdate.newLatLng(_userPosition));
-      _fetchAllSafeHavens(_userPosition);
+      // _fetchAllSafeHavens(_userPosition); // disabled so it doesn't instantly wipe the static _markers array
     }
   }
 
@@ -167,13 +504,11 @@ Marker(
     });
 
     try {
-      // 0. Check if location services are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         throw 'Location services are disabled.';
       }
 
-      // 1. Position Fetch: Use last known first, then try fresh lock with longer timeout (8s)
       Position? currentPos = await Geolocator.getLastKnownPosition();
       LatLng fetchPos;
 
@@ -187,11 +522,10 @@ Marker(
           );
           fetchPos = LatLng(currentPos.latitude, currentPos.longitude);
         } catch (_) {
-          // If fresh fetch fails (e.g. timeout), fallback to existing state if it's not default Delhi
           if (_userPosition.latitude != 28.6139) {
             fetchPos = _userPosition;
           } else {
-            rethrow; // Truly unable to get any location
+            rethrow; 
           }
         }
       }
@@ -200,76 +534,66 @@ Marker(
         setState(() {
           _userPosition = fetchPos;
         });
-        _mapController?.animateCamera(CameraUpdate.newLatLng(_userPosition));
       }
       
-      // 2. Adaptive Radius Search: Start at 2km, then 5km, 10km, and finally 20km
-      List<Map<String, dynamic>> places = [];
-      List<int> radii = [2000, 5000, 10000, 20000];
-      int finalRadius = 2000;
+      // Map category to marker type keyword
+      String matchType = '';
+      if (category == 'Police Station') matchType = 'POLICE';
+      else if (category == 'Hospital') matchType = 'HOSPITAL';
+      else if (category == 'Safe Shelter') matchType = 'SHELTER';
 
-      for (int radius in radii) {
-        finalRadius = radius;
-        if (category == 'Police Station') {
-          places = await LocationService.getNearbyPlaces(fetchPos, 'police', radius: radius);
-        } else if (category == 'Hospital') {
-          places = await LocationService.getNearbyPlaces(fetchPos, 'hospital', radius: radius);
-        } else if (category == 'Safe Shelter') {
-          places = await LocationService.searchNearbyPlacesByKeyword(fetchPos, 'safe shelter', radius: radius);
-          if (places.isEmpty) {
-            places = await LocationService.searchNearbyPlacesByKeyword(fetchPos, 'women shelter', radius: radius);
-          }
+      // Filter all curated markers by type
+      List<Marker> filtered = _allMarkers.where((m) {
+        return m.infoWindow.snippet?.contains('Type: $matchType') == true;
+      }).toList();
+
+      if (filtered.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _markers.clear();
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No $category found in local database.')),
+          );
         }
-        
-        if (places.isNotEmpty) break;
+        return;
+      }
+
+      // Calculate distances using Geolocator
+      Marker? closest;
+      double minDistance = double.infinity;
+
+      for (var marker in filtered) {
+        double dist = Geolocator.distanceBetween(
+          fetchPos.latitude, 
+          fetchPos.longitude, 
+          marker.position.latitude, 
+          marker.position.longitude
+        );
+        if (dist < minDistance) {
+          minDistance = dist;
+          closest = marker;
+        }
       }
 
       if (mounted) {
         setState(() {
-          _markers.clear();
-          String closestMarkerId = '';
-          
-          for (int i = 0; i < places.length; i++) {
-            var place = places[i];
-            double hue = BitmapDescriptor.hueRed;
-            if (category == 'Police Station') hue = BitmapDescriptor.hueBlue;
-            if (category == 'Safe Shelter') hue = BitmapDescriptor.hueGreen;
-
-            final markerId = place['name'] + place['location'].toString();
-            if (i == 0) closestMarkerId = markerId;
-
-            _markers.add(
-              Marker(
-                markerId: MarkerId(markerId),
-                position: place['location'],
-                infoWindow: InfoWindow(
-                  title: place['name'],
-                  snippet: place['address'],
-                ),
-                icon: BitmapDescriptor.defaultMarkerWithHue(hue),
-              ),
-            );
-          }
+          _markers = Set.from(filtered);
           _isLoading = false;
-          
-          if (places.isNotEmpty) {
-            _moveToLocation(places.first['location']);
-            // Show info window for closest location
-            Future.delayed(const Duration(milliseconds: 500), () {
-              _mapController?.showMarkerInfoWindow(MarkerId(closestMarkerId));
-            });
-            
-            if (finalRadius > 2000) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('No $category within 2km. Expanded search to ${finalRadius ~/ 1000}km.')),
-              );
-            }
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('No $category found within 20km range.')),
-            );
-          }
         });
+
+        if (closest != null) {
+          _moveToLocation(closest.position);
+          Future.delayed(const Duration(milliseconds: 500), () {
+            _mapController?.showMarkerInfoWindow(closest!.markerId);
+          });
+          
+          double kmDist = minDistance / 1000;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Closest $category is ${kmDist.toStringAsFixed(1)} km away')),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

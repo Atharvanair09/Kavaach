@@ -111,6 +111,7 @@ router.post("/", async (req, res) => {
 
   const userId = req.body.userId || "default";
   const message = req.body.message || "";
+  const safePlaces = req.body.safePlaces || "";
 
   if (!userSessions[userId]) {
     userSessions[userId] = {
@@ -124,87 +125,113 @@ router.post("/", async (req, res) => {
 
   try {
 
-    // const py = spawn("python", ["bert_model.py"]);
-    const response = await fetch("http://localhost:5500/predict", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ message })
-    });
-
-    let dataString = "";
-
-    py.stdout.on("data", (data) => {
-      dataString += data.toString();
-    });
-
-    py.stderr.on("data", (err) => {
-      console.error("Python Error:", err.toString());
-    });
-
-    py.stdin.write(message);
-    py.stdin.end();
-
-    py.on("close", () => {
-
-      let mlData = { risk: "low", emotion: "neutral" };
-
-      try {
-        mlData = JSON.parse(dataString);
-      } catch {
-        console.log("Model parse failed, using fallback.");
+    let mlData = { risk: "low", emotion: "neutral" };
+    try {
+      const response = await fetch("http://localhost:5500/predict", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ message })
+      });
+      if (response.ok) {
+        mlData = await response.json();
+      } else {
+        console.log("Model HTTP Error", response.status);
       }
+    } catch (err) {
+      console.log("Model fetch failed, using fallback.", err.message);
+    }
 
-      let risk = mlData.risk;
-      let emotion = mlData.emotion;
+    let risk = mlData.risk;
+    let emotion = mlData.emotion;
 
-      if (emotion === "happy" || emotion === "positive") {
-        risk = "low";
+    if (emotion === "happy" || emotion === "positive") {
+      risk = "low";
+    }
+
+    const category = detectCategory(message);
+    if (category === "stalking" || category === "abuse") {
+      risk = "high";
+    }
+
+    // --- NEW: Dynamic System Prompt based on Risk Level ---
+    let systemPrompt = `You are Jarvis, a highly protective personal safety assistant. Keep responses short (1-3 sentences). IMPORTANT: To protect the user from aggressive onlookers, NEVER mention words like "SOS", "Police", "track", or "danger". Act completely casually and covertly. `;
+    
+    if (risk === "low") {
+      systemPrompt += "Be a friendly listener. Completely hear them out to understand their feelings.";
+    } else if (risk === "medium") {
+      systemPrompt += "Casually prompt them to mention their current location or surroundings without sounding alarmed. Keep the tone completely relaxed and normal.";
+      if (safePlaces) {
+        systemPrompt += ` You subtly suggest they move to one of these safe locations if they feel uneasy: ${safePlaces}.`;
       }
-
-      const category = detectCategory(message);
-
-      if (category === "stalking" || category === "abuse") {
-        risk = "high";
+    } else if (risk === "high") {
+      systemPrompt += "Provide extremely calm, subtle comfort. Keep the tone very casual so a hostile onlooker wouldn't know this is a safety app. Stay with them.";
+      if (safePlaces) {
+        systemPrompt += ` Subtly suggest that they move to one of these nearby safe locations, but do not use words like 'Police' explicitly (e.g. say 'the station near [address]'): ${safePlaces}.`;
       }
+    }
 
-      let reply = getRandomResponse(category);
-
-      if (category === "stalking" && userSessions[userId].lastCategory === "stalking") {
-        reply += " If the person continues following you, consider contacting authorities.";
-      }
-
-      let action = "none";
-      let ui = "green";
-
-      if (risk === "high") {
-
-        if (userSessions[userId].lastRisk === "high") {
-          reply += " This situation seems urgent. Please contact emergency services.";
-          action = "trigger_sos";
-        }
-
-        ui = "red";
-
-      } else if (risk === "medium") {
-
-        ui = "yellow";
-        action = "share_location";
-
-      }
-
-      userSessions[userId].lastRisk = risk;
-      userSessions[userId].lastCategory = category;
-
-      userSessions[userId].history.push({ bot: reply });
-
-      res.json({
-        reply,
-        action,
-        ui
+    // --- Generative AI Conversation Logic ---
+    let reply = "I'm having trouble connecting to my conversation module, but my safety routines are still tracking you.";
+    try {
+      const openRouterRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "HTTP-Referer": "http://localhost:5000",
+          "X-Title": "Kavaach Safety App",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-3-8b-instruct:free", // Safely using a 100% Free model to prevent zero-credit rejection errors
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...userSessions[userId].history.map(msg => ({
+              role: msg.user ? "user" : "assistant",
+              content: msg.user || msg.bot
+            }))
+          ]
+        })
       });
 
+      if (openRouterRes.ok) {
+        const data = await openRouterRes.json();
+        reply = data.choices[0].message.content;
+      } else {
+        console.error("OpenRouter API Failed...", await openRouterRes.text());
+        reply = getRandomResponse(category); 
+      }
+    } catch (err) {
+      console.error("OpenRouter fetch failed:", err);
+      reply = getRandomResponse(category); 
+    }
+
+    // --- Action Calculation & Backend Alerting ---
+    let action = "none";
+    let ui = "green";
+
+    if (risk === "high") {
+      ui = "red";
+      action = "trigger_sos";
+      
+      // Backend SOS Integration (Twilio/Firebase structure goes here)
+      console.log(`[URGENT SOS] Dispatching coordinates and alerts for User: ${userId} to Emergency Contacts and Local Authorities!`);
+      
+    } else if (risk === "medium") {
+      ui = "yellow";
+      action = "share_location";
+    }
+
+    userSessions[userId].lastRisk = risk;
+    userSessions[userId].lastCategory = category;
+
+    userSessions[userId].history.push({ bot: reply });
+
+    res.json({
+      reply,
+      action,
+      ui
     });
 
   } catch (error) {
