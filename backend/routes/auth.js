@@ -87,6 +87,7 @@ async function storeUser(user) {
 }
 
 router.post("/google", async (req, res) => {
+  console.log("📥 [POST] /auth/google - Request Received");
   try {
     const { idToken } = req.body;
     if (!idToken) {

@@ -5,6 +5,7 @@ import '../chat/chat_screen.dart';
 import '../location/location_screen.dart';
 import '../fake_app/fake_app_screen.dart';
 import '../settings/settings_screen.dart';
+import '../../auth_service.dart';
 import '../../timed_check_in.dart';
 import '../../my_circle.dart';
 import '../../fake_call.dart';
@@ -44,8 +45,30 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _HomeContent extends StatelessWidget {
+class _HomeContent extends StatefulWidget {
   const _HomeContent();
+
+  @override
+  State<_HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<_HomeContent> {
+  String _userName = "Member";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await AuthService.getUser();
+    if (user != null && mounted) {
+      setState(() {
+        _userName = user['name']?.toString().split(" ")[0] ?? "Member";
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,9 +101,9 @@ class _HomeContent extends StatelessWidget {
                       color: ST.onSurfaceVariant.withOpacity(0.7),
                       letterSpacing: 0.5,
                     )),
-                const Text(
-                  'Atharva',
-                  style: TextStyle(
+                Text(
+                  _userName,
+                  style: const TextStyle(
                     fontFamily: 'Bernard MT Condensed',
                     fontWeight: FontWeight.w700,
                     fontSize: 24,

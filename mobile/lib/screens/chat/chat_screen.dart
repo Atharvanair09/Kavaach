@@ -41,7 +41,7 @@ class ChatScreen extends StatelessWidget {
                     UserBubble(
                       text: "Someone has been following me for two blocks. I'm walking towards the main square now.",
                     ),
-                    AnalyzingCard(),
+                    // AnalyzingCard(),
                     SupportBubble(
                       text: "Understood. I've locked your GPS coordinates. Keep your phone visible. Would you like me to alert your emergency contacts or play a fake phone call audio?",
                     ),

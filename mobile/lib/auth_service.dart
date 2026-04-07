@@ -74,26 +74,29 @@ class AuthService {
     return prefs.containsKey(_tokenKey);
   }
 
-  static Future<void> _initGoogleSignIn() async {
-    if (!_initialized) {
-      await GoogleSignIn.instance.initialize(
-        // Optional: Add clientId here if required for your platform
-        // clientId: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
-      );
-      _initialized = true;
+  static bool _googleInitialized = false;
+
+  static Future<void> _initGoogle() async {
+    if (!_googleInitialized) {
+      await GoogleSignIn.instance.initialize();
+      _googleInitialized = true;
     }
   }
 
   static Future<Map<String, dynamic>?> signInWithGoogle() async {
     try {
-      await _initGoogleSignIn();
+      // 1. Initialize for v7.x+
+      await _initGoogle();
       
-      // The modern GoogleSignIn 7.0+ API uses instance.authenticate()
-      final GoogleSignInAccount account = await GoogleSignIn.instance.authenticate(
-        scopeHint: ['email', 'profile'],
-      );
+      // 2. Perform authentication (replaces signIn())
+      final GoogleSignInAccount? account = await GoogleSignIn.instance.authenticate();
+      
+      if (account == null) {
+        print("Google Sign-In canceled by user.");
+        return null;
+      }
 
-      // retrieve token
+      // 3. Retrieve ID Token
       final GoogleSignInAuthentication auth = await account.authentication;
       final String? idToken = auth.idToken;
 
@@ -101,7 +104,9 @@ class AuthService {
         throw Exception("Failed to retrieve ID token from Google.");
       }
 
-      // Send the ID token to our backend for verification
+      print("Sending ID Token to Backend: $idToken");
+
+      // 4. Send the ID token to our backend for verification
       final response = await http.post(
         Uri.parse("$baseUrl/google"),
         headers: {'Content-Type': 'application/json'},
@@ -115,18 +120,13 @@ class AuthService {
         if (data['user'] != null) {
           await saveUser(data['user']);
         }
-        return data; // returns { "message": "...", "token": "...", "user": {...} }
+        return data; 
       } else {
         final errorData = jsonDecode(response.body);
         throw Exception("Backend error: ${errorData['error']}");
       }
     } catch (error) {
       print("Google Sign-In Error: $error");
-      // If the user canceled the login, it will throw an exception instead of returning null (in older versions).
-      // We return null to silently abort the flow just like before
-      if (error is GoogleSignInException && error.code == GoogleSignInExceptionCode.canceled) {
-         return null; 
-      }
       rethrow;
     }
   }

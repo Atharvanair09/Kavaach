@@ -1,106 +1,395 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../constants/st_style.dart';
 import '../../widgets/st_widgets.dart';
+import '../../services/location_service.dart';
 
-class LocationScreen extends StatelessWidget {
+class LocationScreen extends StatefulWidget {
   const LocationScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final locations = [
-      (Icons.local_police_outlined, 'Police Station', '1.2km • Central District',
-      ST.primary, ST.primaryFixed),
-      (Icons.shield_outlined, 'Safe Shelter', '2.5km • North Center',
-      ST.tertiary, ST.tertiaryFixed),
-      (Icons.local_hospital_outlined, 'Hospital', '4.0km • General Medical',
-      ST.secondary, ST.secondaryFixed),
-    ];
+  State<LocationScreen> createState() => _LocationScreenState();
+}
 
+class _LocationScreenState extends State<LocationScreen> {
+  GoogleMapController? _mapController;
+  LatLng _userPosition = const LatLng(28.6139, 77.2090); // Default placeholder
+  bool _isLoading = true;
+  String? _selectedCategory;
+  
+  Set<Marker> _markers = {
+Marker(
+  markerId: const MarkerId('dahisar_ps_east'),
+  position: const LatLng(19.2183, 72.8697), // S.V. Road, Near Union Bank, Dahisar East
+  infoWindow: const InfoWindow(
+    title: 'Dahisar Police Station (East)',
+    snippet: 'S.V. Road, Near Union Bank, Dahisar East - 400068',
+  ),
+  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+),
+
+// 2. M.H.B. Colony Police Station (West)
+Marker(
+  markerId: const MarkerId('mhb_colony_ps'),
+  position: const LatLng(19.2201, 72.8582), // Dr. Vasudevak Shrungi Marg, Dahisar West
+  infoWindow: const InfoWindow(
+    title: 'M.H.B. Colony Police Station',
+    snippet: 'Dr. Vasudevak Shrungi Marg, Dahisar West',
+  ),
+  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+),
+
+// 3. ACP Office - Dahisar Division (within Dahisar PS compound)
+Marker(
+  markerId: const MarkerId('acp_dahisar_division'),
+  position: const LatLng(19.2178, 72.8700), // 1st Floor, Dahisar PS Compound, S.V. Road
+  infoWindow: const InfoWindow(
+    title: 'ACP Office – Dahisar Division',
+    snippet: '1st Floor, Dahisar Police Station Compound, S.V. Road',
+  ),
+  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+),
+
+// 4. DCP Zone 12 Office (Shailendra Nagar, near Dahisar PS)
+Marker(
+  markerId: const MarkerId('dcp_zone_12'),
+  position: const LatLng(19.2190, 72.8695), // Shailendra Nagar, SV Road, Dahisar East
+  infoWindow: const InfoWindow(
+    title: 'DCP Office – Zone 12',
+    snippet: 'Shailendra Nagar, SV Road, Dahisar East - 400068',
+  ),
+  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan),
+),
+
+// 5. Borivali Police Station (closest neighboring station, ~2km south)
+Marker(
+  markerId: const MarkerId('borivali_ps'),
+  position: const LatLng(19.2286, 72.8567), // Opp. Borivali Railway Station, S.V. Road
+  infoWindow: const InfoWindow(
+    title: 'Borivali Police Station',
+    snippet: 'Opp. Borivali Railway Station, S.V. Road, Borivali West - 400092',
+  ),
+  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+),
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _determinePosition();
+  }
+
+  Future<void> _determinePosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+    
+    if (permission == LocationPermission.deniedForever) return;
+
+    final position = await Geolocator.getCurrentPosition();
+    if (mounted) {
+      setState(() {
+        _userPosition = LatLng(position.latitude, position.longitude);
+        _isLoading = true;
+      });
+      _mapController?.animateCamera(CameraUpdate.newLatLng(_userPosition));
+      _fetchAllSafeHavens(_userPosition);
+    }
+  }
+
+  Future<void> _fetchAllSafeHavens(LatLng pos) async {
+    try {
+      final policeFuture = LocationService.getNearbyPlaces(pos, 'police', radius: 5000);
+      final hospitalFuture = LocationService.getNearbyPlaces(pos, 'hospital', radius: 5000);
+      final shelterFuture1 = LocationService.searchNearbyPlacesByKeyword(pos, 'safe shelter', radius: 5000);
+      final shelterFuture2 = LocationService.searchNearbyPlacesByKeyword(pos, 'women shelter', radius: 5000);
+
+      final results = await Future.wait([policeFuture, hospitalFuture, shelterFuture1, shelterFuture2]);
+
+      if (mounted) {
+        setState(() {
+          _markers.clear();
+          _addPlacesToMarkers(results[0], BitmapDescriptor.hueBlue);
+          _addPlacesToMarkers(results[1], BitmapDescriptor.hueOrange);
+          _addPlacesToMarkers(results[2], BitmapDescriptor.hueGreen);
+          _addPlacesToMarkers(results[3], BitmapDescriptor.hueGreen);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading safe havens: $e')),
+        );
+      }
+    }
+  }
+
+  void _addPlacesToMarkers(List<Map<String, dynamic>> places, double hue) {
+    for (var place in places) {
+      final markerId = place['name'] + place['location'].toString();
+      _markers.add(
+        Marker(
+          markerId: MarkerId(markerId),
+          position: place['location'],
+          infoWindow: InfoWindow(
+            title: place['name'],
+            snippet: place['address'],
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+        ),
+      );
+    }
+  }
+
+  void _moveToLocation(LatLng position) {
+    _mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: position, zoom: 15.5),
+      ),
+    );
+  }
+
+  void _showCategoryMarkers(String category) async {
+    setState(() {
+      _isLoading = true;
+      _selectedCategory = category;
+    });
+
+    try {
+      // 0. Check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw 'Location services are disabled.';
+      }
+
+      // 1. Position Fetch: Use last known first, then try fresh lock with longer timeout (8s)
+      Position? currentPos = await Geolocator.getLastKnownPosition();
+      LatLng fetchPos;
+
+      if (currentPos != null) {
+        fetchPos = LatLng(currentPos.latitude, currentPos.longitude);
+      } else {
+        try {
+          currentPos = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.medium,
+            timeLimit: const Duration(seconds: 8),
+          );
+          fetchPos = LatLng(currentPos.latitude, currentPos.longitude);
+        } catch (_) {
+          // If fresh fetch fails (e.g. timeout), fallback to existing state if it's not default Delhi
+          if (_userPosition.latitude != 28.6139) {
+            fetchPos = _userPosition;
+          } else {
+            rethrow; // Truly unable to get any location
+          }
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _userPosition = fetchPos;
+        });
+        _mapController?.animateCamera(CameraUpdate.newLatLng(_userPosition));
+      }
+      
+      // 2. Adaptive Radius Search: Start at 2km, then 5km, 10km, and finally 20km
+      List<Map<String, dynamic>> places = [];
+      List<int> radii = [2000, 5000, 10000, 20000];
+      int finalRadius = 2000;
+
+      for (int radius in radii) {
+        finalRadius = radius;
+        if (category == 'Police Station') {
+          places = await LocationService.getNearbyPlaces(fetchPos, 'police', radius: radius);
+        } else if (category == 'Hospital') {
+          places = await LocationService.getNearbyPlaces(fetchPos, 'hospital', radius: radius);
+        } else if (category == 'Safe Shelter') {
+          places = await LocationService.searchNearbyPlacesByKeyword(fetchPos, 'safe shelter', radius: radius);
+          if (places.isEmpty) {
+            places = await LocationService.searchNearbyPlacesByKeyword(fetchPos, 'women shelter', radius: radius);
+          }
+        }
+        
+        if (places.isNotEmpty) break;
+      }
+
+      if (mounted) {
+        setState(() {
+          _markers.clear();
+          String closestMarkerId = '';
+          
+          for (int i = 0; i < places.length; i++) {
+            var place = places[i];
+            double hue = BitmapDescriptor.hueRed;
+            if (category == 'Police Station') hue = BitmapDescriptor.hueBlue;
+            if (category == 'Safe Shelter') hue = BitmapDescriptor.hueGreen;
+
+            final markerId = place['name'] + place['location'].toString();
+            if (i == 0) closestMarkerId = markerId;
+
+            _markers.add(
+              Marker(
+                markerId: MarkerId(markerId),
+                position: place['location'],
+                infoWindow: InfoWindow(
+                  title: place['name'],
+                  snippet: place['address'],
+                ),
+                icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+              ),
+            );
+          }
+          _isLoading = false;
+          
+          if (places.isNotEmpty) {
+            _moveToLocation(places.first['location']);
+            // Show info window for closest location
+            Future.delayed(const Duration(milliseconds: 500), () {
+              _mapController?.showMarkerInfoWindow(MarkerId(closestMarkerId));
+            });
+            
+            if (finalRadius > 2000) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('No $category within 2km. Expanded search to ${finalRadius ~/ 1000}km.')),
+              );
+            }
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No $category found within 20km range.')),
+            );
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        String message = e.toString().contains('services are disabled') 
+          ? 'Please enable GPS/Location services.'
+          : 'Error: ${e.toString()}';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ST.surface,
-      body: Column(
+      body: Stack(
         children: [
-          // Map section
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.38,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Container(color: ST.surfaceContainer),
-                Image.network(
-                  'https://lh3.googleusercontent.com/aida-public/AB6AXuDh_Zv0VmuSrO8v6wu2PCmldbcP0n7xR4dL4fXmZ1_RF1SeDzkwUIyWckVLFILaTAEkfsBEMAHkV9eKfIo56jKxzDjcgSvKNCrgUBnK8VH4ty6F9zJW3gv4OLJxL7Oqt6_R6fZNHAZu_8aLWa4BCv5uPrUUULC06j5ncoKmZdbbA5YJHXmoi6HM8kCZtw9yGYh-2UtnBCAvuRm_qCdMzLvwGBBizwYWCc85yC4a-Jts3h4Z2VBJJgd8fdZs4imIEENCEIXBsdCpm2g',
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  color: ST.surfaceContainer.withOpacity(0.5),
-                  colorBlendMode: BlendMode.multiply,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: ST.surfaceContainerHigh,
-                    child: CustomPaint(painter: MapGridPainter()),
-                  ),
-                ),
-                // Map pins
-                Positioned(
-                  top: MediaQuery.of(context).size.height * 0.10,
-                  left: MediaQuery.of(context).size.width * 0.33,
-                  child: const MapPin(color: ST.tertiary, pulsing: true),
-                ),
-                Positioned(
-                  top: MediaQuery.of(context).size.height * 0.15,
-                  right: MediaQuery.of(context).size.width * 0.25,
-                  child: const MapPin(color: ST.tertiary),
-                ),
-                Positioned(
-                  bottom: MediaQuery.of(context).size.height * 0.08,
-                  left: MediaQuery.of(context).size.width * 0.48,
-                  child: const MapPin(color: ST.tertiary),
-                ),
-                // My location button
-                Positioned(
-                  right: 16,
-                  bottom: 52,
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.my_location,
-                        color: ST.primary, size: 22),
-                  ),
-                ),
-              ],
+          // 1. Background Map (Full Screen)
+          Positioned.fill(
+            child: GoogleMap(
+              style: _mapStyle,
+              initialCameraPosition: CameraPosition(
+                target: _userPosition,
+                zoom: 14.5,
+              ),
+              markers: _markers,
+              onMapCreated: (controller) => _mapController = controller,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
             ),
           ),
-          // Content card
-          Expanded(
-            child: Transform.translate(
-              offset: const Offset(0, -32),
+          
+          // 2. Loading Overlay
+          if (_isLoading)
+            Positioned.fill(
               child: Container(
-                decoration: const BoxDecoration(
-                  color: ST.surfaceContainerLowest,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+                color: Colors.white60,
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(strokeWidth: 2.5),
+                      SizedBox(height: 12),
+                      Text('SYNCHRONIZING GPS...', 
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.5, color: ST.primary)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // 3. Floating User Location Button
+          Positioned(
+            right: 16,
+            bottom: MediaQuery.of(context).size.height * 0.45,
+            child: GestureDetector(
+              onTap: _determinePosition,
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Color(0x0F171C1F),
-                      blurRadius: 32,
-                      offset: Offset(0, -8),
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.my_location,
+                    color: ST.primary, size: 22),
+              ),
+            ),
+          ),
+
+          // 4. Draggable Content Sheet
+          DraggableScrollableSheet(
+            initialChildSize: 0.42,
+            minChildSize: 0.28,
+            maxChildSize: 0.9,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: ST.surfaceContainerLowest,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x1F171C1F),
+                      blurRadius: 40,
+                      offset: Offset(0, -10),
                     ),
                   ],
                 ),
                 child: Column(
                   children: [
-                    // Scrollable list content
+                    // Grabber Handle
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: ST.outlineVariant.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    
+                    // Main Scrollable Content
                     Expanded(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -132,151 +421,167 @@ class LocationScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                ActiveScanBadge(),
+                                const ActiveScanBadge(),
                               ],
                             ),
                             const SizedBox(height: 20),
-                            ...locations.map((loc) => _LocationRow(
-                              icon: loc.$1,
-                              title: loc.$2,
-                              subtitle: loc.$3,
-                              iconColor: loc.$4,
-                              iconBg: loc.$5,
-                            )),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                _CategoryCard(
+                                  icon: Icons.local_police_outlined,
+                                  title: 'Police',
+                                  subtitle: 'STATION',
+                                  color: ST.primary,
+                                  onTap: () => _showCategoryMarkers('Police Station'),
+                                ),
+                                const SizedBox(width: 12),
+                                _CategoryCard(
+                                  icon: Icons.shield_outlined,
+                                  title: 'Shelter',
+                                  subtitle: 'SAFE HAVEN',
+                                  color: ST.tertiary,
+                                  onTap: () => _showCategoryMarkers('Safe Shelter'),
+                                ),
+                                const SizedBox(width: 12),
+                                _CategoryCard(
+                                  icon: Icons.local_hospital_outlined,
+                                  title: 'Hospital',
+                                  subtitle: 'MEDICAL',
+                                  color: ST.secondary,
+                                  onTap: () => _showCategoryMarkers('Hospital'),
+                                ),
+                              ],
+                            ),
+                            
+                            // Bottom Action Area
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              child: Column(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () {},
+                                    child: Container(
+                                      height: 64,
+                                      decoration: BoxDecoration(
+                                        color: ST.primary,
+                                        borderRadius: ST.radiusSm,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: ST.primary.withOpacity(0.35),
+                                            blurRadius: 40,
+                                            offset: const Offset(0, 12),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.directions_car,
+                                              color: Colors.white, size: 24),
+                                          SizedBox(width: 12),
+                                          const Text(
+                                            'Request Ride',
+                                            style: TextStyle(
+                                              fontFamily: 'Bernard MT Condensed',
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 18,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    'YOUR CURRENT COORDINATES ARE SHARED WITH TRUSTED CONTACTS',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      letterSpacing: 1,
+                                      color: ST.onSurfaceVariant.withOpacity(0.5),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
-                    // CTA pinned at bottom
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-                      child: Column(
-                        children: [
-                          GestureDetector(
-                            onTap: () {},
-                            child: Container(
-                              height: 64,
-                              decoration: BoxDecoration(
-                                color: ST.primary,
-                                borderRadius: ST.radiusSm,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: ST.primary.withOpacity(0.35),
-                                    blurRadius: 40,
-                                    offset: const Offset(0, 12),
-                                  ),
-                                ],
-                              ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.directions_car,
-                                      color: Colors.white, size: 24),
-                                  SizedBox(width: 12),
-                                  Text(
-                                    'Request Ride',
-                                    style: TextStyle(
-                                      fontFamily: 'Bernard MT Condensed',
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 18,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'YOUR CURRENT COORDINATES ARE SHARED WITH TRUSTED CONTACTS',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 9,
-                              letterSpacing: 1,
-                              color: ST.onSurfaceVariant.withOpacity(0.5),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ],
       ),
     );
   }
-}
 
-class MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = ST.outlineVariant.withOpacity(0.4)
-      ..strokeWidth = 0.5;
-    for (double x = 0; x < size.width; x += 40) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+  // Silver Map Style JSON
+  final String _mapStyle = '''
+  [
+    {
+      "elementType": "geometry",
+      "stylers": [{"color": "#f5f5f5"}]
+    },
+    {
+      "elementType": "labels.icon",
+      "stylers": [{"visibility": "off"}]
+    },
+    {
+      "elementType": "labels.text.fill",
+      "stylers": [{"color": "#616161"}]
+    },
+    {
+      "elementType": "labels.text.stroke",
+      "stylers": [{"color": "#f5f5f5"}]
+    },
+    {
+      "featureType": "administrative.land_parcel",
+      "elementType": "labels.text.fill",
+      "stylers": [{"color": "#bdbdbd"}]
+    },
+    {
+      "featureType": "poi",
+      "elementType": "geometry",
+      "stylers": [{"color": "#eeeeee"}]
+    },
+    {
+      "featureType": "poi",
+      "elementType": "labels.text.fill",
+      "stylers": [{"color": "#757575"}]
+    },
+    {
+      "featureType": "poi.park",
+      "elementType": "geometry",
+      "stylers": [{"color": "#e5e5e5"}]
+    },
+    {
+      "featureType": "road",
+      "elementType": "geometry",
+      "stylers": [{"color": "#ffffff"}]
+    },
+    {
+      "featureType": "road.arterial",
+      "elementType": "labels.text.fill",
+      "stylers": [{"color": "#757575"}]
+    },
+    {
+      "featureType": "water",
+      "elementType": "geometry",
+      "stylers": [{"color": "#c9c9c9"}]
+    },
+    {
+      "featureType": "water",
+      "elementType": "labels.text.fill",
+      "stylers": [{"color": "#9e9e9e"}]
     }
-    for (double y = 0; y < size.height; y += 40) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
-}
-
-class MapPin extends StatefulWidget {
-  final Color color;
-  final bool pulsing;
-  const MapPin({super.key, required this.color, this.pulsing = false});
-
-  @override
-  State<MapPin> createState() => _MapPinState();
-}
-
-class _MapPinState extends State<MapPin> with SingleTickerProviderStateMixin {
-  late AnimationController _ac;
-
-  @override
-  void initState() {
-    super.initState();
-    _ac = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    );
-    if (widget.pulsing) _ac.repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _ac.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        if (widget.pulsing)
-          AnimatedBuilder(
-            animation: _ac,
-            builder: (_, __) => Container(
-              width: 32 * _ac.value + 8,
-              height: 32 * _ac.value + 8,
-              decoration: BoxDecoration(
-                color: widget.color.withOpacity(0.2 * (1 - _ac.value)),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-        Icon(Icons.location_on, color: widget.color, size: 32),
-      ],
-    );
-  }
+  ]
+  ''';
 }
 
 class ActiveScanBadge extends StatefulWidget {
@@ -308,8 +613,7 @@ class _ActiveScanBadgeState extends State<ActiveScanBadge>
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFFEFF4FF),
         borderRadius: ST.radiusFull,
@@ -346,77 +650,71 @@ class _ActiveScanBadgeState extends State<ActiveScanBadge>
   }
 }
 
-class _LocationRow extends StatelessWidget {
+class _CategoryCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color iconColor;
-  final Color iconBg;
-  const _LocationRow({
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CategoryCard({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.iconColor,
-    required this.iconBg,
+    required this.color,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: ST.surfaceContainerLow,
-        borderRadius: ST.radiusSm,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 22),
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          decoration: BoxDecoration(
+            color: ST.surfaceContainerLow,
+            borderRadius: ST.radiusSm,
+            border: Border.all(color: color.withOpacity(0.1), width: 1),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontFamily: 'Bernard MT Condensed',
-                    fontWeight: FontWeight.w700,
-                    color: ST.onSurface,
-                    fontSize: 15,
-                  ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: ST.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () {},
-            child: const Text(
-              'Show Map',
-              style: TextStyle(
-                color: ST.primary,
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
+                child: Icon(icon, color: color, size: 22),
               ),
-            ),
+              const SizedBox(height: 12),
+              Text(
+                title.toUpperCase(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Bernard MT Condensed',
+                  fontWeight: FontWeight.w800,
+                  color: ST.onSurface,
+                  fontSize: 14,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: ST.onSurfaceVariant.withOpacity(0.7),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

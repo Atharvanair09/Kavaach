@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../constants/st_style.dart';
 import '../auth_service.dart';
+import '../auth_gate.dart';
 
 class STUserAvatar extends StatefulWidget {
   final double size;
@@ -31,22 +32,46 @@ class _STUserAvatarState extends State<STUserAvatar> {
 
   @override
   Widget build(BuildContext context) {
+    String initials = "";
+    if (_user?['name'] != null) {
+      List<String> names = _user!['name'].toString().trim().split(" ");
+      if (names.isNotEmpty) {
+        initials = names[0][0].toUpperCase();
+        if (names.length > 1) {
+          initials += names[1][0].toUpperCase();
+        }
+      }
+    }
+
     return Container(
       width: widget.size,
       height: widget.size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: ST.primary.withOpacity(0.1),
-        border: Border.all(color: ST.primary.withOpacity(0.2)),
+        color: const Color(0xFFE0E7FF), // Light blue from reference image
+        border: Border.all(color: const Color(0xFFC7D2FE).withOpacity(0.5)),
       ),
       child: ClipOval(
         child: _user?['picture'] != null
             ? Image.network(
                 _user!['picture'],
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Icon(Icons.person, size: widget.size * 0.55),
+                errorBuilder: (context, error, stackTrace) => _buildInitials(initials),
               )
-            : Icon(Icons.person, size: widget.size * 0.55, color: ST.primary),
+            : _buildInitials(initials),
+      ),
+    );
+  }
+
+  Widget _buildInitials(String initials) {
+    return Center(
+      child: Text(
+        initials.isNotEmpty ? initials : "?",
+        style: TextStyle(
+          color: const Color(0xFF1D4ED8), // Dark blue from reference image
+          fontWeight: FontWeight.bold,
+          fontSize: widget.size * 0.4,
+        ),
       ),
     );
   }
@@ -99,7 +124,10 @@ class STProfileButton extends StatelessWidget {
               onTap: () async {
                 await AuthService.signOut();
                 if (context.mounted) {
-                  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const AuthGate()),
+                    (route) => false,
+                  );
                 }
               },
               primary: false,
