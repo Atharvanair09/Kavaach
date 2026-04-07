@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'auth_service.dart';
-import 'main.dart';
+import 'screens/auth/pin_screen.dart';
+import 'screens/home/home_screen.dart';
+import 'screens/onboarding/onboarding_screens.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});

@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AuthService {
   // Replace with your actual backend URL. For Android emulator, use 10.0.2.2.
   // For iOS simulator, use localhost. For physical device, use your machine's IP.
-  static const String baseUrl = 'http://10.0.2.2:5000/auth';
+  static const String baseUrl = 'http://192.168.1.8:5000/auth';
   
   static bool _initialized = false;
   static const String _tokenKey = 'auth_token';

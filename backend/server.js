@@ -15,6 +15,6 @@ app.use("/auth", authRoute);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log("Kavaach backend running on port " + PORT);
+app.listen(PORT, '0.0.0.0', () => { 
+  console.log("Kavaach backend listening on ALL interfaces on port " + PORT);
 });
