@@ -1,10 +1,11 @@
-require("dotenv").config({ path: "../.env" });
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 
 const chatRoute = require("./routes/chat");
 const authRoute = require("./routes/auth");
 const sosRoute = require("./routes/sos");
+const textbeeRoute = require("./routes/textbee");
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.use(express.json());
 app.use("/chat", chatRoute);
 app.use("/auth", authRoute);
 app.use("/sos", sosRoute);
+app.use("/textbee", textbeeRoute);
 
 
 const PORT = process.env.PORT || 5000;

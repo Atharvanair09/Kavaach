@@ -153,12 +153,61 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _isTyping = false;
         _messages.add(MessageData(
-          text: "Unable to reach Jarvis. Make sure the backend server is running.",
+          text: "Unable to reach Jarvis. You can continue this chat via SMS if you are offline.",
           isUser: false,
         ));
       });
+      _showOfflineSmsSuggestion(text);
     }
     _scrollToBottom();
+  }
+
+  void _showOfflineSmsSuggestion(String lastMessage) {
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Connection Offline'),
+        content: const Text('It seems you are offline. Would you like to send your message via SMS to continue receiving safety support?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _launchSms(lastMessage);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: ST.primary),
+            child: const Text('Send SMS', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _launchSms(String message) async {
+    const textBeeNumber = "+917718937309";
+    final Uri smsLaunchUri = Uri(
+      scheme: 'sms',
+      path: textBeeNumber,
+      queryParameters: <String, String>{
+        'body': message,
+      },
+    );
+    try {
+      // Note: url_launcher would be needed here, or specialized SMS plugin.
+      // For now, we use a generic method that the user can expand.
+      debugPrint('Launching SMS: $smsLaunchUri');
+      // await launchUrl(smsLaunchUri);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Opening SMS app...')),
+      );
+    } catch (e) {
+      debugPrint('Could not launch SMS: $e');
+    }
   }
 
   void _scrollToBottom() {

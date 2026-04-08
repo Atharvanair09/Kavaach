@@ -179,6 +179,7 @@ class _HomeContentState extends State<_HomeContent> {
       physics: const BouncingScrollPhysics(),
       slivers: [
         SliverAppBar(
+          automaticallyImplyLeading: false,
           floating: true,
           pinned: true,
           backgroundColor: ST.surface.withOpacity(0.8),
