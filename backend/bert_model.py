@@ -1,51 +1,59 @@
-import sys
-import json
-from flask import Flask, request, jsonify
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 import torch
-import torch.nn.functional as F
 from transformers import BertTokenizer, BertForSequenceClassification
 
-app = Flask(__name__)
+app = FastAPI()
 
-# Path to your trained model
 MODEL_PATH = "../ml-model/model/jarvis"
-print("Loading model")
 
-# Load tokenizer and model
-tokenizer = BertTokenizer.from_pretrained(MODEL_PATH)
-model = BertForSequenceClassification.from_pretrained(MODEL_PATH)
-model.eval()
-print("Model loaded")
+try:
+    tokenizer = BertTokenizer.from_pretrained(MODEL_PATH)
+    model = BertForSequenceClassification.from_pretrained(MODEL_PATH)
+    model.eval()
+except Exception as e:
+    print("Model loading failed:", e)
 
-@app.route("/predict", methods=["POST"])
-def predict_api():
-    data = request.get_json()
-    text = data.get("text", data.get("message", ""))
+class RequestData(BaseModel):
+    text: str
+
+def predict(text):
+    text = text.strip()
+
+    if not text:
+        return {"risk": "low", "emotion": "neutral", "confidence": 0}
 
     inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
 
     with torch.no_grad():
         outputs = model(**inputs)
 
-    probs = F.softmax(outputs.logits, dim=1)
-    confidence, prediction = torch.max(probs, dim=1)
-    
-    confidence_val = confidence.item()
-    prediction_val = prediction.item()
+    logits = outputs.logits
+    probs = torch.softmax(logits, dim=1)
 
-    # Example mapping (adjust to match your Jarivs model classes)
-    risk_map = {
-        0: "low",
-        1: "medium",
-        2: "high"
-    }
-    risk = risk_map.get(prediction_val, "low")
+    prediction = torch.argmax(probs, dim=1).item()
+    confidence = torch.max(probs).item()
 
-    return jsonify({
+    if prediction == 0:
+        risk = "low"
+    elif prediction == 1:
+        risk = "medium"
+    else:
+        risk = "high"
+
+    return {
         "risk": risk,
         "emotion": "neutral",
-        "confidence": confidence_val,
-    })
+        "confidence": float(confidence)
+    }
 
-if __name__ == "__main__":
-    app.run(port=5500, debug=True)
+@app.get("/")
+def home():
+    return {"message": "BERT API running"}
+
+@app.post("/predict")
+def get_prediction(data: RequestData):
+    try:
+        return predict(data.text)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Prediction failed")

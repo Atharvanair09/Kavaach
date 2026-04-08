@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../services/location_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../../constants/api_constants.dart';
 
 class MessageData {
   final String text;
@@ -35,6 +36,10 @@ class _ChatScreenState extends State<ChatScreen> {
   ];
   String _nearbySafePlacesContext = "";
   bool _sosAlreadyFired = false;
+  bool _isTyping = false;
+
+  // Change to your machine's LAN IP when testing on a physical device.
+  static const String _backendUrl = APIConstants.chatUrl;
 
   late stt.SpeechToText _speech;
   bool _isListening = false;
@@ -107,17 +112,17 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() {
       _messages.add(MessageData(text: text, isUser: true));
+      _isTyping = true;
     });
     _controller.clear();
     _scrollToBottom();
 
     try {
-      // Calling the backend which uses the ML model
       final response = await http.post(
-        Uri.parse('http://192.168.1.8:5000/chat'),
+        Uri.parse(_backendUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'message': text, 
+          'message': text,
           'userId': 'mobile_user',
           'safePlaces': _nearbySafePlacesContext,
         }),
@@ -125,11 +130,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
         setState(() {
+          _isTyping = false;
           _messages.add(MessageData(text: data['reply'] ?? '', isUser: false));
         });
-        
+
         final action = data['action'] as String?;
         if (action == 'trigger_sos' && !_sosAlreadyFired) {
           setState(() => _sosAlreadyFired = true);
@@ -139,13 +144,18 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       } else {
         setState(() {
+          _isTyping = false;
           _messages.add(MessageData(text: "Jarvis could not process the request.", isUser: false));
         });
       }
     } catch (e) {
-      print("Sending message failed: $e");
+      debugPrint("Sending message failed: $e");
       setState(() {
-        _messages.add(MessageData(text: "Failed to connect to backend: Server unreachable.", isUser: false));
+        _isTyping = false;
+        _messages.add(MessageData(
+          text: "Unable to reach Jarvis. Make sure the backend server is running.",
+          isUser: false,
+        ));
       });
     }
     _scrollToBottom();
@@ -238,8 +248,13 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: _messages.length,
+                  // +1 for the typing indicator slot
+                  itemCount: _messages.length + (_isTyping ? 1 : 0),
                   itemBuilder: (context, index) {
+                    // Show typing bubble at the end
+                    if (_isTyping && index == _messages.length) {
+                      return const _TypingIndicator();
+                    }
                     final msg = _messages[index];
                     if (msg.isUser) {
                       return UserBubble(text: msg.text);
@@ -347,3 +362,97 @@ class DotGridPainter extends CustomPainter {
   @override
   bool shouldRepaint(_) => false;
 }
+
+// Animated "Jarvis is thinking…" bubble shown while awaiting backend reply.
+class _TypingIndicator extends StatefulWidget {
+  const _TypingIndicator();
+
+  @override
+  State<_TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<_TypingIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ac;
+  late List<Animation<double>> _dots;
+
+  @override
+  void initState() {
+    super.initState();
+    _ac = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat();
+    _dots = List.generate(3, (i) {
+      final start = i * 0.2;
+      return Tween<double>(begin: 0, end: -6).animate(
+        CurvedAnimation(
+          parent: _ac,
+          curve: Interval(start, start + 0.4, curve: Curves.easeInOut),
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _ac.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: ST.primary.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.security, color: ST.primary, size: 16),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                topRight: Radius.circular(18),
+                bottomRight: Radius.circular(18),
+                bottomLeft: Radius.circular(4),
+              ),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
+              ],
+            ),
+            child: AnimatedBuilder(
+              animation: _ac,
+              builder: (_, __) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(3, (i) {
+                  return Transform.translate(
+                    offset: Offset(0, _dots[i].value),
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: ST.primary.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

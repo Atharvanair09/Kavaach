@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'constants/api_constants.dart';
+import 'services/emergency_contact_service.dart';
 
 class AuthService {
   // Replace with your actual backend URL. For Android emulator, use 10.0.2.2.
   // For iOS simulator, use localhost. For physical device, use your machine's IP.
-  static const String baseUrl = 'http://10.195.126.95:5000/auth';
+  static const String baseUrl = APIConstants.authUrl;
   
   static bool _initialized = false;
   static const String _tokenKey = 'auth_token';
@@ -190,5 +193,36 @@ class AuthService {
     await prefs.remove(_userKey);
     await prefs.remove(_appPinKey);
     await prefs.remove(_decoyPinKey);
+  }
+}
+
+class ApiService {
+  static String get baseUrl => kIsWeb ? "http://localhost:5000" : "http://10.0.2.2:5000";
+
+  static Future<Map<String, dynamic>> sendMessage(String userId, String message) async {
+    final res = await http.post(
+      Uri.parse("$baseUrl/chat"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"userId": userId, "message": message}),
+    );
+
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body);
+    } else {
+      throw Exception("Failed to get response from backend");
+    }
+  }
+
+  static Future<Map<String, dynamic>> sendSOS({
+    required double lat,
+    required double lng,
+    String message = "Emergency! I need help.",
+  }) async {
+    // Delegate to EmergencyContactService which handles local storage + contacts
+    return EmergencyContactService.sendSOS(
+      lat: lat,
+      lng: lng,
+      message: message,
+    );
   }
 }

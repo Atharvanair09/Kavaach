@@ -4,6 +4,8 @@ import '../../constants/st_style.dart';
 import '../../auth_service.dart';
 import '../home/home_screen.dart';
 import '../auth/login_screen.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -46,10 +48,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadUser() async {
     final user = await AuthService.getUser();
-    setState(() {
-      _user = user;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _user = user;
+        _isLoading = false;
+      });
+      if (user != null && user['email'] != null) {
+        _loadFirebaseContacts(user['email']);
+      }
+    }
+  }
+
+  Future<void> _loadFirebaseContacts(String email) async {
+    final cleanEmail = email.trim().toLowerCase();
+    try {
+      final doc = await FirebaseFirestore.instance.collection('emergency_contacts').doc(cleanEmail).get();
+      if (doc.exists && doc.data()!.containsKey('contacts')) {
+        final List<dynamic> contacts = doc.data()!['contacts'];
+        if (mounted) {
+          setState(() {
+            _trustedContacts = contacts.map((e) => Map<String, String>.from(e)).toList();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading emergency contacts: $e');
+    }
+  }
+
+  Future<void> _saveContactsToFirebase() async {
+    if (_user == null || _user!['email'] == null) return;
+    final cleanEmail = _user!['email'].toString().trim().toLowerCase();
+    try {
+      await FirebaseFirestore.instance.collection('emergency_contacts').doc(cleanEmail).set({
+        'userEmail': cleanEmail,
+        'contacts': _trustedContacts,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Emergency contacts saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error saving to emergency_contacts: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save contacts: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -779,112 +831,172 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                               title: Text(contact['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                               subtitle: Text(contact['phone'] ?? '', style: const TextStyle(fontSize: 12)),
-                              trailing: IconButton(
+                                trailing: IconButton(
                                 icon: const Icon(Icons.remove_circle, color: Color(0xFFDC2626), size: 20),
                                 onPressed: () {
                                   setModalState(() => _trustedContacts.removeAt(i));
                                   setState(() {}); // Update main screen counter
+                                  _saveContactsToFirebase();
                                 },
                               ),
+
                             );
                           },
                         ),
                       ),
                     const SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     const Text(
-                      'SEARCH FIREBASE USERS',
+                      'QUICK ADD',
                       style: TextStyle(fontFamily: 'Bernard MT Condensed', fontSize: 13, color: ST.onSurfaceVariant),
                     ),
                     const SizedBox(height: 12),
-                    Autocomplete<Map<String, String>>(
-                      optionsBuilder: (TextEditingValue textEditingValue) async {
-                        if (textEditingValue.text.trim().isEmpty) {
-                          return const Iterable<Map<String, String>>.empty();
-                        }
-                        
-                        try {
-                          if (cachedFirebaseUsers == null) {
-                            final querySnapshot = await FirebaseFirestore.instance.collection('users').get();
-                            cachedFirebaseUsers = querySnapshot.docs.map((doc) {
-                              final data = doc.data();
-                              return {
-                                'name': data['name']?.toString() ?? 'Unknown User',
-                                'phone': data['phone']?.toString() ?? data['email']?.toString() ?? 'No Contact',
-                              };
-                            }).toList();
-                          }
-                          
-                          final searchTerm = textEditingValue.text.toLowerCase();
-                          return cachedFirebaseUsers!.where((Map<String, String> option) {
-                            return option['name']!.toLowerCase().contains(searchTerm) || 
-                                   option['phone']!.toLowerCase().contains(searchTerm);
-                          });
-                        } catch (e) {
-                          debugPrint('Error searching firebase: $e');
-                          return const Iterable<Map<String, String>>.empty();
-                        }
-                      },
-                      displayStringForOption: (Map<String, String> option) => option['name']!,
-                      onSelected: (Map<String, String> selection) {
-                        setModalState(() {
-                          if (!_trustedContacts.any((c) => c['phone'] == selection['phone'])) {
-                            _trustedContacts.add(selection);
-                          }
-                        });
-                        setState(() {}); // Update main screen counter
-                      },
-                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                        return TextField(
-                          controller: controller,
-                          focusNode: focusNode,
-                          decoration: InputDecoration(
-                            labelText: 'Search Directory',
-                            hintText: 'Search by name or email...',
-                            prefixIcon: const Icon(Icons.search, color: ST.primary),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: ST.primary, width: 2),
-                            ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _selectFromContacts(setModalState),
+                        icon: const Icon(Icons.contact_phone_rounded, size: 20, color: Colors.white),
+                        label: const Text(
+                          'Import from Phone Contacts',
+                          style: TextStyle(
+                            fontFamily: 'Bernard MT Condensed',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
                           ),
-                        );
-                      },
-                      optionsViewBuilder: (context, onSelected, options) {
-                        return Align(
-                          alignment: Alignment.topLeft,
-                          child: Material(
-                            elevation: 4,
-                            borderRadius: BorderRadius.circular(10),
-                            color: ST.surfaceContainerLowest,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxHeight: 200, maxWidth: 300),
-                              child: ListView.builder(
-                                padding: EdgeInsets.zero,
-                                itemCount: options.length,
-                                itemBuilder: (BuildContext context, int index) {
-                                  final option = options.elementAt(index);
-                                  return ListTile(
-                                    leading: const Icon(Icons.person_add_alt_1, color: ST.primary),
-                                    title: Text(option['name']!, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    subtitle: Text(option['phone']!),
-                                    onTap: () => onSelected(option),
-                                  );
-                                },
-                              ),
-                            ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ST.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    const Divider(),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          _saveContactsToFirebase();
+                          Navigator.pop(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ST.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 2,
+                        ),
+                        child: const Text(
+                          'SAVE CHANGES TO CLOUD',
+                          style: TextStyle(
+                            fontFamily: 'Bernard MT Condensed',
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.0,
                           ),
-                        );
-                      },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(color: ST.onSurfaceVariant.withOpacity(0.7)),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             );
+
           },
         ),
       ),
     );
+  }
+
+  Future<void> _selectFromContacts(void Function(void Function()) setModalState) async {
+    // Use permission_handler for reliable permission checking
+    final status = await Permission.contacts.status;
+
+    if (status.isGranted) {
+      // Already granted — go straight to picker
+      await _openPicker(setModalState);
+
+    } else if (status.isDenied) {
+      // Request it
+      final result = await Permission.contacts.request();
+      if (result.isGranted) {
+        await _openPicker(setModalState);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Contacts permission denied.')),
+          );
+        }
+      }
+
+    } else if (status.isPermanentlyDenied) {
+      // User tapped "Don't ask again" — must send to settings
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Permission Required'),
+            content: const Text(
+              'Contacts permission is disabled. Please enable it in App Settings.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  openAppSettings(); // opens device settings directly
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+// Separated picker logic
+  Future<void> _openPicker(void Function(void Function()) setModalState) async {
+    final contact = await FlutterContacts.openExternalPick();
+    if (contact != null) {
+      final fullContact = await FlutterContacts.getContact(contact.id);
+      if (fullContact != null && fullContact.phones.isNotEmpty) {
+        final name  = fullContact.displayName;
+        final phone = fullContact.phones.first.number;
+        setModalState(() {
+          if (!_trustedContacts.any((c) => c['phone'] == phone)) {
+            _trustedContacts.add({'name': name, 'phone': phone});
+          }
+        });
+        setState(() {});
+        _saveContactsToFirebase();
+
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Selected contact has no phone number.')),
+          );
+        }
+      }
+    }
   }
 
   void _showComingSoon(BuildContext context) {

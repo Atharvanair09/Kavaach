@@ -6,6 +6,9 @@ import '../../auth_service.dart';
 import '../home/home_screen.dart';
 import '../fake_app/fake_app_screen.dart';
 import 'login_screen.dart';
+import '../../services/emergency_contact_service.dart';
+import '../../services/location_service.dart';
+
 
 class PinScreen extends StatefulWidget {
   const PinScreen({super.key});
@@ -59,7 +62,20 @@ class _PinScreenState extends State<PinScreen> {
     if (pin.isNotEmpty) setState(() => pin.removeLast());
   }
 
-  void _triggerSOS(BuildContext context) {
+  Future<void> _triggerSOS(BuildContext context) async {
+    try {
+      final position = await LocationService.getCurrentLocation();
+      await ApiService.sendSOS(
+        lat: position.latitude,
+        lng: position.longitude,
+        message: "Emergency! SOS triggered from SafeText PIN screen.",
+      );
+    } catch (e) {
+      debugPrint("SOS error: $e");
+    }
+
+    if (!mounted) return;
+
     showDialog(
       context: context,
       barrierDismissible: false,

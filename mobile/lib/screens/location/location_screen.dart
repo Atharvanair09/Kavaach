@@ -419,7 +419,7 @@ class _LocationScreenState extends State<LocationScreen> {
   bool _isRouteLoading = false;
 
   // ── In-map route drawing ───────────────────────────────────────────────────
-  static String get _mapsApiKey => dotenv.get('GOOGLE_MAPS_API_KEY', fallback: '');
+  static String get _orsApiKey => dotenv.get('ORS_API_KEY', fallback: '');
 
   /// Decodes a Google-encoded polyline string into a list of LatLng points.
   List<LatLng> _decodePolyline(String encoded) {
@@ -447,37 +447,27 @@ class _LocationScreenState extends State<LocationScreen> {
   }
 
   /// Fetches the driving route from the user's position to [destination]
-  /// using the Routes API v2 and draws it as a Polyline on the map.
+  /// using the OpenRouteService API and draws it as a Polyline on the map.
   Future<void> _drawRouteOnMap(LatLng destination, String destinationName) async {
     if (mounted) setState(() => _isRouteLoading = true);
 
-    // Routes API v2 — POST-based, replaces deprecated Directions API
-    final url = Uri.parse(
-      'https://routes.googleapis.com/directions/v2:computeRoutes',
-    );
+    if (_orsApiKey.isEmpty) {
+      setState(() => _isRouteLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Missing ORS_API_KEY in .env file')),
+      );
+      return;
+    }
+
+    // OpenRouteService endpoints require Longitude first, then Latitude
+    final url = Uri.parse('https://api.openrouteservice.org/v2/directions/driving-car');
 
     final body = json.encode({
-      'origin': {
-        'location': {
-          'latLng': {
-            'latitude': _userPosition.latitude,
-            'longitude': _userPosition.longitude,
-          }
-        }
-      },
-      'destination': {
-        'location': {
-          'latLng': {
-            'latitude': destination.latitude,
-            'longitude': destination.longitude,
-          }
-        }
-      },
-      'travelMode': 'DRIVE',
-      'routingPreference': 'TRAFFIC_AWARE',
-      'computeAlternativeRoutes': false,
-      'languageCode': 'en-US',
-      'units': 'METRIC',
+      "coordinates": [
+        [_userPosition.longitude, _userPosition.latitude],
+        [destination.longitude, destination.latitude]
+      ],
+      "instructions": false
     });
 
     try {
@@ -485,21 +475,25 @@ class _LocationScreenState extends State<LocationScreen> {
         url,
         headers: {
           'Content-Type': 'application/json',
-          'X-Goog-Api-Key': _mapsApiKey,
-          // Only request the encoded polyline to keep the response small
-          'X-Goog-FieldMask': 'routes.polyline.encodedPolyline',
+          'Authorization': _orsApiKey,
         },
         body: body,
       );
 
       final data = json.decode(response.body);
 
-      if (response.statusCode != 200 || data['routes'] == null || (data['routes'] as List).isEmpty) {
-        final msg = data['error']?['message'] ?? 'No route found (status ${response.statusCode})';
+      if (response.statusCode != 200 || data['error'] != null) {
+        String msg = 'No route found (status ${response.statusCode})';
+        if (data['error'] is String) {
+          msg = data['error'];
+        } else if (data['error'] is Map) {
+          msg = data['error']['message'] ?? msg;
+        }
         throw Exception(msg);
       }
 
-      final encodedPoly = data['routes'][0]['polyline']['encodedPolyline'] as String;
+      // ORS returns standard Google encoded polylines in the geometry field of routes
+      final encodedPoly = data['routes'][0]['geometry'] as String;
       final points = _decodePolyline(encodedPoly);
 
       // Compute bounding box to fit the full route in view.
