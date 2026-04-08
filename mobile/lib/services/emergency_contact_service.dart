@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../constants/api_constants.dart';
+
 
 class EmergencyContact {
   final String name;
@@ -93,22 +95,26 @@ class EmergencyContactService {
   static Future<Map<String, dynamic>> sendSOS({
     required double lat,
     required double lng,
+    String? userId,
     String message = 'Emergency! I need help.',
   }) async {
+
     final contacts = await fetchContacts();
     
-    // Use localhost for web, Android emulator IP otherwise
-    final baseUrl = kIsWeb ? 'http://localhost:5000' : 'http://10.0.2.2:5000';
+    // Use the central API constants for connectivity
+    final baseUrl = APIConstants.baseServerUrl;
 
     final res = await http.post(
       Uri.parse('$baseUrl/sos'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
+        if (userId != null) 'userId': userId,
         'location': {'lat': lat, 'lng': lng},
         'message': message,
         'contacts': contacts.map((c) => c.toMap()).toList(),
       }),
     );
+
 
     if (res.statusCode == 200) {
       return jsonDecode(res.body) as Map<String, dynamic>;

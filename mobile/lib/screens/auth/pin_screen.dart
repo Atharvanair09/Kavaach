@@ -63,81 +63,116 @@ class _PinScreenState extends State<PinScreen> {
   }
 
   Future<void> _triggerSOS(BuildContext context) async {
+    // Show loading snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ),
+            SizedBox(width: 12),
+            Text("SOS ALERTING CONTACTS..."),
+          ],
+        ),
+        backgroundColor: ST.tertiary,
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
     try {
       final position = await LocationService.getCurrentLocation();
-      await ApiService.sendSOS(
+      final user = await AuthService.getUser();
+      
+      if (position == null) throw Exception("Could not fetch location. Ensure GPS is on.");
+
+      await EmergencyContactService.sendSOS(
         lat: position.latitude,
         lng: position.longitude,
+        userId: user?['email'],
         message: "Emergency! SOS triggered from SafeText PIN screen.",
       );
-    } catch (e) {
-      debugPrint("SOS error: $e");
-    }
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        backgroundColor: ST.surfaceContainerLowest,
-        shape: RoundedRectangleBorder(borderRadius: ST.radiusMd),
-        icon: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: ST.tertiaryFixed,
-            shape: BoxShape.circle,
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          backgroundColor: ST.surfaceContainerLowest,
+          shape: RoundedRectangleBorder(borderRadius: ST.radiusMd),
+          icon: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: ST.tertiaryFixed,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.sos, color: ST.tertiary, size: 30),
           ),
-          child: const Icon(Icons.sos, color: ST.tertiary, size: 30),
-        ),
-        title: const Text(
-          'SOS Alert Sent',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontFamily: 'Rockwell',
-            fontWeight: FontWeight.w700,
-            fontSize: 22,
-            color: ST.onSurface,
+          title: const Text(
+            'SOS Alert Sent',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Rockwell',
+              fontWeight: FontWeight.w700,
+              fontSize: 22,
+              color: ST.onSurface,
+            ),
           ),
-        ),
-        content: const Text(
-          'Your emergency contacts and location have been shared silently. Help is on the way.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14,
-            color: ST.onSurfaceVariant,
-            height: 1.5,
+          content: const Text(
+            'Your emergency contacts and location have been shared silently. Help is on the way.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: ST.onSurfaceVariant,
+              height: 1.5,
+            ),
           ),
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ST.tertiary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: ST.radiusFull),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'OK, I\'m Safe Now',
-                style: TextStyle(
-                  fontFamily: 'Bernard MT Condensed',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                  color: Colors.white,
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ST.tertiary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: ST.radiusFull),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'OK, I\'m Safe Now',
+                  style: TextStyle(
+                    fontFamily: 'Bernard MT Condensed',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
+          ],
+          actionsAlignment: MainAxisAlignment.center,
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        ),
+      );
+    } catch (e) {
+      debugPrint("SOS error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("SOS FAILED: $e"),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
           ),
-        ],
-        actionsAlignment: MainAxisAlignment.center,
-        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      ),
-    );
+        );
+      }
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -518,9 +553,10 @@ class _SosButtonState extends State<SosButton>
       _holding = true;
       _holdProgress = 0.0;
     });
-    const steps = 30;
+    const steps = 100; // 5 seconds (100 * 50ms)
     int count = 0;
     _holdTimer = Timer.periodic(const Duration(milliseconds: 50), (t) {
+
       count++;
       setState(() => _holdProgress = count / steps);
       if (count >= steps) {
@@ -619,13 +655,15 @@ class _SosButtonState extends State<SosButton>
         ),
         const SizedBox(height: 8),
         Text(
-          _holding ? 'Hold to send SOS…' : 'Hold for Emergency SOS',
+          _holding ? 'HOLD FOR 5 SECONDS…' : 'HOLD FOR EMERGENCY SOS',
           style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: _holding ? ST.tertiary : ST.onSurfaceVariant.withOpacity(0.7),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+            color: _holding ? ST.tertiary : ST.onSurfaceVariant.withOpacity(0.5),
           ),
         ),
+
       ],
     );
   }

@@ -5,11 +5,15 @@ import '../chat/chat_screen.dart';
 import '../location/location_screen.dart';
 import '../fake_app/fake_app_screen.dart';
 import '../settings/settings_screen.dart';
+import 'dart:async';
 import '../../auth_service.dart';
+import '../../services/location_service.dart';
+import '../../services/emergency_contact_service.dart';
 import '../../timed_check_in.dart';
 import '../../my_circle.dart';
 import '../../fake_call.dart';
 import '../../shake_to_sos.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -54,6 +58,10 @@ class _HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<_HomeContent> {
   String _userName = "Member";
+  Timer? _sosTimer;
+  double _sosProgress = 0.0;
+  bool _isSosActive = false;
+
 
   @override
   void initState() {
@@ -69,6 +77,95 @@ class _HomeContentState extends State<_HomeContent> {
       });
     }
   }
+
+  void _startSOSTimer() {
+    setState(() {
+      _sosProgress = 0.0;
+      _isSosActive = true;
+    });
+    
+    _sosTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+      setState(() {
+        _sosProgress += 0.01; // 50ms * 100 = 5000ms (5 seconds)
+      });
+      
+      if (_sosProgress >= 1.0) {
+        _stopSOSTimer();
+        _triggerSOS();
+      }
+    });
+  }
+
+  void _stopSOSTimer() {
+    _sosTimer?.cancel();
+    if (mounted) {
+      setState(() {
+        _sosProgress = 0.0;
+        _isSosActive = false;
+      });
+    }
+  }
+
+  Future<void> _triggerSOS() async {
+    // Show immediate feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ),
+            SizedBox(width: 12),
+            Text("FETCHING LOCATION & ALERTING CONTACTS..."),
+          ],
+        ),
+        backgroundColor: ST.tertiary,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+
+    try {
+      final position = await LocationService.getCurrentLocation();
+      final user = await AuthService.getUser();
+      
+      if (position != null) {
+        await EmergencyContactService.sendSOS(
+          lat: position.latitude,
+          lng: position.longitude,
+          userId: user?['email'],
+          message: "EMERGENCY! I need help. My current location is being shared with you.",
+        );
+
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text("SOS ALERTS SENT SUCCESSFULLY!"),
+              backgroundColor: Colors.green.shade700,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("SOS FAILED: $e"),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -254,74 +351,99 @@ class _HomeContentState extends State<_HomeContent> {
 
               // 3. SOS Critical Action
               GestureDetector(
-                onLongPress: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text("SOS ALERT TRIGGERED!"),
-                      backgroundColor: ST.tertiary,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  );
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [ST.primary, ST.primaryContainer],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: ST.primary.withOpacity(0.4),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
+                onLongPressStart: (_) => _startSOSTimer(),
+                onLongPressEnd: (_) => _stopSOSTimer(),
+                child: AnimatedScale(
+                  scale: _isSosActive ? 0.96 : 1.0,
+                  duration: const Duration(milliseconds: 100),
+                  child: Stack(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.emergency_share, color: Colors.white, size: 28),
-                      ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'SOS EMERGENCY',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 18,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            Text(
-                              'Hold for 3 seconds to alert circle',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
-                              ),
+                          gradient: LinearGradient(
+                            colors: _isSosActive 
+                                ? [const Color(0xFFDC2626), const Color(0xFF991B1B)] 
+                                : [ST.primary, ST.primaryContainer],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (_isSosActive ? const Color(0xFFDC2626) : ST.primary).withOpacity(0.4),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),
+                        padding: const EdgeInsets.all(20),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                _isSosActive ? Icons.priority_high : Icons.emergency_share, 
+                                color: Colors.white, 
+                                size: 28
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'SOS EMERGENCY',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 18,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  Text(
+                                    _isSosActive ? 'Keep holding for 5 seconds...' : 'Hold for 5 seconds to alert circle',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+                          ],
+                        ),
                       ),
-                      const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+                      if (_isSosActive)
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: ClipRRect(
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(24),
+                              bottomRight: Radius.circular(24),
+                            ),
+                            child: LinearProgressIndicator(
+                              value: _sosProgress,
+                              minHeight: 6,
+                              backgroundColor: Colors.transparent,
+                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white38),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 20),
 
+  
               // 4. Journey Mode
               const _JourneyCard(),
               const SizedBox(height: 28),

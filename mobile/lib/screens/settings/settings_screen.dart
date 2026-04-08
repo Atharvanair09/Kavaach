@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../constants/st_style.dart';
 import '../../auth_service.dart';
+import '../../services/emergency_contact_service.dart';
 import '../home/home_screen.dart';
 import '../auth/login_screen.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
+
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -47,45 +51,86 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadUser() async {
+    // 1. Load from local storage first for instant UI response
+    try {
+      final localContacts = await EmergencyContactService.fetchContacts();
+      if (mounted && localContacts.isNotEmpty) {
+        setState(() {
+          _trustedContacts = localContacts.map((c) => {
+            'name': c.name,
+            'phone': c.phone
+          }).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading local contacts: $e');
+    }
+
+    // 2. Load from Firebase for cloud sync
     final user = await AuthService.getUser();
-    if (mounted) {
+    if (user != null && mounted) {
       setState(() {
         _user = user;
         _isLoading = false;
       });
-      if (user != null && user['email'] != null) {
+      if (user['email'] != null) {
         _loadFirebaseContacts(user['email']);
       }
     }
   }
 
+
   Future<void> _loadFirebaseContacts(String email) async {
     final cleanEmail = email.trim().toLowerCase();
+    debugPrint('🔍 LOADING CONTACTS FOR: $cleanEmail');
     try {
-      final doc = await FirebaseFirestore.instance.collection('emergency_contacts').doc(cleanEmail).get();
-      if (doc.exists && doc.data()!.containsKey('contacts')) {
-        final List<dynamic> contacts = doc.data()!['contacts'];
+      // Try new location (users collection)
+      final doc = await FirebaseFirestore.instance.collection('users').doc(cleanEmail).get();
+      List<dynamic>? contacts;
+
+      if (doc.exists && doc.data()!.containsKey('emergencyContacts')) {
+        contacts = doc.data()!['emergencyContacts'];
+      } else {
+        // Fallback to old location for migration
+        final oldDoc = await FirebaseFirestore.instance.collection('emergency_contacts').doc(cleanEmail).get();
+        if (oldDoc.exists && oldDoc.data()!.containsKey('contacts')) {
+          contacts = oldDoc.data()!['contacts'];
+          debugPrint('📝 Found contacts in old collection, migrating...');
+        }
+      }
+
+      if (contacts != null && contacts.isNotEmpty) {
+        final typedContacts = contacts.map((e) => Map<String, String>.from(e)).toList();
+        
         if (mounted) {
           setState(() {
-            _trustedContacts = contacts.map((e) => Map<String, String>.from(e)).toList();
+            _trustedContacts = typedContacts;
           });
         }
+
+        // Sync back to local storage
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('emergency_contacts_local', jsonEncode(typedContacts));
       }
     } catch (e) {
       debugPrint('Error loading emergency contacts: $e');
     }
   }
 
+
   Future<void> _saveContactsToFirebase() async {
     if (_user == null || _user!['email'] == null) return;
     final cleanEmail = _user!['email'].toString().trim().toLowerCase();
     try {
-      await FirebaseFirestore.instance.collection('emergency_contacts').doc(cleanEmail).set({
-        'userEmail': cleanEmail,
-        'contacts': _trustedContacts,
+      await FirebaseFirestore.instance.collection('users').doc(cleanEmail).set({
+        'emergencyContacts': _trustedContacts,
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       
+      // Also save locally so SOS button can access them without a network fetch
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('emergency_contacts_local', jsonEncode(_trustedContacts));
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -95,7 +140,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       }
     } catch (e) {
-      debugPrint('Error saving to emergency_contacts: $e');
+      debugPrint('Error saving to Firestore: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to save contacts: $e')),
@@ -103,6 +148,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +188,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: '${_trustedContacts.length} contacts added',
                   onTap: () => _showTrustedCircleSetup(context),
                 ),
+                if (_trustedContacts.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 72, bottom: 12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: -4,
+                        children: _trustedContacts.take(3).map<Widget>((c) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: ST.primary.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            c['name'] ?? '',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: ST.primary,
+                            ),
+                          ),
+                        )).toList()..addAll([
+                          if (_trustedContacts.length > 3)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text('+${_trustedContacts.length - 3} more', style: const TextStyle(fontSize: 10, color: ST.onSurfaceVariant)),
+                            )
+                        ]),
+
+                      ),
+                    ),
+                  ),
+
                 _buildNavRow(
                   icon: Icons.timer_outlined,
                   iconBg: const Color(0xFFEAF3DE),
