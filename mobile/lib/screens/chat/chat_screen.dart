@@ -8,6 +8,7 @@ import 'chat_bubbles.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../services/location_service.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class MessageData {
   final String text;
@@ -33,11 +34,47 @@ class _ChatScreenState extends State<ChatScreen> {
     )
   ];
   String _nearbySafePlacesContext = "";
+  bool _sosAlreadyFired = false;
+
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
 
   @override
   void initState() {
     super.initState();
+    _speech = stt.SpeechToText();
     _fetchNearbyPlaces();
+  }
+
+  void _listen() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize(
+        onStatus: (status) {
+          if (status == 'done' || status == 'notListening') {
+            setState(() => _isListening = false);
+          }
+        },
+        onError: (errorNotification) => debugPrint('Error: $errorNotification'),
+      );
+      if (available) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult: (result) {
+            setState(() {
+              _controller.text = result.recognizedWords;
+              _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
+            });
+          },
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Speech recognition is not available.')),
+        );
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speech.stop();
+    }
   }
 
   Future<void> _fetchNearbyPlaces() async {
@@ -94,11 +131,10 @@ class _ChatScreenState extends State<ChatScreen> {
         });
         
         final action = data['action'] as String?;
-        if (action == 'trigger_sos') {
-          // TODO: Call native SMS / Email SOS functions in the background here silently!
-          debugPrint('SILENT SOS: Alerting emergency contacts covertly...');
+        if (action == 'trigger_sos' && !_sosAlreadyFired) {
+          setState(() => _sosAlreadyFired = true);
+          _triggerSilentSos();
         } else if (action == 'share_location') {
-          // TODO: Silently activate GPS tracker API here
           debugPrint('SILENT tracking: Activating location tracker covertly...');
         }
       } else {
@@ -125,6 +161,53 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       }
     });
+  }
+
+  /// Fires the silent SOS in the background.
+  /// Covert by design — no loud UI, no alarming language visible on screen.
+  Future<void> _triggerSilentSos() async {
+    debugPrint('CRITICAL [JARVIS]: HIGH RISK DETECTED — firing silent SOS and live location dispatch.');
+
+    // 1. Silently capture current GPS coordinates
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      debugPrint(
+        'CRITICAL [JARVIS]: Location captured — Lat: ' +
+        position.latitude.toString() + ', Lng: ' +
+        position.longitude.toString() +
+        '. Dispatching to emergency contacts (stub).'
+      );
+      // TODO: replace with real dispatch:
+      // await SmsService.sendEmergencySms(position);
+      // await FirebaseFirestore.instance.collection('sos_events').add({ ... });
+    } catch (e) {
+      debugPrint('CRITICAL [JARVIS]: GPS capture failed for SOS — ' + e.toString());
+    }
+
+    // 2. Show a covert snackbar that looks like a normal chat notification
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.favorite, color: Colors.white, size: 16),
+              SizedBox(width: 8),
+              Text(
+                'Jarvis is with you',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1E293B),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   @override
@@ -201,7 +284,18 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                   ),
-                  Icon(Icons.mic, color: Colors.grey.shade400, size: 24),
+                  GestureDetector(
+                    onTap: _listen,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      color: Colors.transparent,
+                      child: Icon(
+                        _isListening ? Icons.mic : Icons.mic_none,
+                        color: _isListening ? Colors.red : Colors.grey.shade400,
+                        size: 26,
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 12),
                   GestureDetector(
                     onTap: _sendMessage,

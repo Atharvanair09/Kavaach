@@ -89,7 +89,7 @@ function detectCategory(message) {
   if (/(stalk|follow|someone behind|watching me)/.test(text))
     return "stalking";
 
-  if (/(abuse|violence|hit|beat|hurt me)/.test(text))
+  if (/(abuse|violence|hit|beat|hurt|beats me|hurts me|hitting me|slapped me|punched me|kicked me|my husband|my boyfriend|my partner|my father|my brother|domestic|choke|threaten|forced me|assault)/.test(text))
     return "abuse";
 
   if (/(period|menstrual|cramp|bleeding)/.test(text))
@@ -151,60 +151,105 @@ router.post("/", async (req, res) => {
     }
 
     const category = detectCategory(message);
-    if (category === "stalking" || category === "abuse") {
+    // Abuse/violence = HIGH risk (silent SOS)
+    // Stalking = MEDIUM risk (guide to safe location, share GPS)
+    if (category === "abuse") {
       risk = "high";
+    } else if (category === "stalking") {
+      risk = "medium";
     }
 
-    // --- NEW: Dynamic System Prompt based on Risk Level ---
-    let systemPrompt = `You are Jarvis, a highly protective personal safety assistant. Keep responses short (1-3 sentences). IMPORTANT: To protect the user from aggressive onlookers, NEVER mention words like "SOS", "Police", "track", or "danger". Act completely casually and covertly. `;
+    // --- Dynamic System Prompt based on Risk Level ---
+    let systemPrompt = `You are Jarvis, a warm and caring personal assistant having a private chat. Keep responses to 1-2 sentences maximum. CRITICAL RULES: Never mention "SOS", "police", "emergency", "danger", "track", "alert", or anything that sounds like a safety app — someone hostile may be watching the screen. Sound completely natural and human. `;
     
     if (risk === "low") {
-      systemPrompt += "Be a friendly listener. Completely hear them out to understand their feelings.";
+      systemPrompt += "Be a friendly, casual listener. Hear them out and respond warmly.";
     } else if (risk === "medium") {
-      systemPrompt += "Casually prompt them to mention their current location or surroundings without sounding alarmed. Keep the tone completely relaxed and normal.";
-      if (safePlaces) {
-        systemPrompt += ` You subtly suggest they move to one of these safe locations if they feel uneasy: ${safePlaces}.`;
+      if (category === "stalking") {
+        // STALKING: Casually redirect to a named safe place — keep tone breezy so a follower won't notice
+        if (safePlaces) {
+          systemPrompt += `The user feels they are being followed or watched. You MUST naturally work in a suggestion to head to one of these specific nearby places by name in your reply: ${safePlaces}. Frame it as a casual idea, like "Oh hey, why don't you pop into [Place Name] for a bit?" or "There's a [Place Name] nearby, maybe grab a coffee there?". Keep it light and friendly. Do NOT say anything alarming.`;
+        } else {
+          systemPrompt += "The user feels they are being followed. Casually suggest they move towards a busy, well-lit public place — a shop, cafe, or busy street — without sounding alarmed.";
+        }
+      } else {
+        systemPrompt += "Sound caring and relaxed. Gently ask where they are or how their surroundings feel, as if catching up with a friend.";
+        if (safePlaces) {
+          systemPrompt += ` If they seem uneasy, casually mention they could hang out near one of these spots: ${safePlaces}.`;
+        }
       }
     } else if (risk === "high") {
-      systemPrompt += "Provide extremely calm, subtle comfort. Keep the tone very casual so a hostile onlooker wouldn't know this is a safety app. Stay with them.";
+      // HIGH RISK: Empathetic probe to keep user talking — SOS fires silently on the client side.
+      systemPrompt += `The user has just described something that sounds very distressing (e.g. domestic abuse, physical violence, or a serious threat). Your job is to respond with genuine warmth and an open-ended question that encourages them to share more — like a caring friend would. Example tone: "Oh no, I'm so sorry to hear that. Tell me more — what happened?" or "That sounds really hard. Are you okay right now?". Do NOT suggest solutions, do NOT mention authorities. Just make them feel heard and keep them talking.`;
       if (safePlaces) {
-        systemPrompt += ` Subtly suggest that they move to one of these nearby safe locations, but do not use words like 'Police' explicitly (e.g. say 'the station near [address]'): ${safePlaces}.`;
+        systemPrompt += ` If it feels natural, you may very casually mention they could step out to somewhere like: ${safePlaces}.`;
       }
     }
 
     // --- Generative AI Conversation Logic ---
     let reply = "I'm having trouble connecting to my conversation module, but my safety routines are still tracking you.";
-    try {
-      const openRouterRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "HTTP-Referer": "http://localhost:5000",
-          "X-Title": "Kavaach Safety App",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: "meta-llama/llama-3-8b-instruct:free", // Safely using a 100% Free model to prevent zero-credit rejection errors
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...userSessions[userId].history.map(msg => ({
-              role: msg.user ? "user" : "assistant",
-              content: msg.user || msg.bot
-            }))
-          ]
-        })
-      });
+    
+    const modelsToTry = [
+      "mistralai/mistral-7b-instruct:free",
+      "meta-llama/llama-3.1-8b-instruct:free"
+    ];
 
-      if (openRouterRes.ok) {
-        const data = await openRouterRes.json();
-        reply = data.choices[0].message.content;
-      } else {
-        console.error("OpenRouter API Failed...", await openRouterRes.text());
-        reply = getRandomResponse(category); 
+    // Build chat history for AI — trim to last 10 messages to stay within
+    // free-tier model context limits (avoids falling back to canned responses)
+    const MAX_HISTORY = 10;
+    const MAX_CONTENT_LEN = 300;
+    const trimmedHistory = userSessions[userId].history.slice(-MAX_HISTORY);
+
+    const chatMessages = [
+      { role: "system", content: systemPrompt },
+      ...trimmedHistory
+        .filter(msg => msg.user || msg.bot)   // skip any malformed entries
+        .map(msg => ({
+          role: msg.user ? "user" : "assistant",
+          content: (msg.user || msg.bot).substring(0, MAX_CONTENT_LEN)
+        }))
+    ];
+
+    console.log(`[JARVIS] Sending ${chatMessages.length - 1} history msgs to model (trimmed to last ${MAX_HISTORY}).`);
+
+    let aiSuccess = false;
+    for (const modelId of modelsToTry) {
+      if (aiSuccess) break;
+      try {
+        console.log(`[JARVIS] Trying model: ${modelId} | Risk: ${risk} | Category: ${category} | Message: "${message}"`);
+        const openRouterRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            "HTTP-Referer": "http://localhost:5000",
+            "X-Title": "Kavaach Safety App",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ model: modelId, messages: chatMessages })
+        });
+
+        if (openRouterRes.ok) {
+          const data = await openRouterRes.json();
+          reply = data.choices[0].message.content;
+          console.log(`[JARVIS] ✅ AI Reply (${modelId}): "${reply.substring(0, 80)}..."`);
+          aiSuccess = true;
+        } else {
+          const errText = await openRouterRes.text();
+          console.warn(`[JARVIS] ⚠️ Model ${modelId} failed (${openRouterRes.status}), trying next...`);
+        }
+      } catch (err) {
+        console.warn(`[JARVIS] ⚠️ Model ${modelId} fetch error: ${err.message}, trying next...`);
       }
-    } catch (err) {
-      console.error("OpenRouter fetch failed:", err);
-      reply = getRandomResponse(category); 
+    }
+
+    if (!aiSuccess) {
+      // For stalking, inject the actual safe place name into the fallback if we have it
+      if (category === "stalking" && safePlaces) {
+        reply = `Oh, actually — there's ${safePlaces.split(",")[0].trim()} nearby, why don't you head over there for a bit? Might be a nice change of scenery.`;
+      } else {
+        reply = getRandomResponse(category);
+      }
+      console.log(`[JARVIS] ❌ All models failed. Using fallback from category: ${category}`);
     }
 
     // --- Action Calculation & Backend Alerting ---

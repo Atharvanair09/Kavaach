@@ -4,7 +4,7 @@ const { OAuth2Client } = require("google-auth-library");
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const path = require("path");
-require("dotenv").config({ path: "../.env" });
+require("dotenv").config();
 
 // You should replace this with your actual Google Client ID
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;

@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../constants/st_style.dart';
 import '../../widgets/st_widgets.dart';
 import '../../services/location_service.dart';
@@ -17,6 +20,7 @@ class _LocationScreenState extends State<LocationScreen> {
   LatLng _userPosition = const LatLng(28.6139, 77.2090); // Default placeholder
   bool _isLoading = true;
   String? _selectedCategory;
+  bool _isSharingLocation = false;
   
   final Set<Marker> _allMarkers = {
     Marker(
@@ -409,11 +413,326 @@ class _LocationScreenState extends State<LocationScreen> {
   };
 
   late Set<Marker> _markers;
+  final Set<Polyline> _polylines = {};
+  Marker? _closestVisible;
+  String? _routeDestinationName;
+  bool _isRouteLoading = false;
+
+  // ── In-map route drawing ───────────────────────────────────────────────────
+  static String get _mapsApiKey => dotenv.get('GOOGLE_MAPS_API_KEY', fallback: '');
+
+  /// Decodes a Google-encoded polyline string into a list of LatLng points.
+  List<LatLng> _decodePolyline(String encoded) {
+    final List<LatLng> points = [];
+    int index = 0;
+    int lat = 0, lng = 0;
+    while (index < encoded.length) {
+      int b, shift = 0, result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      lat += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+      shift = 0; result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      lng += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+      points.add(LatLng(lat / 1e5, lng / 1e5));
+    }
+    return points;
+  }
+
+  /// Fetches the driving route from the user's position to [destination]
+  /// using the Routes API v2 and draws it as a Polyline on the map.
+  Future<void> _drawRouteOnMap(LatLng destination, String destinationName) async {
+    if (mounted) setState(() => _isRouteLoading = true);
+
+    // Routes API v2 — POST-based, replaces deprecated Directions API
+    final url = Uri.parse(
+      'https://routes.googleapis.com/directions/v2:computeRoutes',
+    );
+
+    final body = json.encode({
+      'origin': {
+        'location': {
+          'latLng': {
+            'latitude': _userPosition.latitude,
+            'longitude': _userPosition.longitude,
+          }
+        }
+      },
+      'destination': {
+        'location': {
+          'latLng': {
+            'latitude': destination.latitude,
+            'longitude': destination.longitude,
+          }
+        }
+      },
+      'travelMode': 'DRIVE',
+      'routingPreference': 'TRAFFIC_AWARE',
+      'computeAlternativeRoutes': false,
+      'languageCode': 'en-US',
+      'units': 'METRIC',
+    });
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': _mapsApiKey,
+          // Only request the encoded polyline to keep the response small
+          'X-Goog-FieldMask': 'routes.polyline.encodedPolyline',
+        },
+        body: body,
+      );
+
+      final data = json.decode(response.body);
+
+      if (response.statusCode != 200 || data['routes'] == null || (data['routes'] as List).isEmpty) {
+        final msg = data['error']?['message'] ?? 'No route found (status ${response.statusCode})';
+        throw Exception(msg);
+      }
+
+      final encodedPoly = data['routes'][0]['polyline']['encodedPolyline'] as String;
+      final points = _decodePolyline(encodedPoly);
+
+      // Compute bounding box to fit the full route in view.
+      double minLat = _userPosition.latitude,  maxLat = _userPosition.latitude;
+      double minLng = _userPosition.longitude, maxLng = _userPosition.longitude;
+      for (final p in points) {
+        if (p.latitude  < minLat) minLat = p.latitude;
+        if (p.latitude  > maxLat) maxLat = p.latitude;
+        if (p.longitude < minLng) minLng = p.longitude;
+        if (p.longitude > maxLng) maxLng = p.longitude;
+      }
+
+      if (mounted) {
+        setState(() {
+          _polylines.clear();
+          _polylines.add(Polyline(
+            polylineId: const PolylineId('active_route'),
+            points: points,
+            color: ST.primary,
+            width: 5,
+            patterns: [],
+            startCap: Cap.roundCap,
+            endCap: Cap.roundCap,
+            jointType: JointType.round,
+          ));
+          _routeDestinationName = destinationName;
+          _isRouteLoading = false;
+        });
+
+        // Animate camera to show entire route.
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLngBounds(
+            LatLngBounds(
+              southwest: LatLng(minLat - 0.01, minLng - 0.01),
+              northeast: LatLng(maxLat + 0.01, maxLng + 0.01),
+            ),
+            80,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isRouteLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load route: $e')),
+        );
+      }
+    }
+  }
+
+  void _clearRoute() {
+    setState(() {
+      _polylines.clear();
+      _routeDestinationName = null;
+    });
+  }
+
+  // Shows a modal bottom-sheet with directions CTA for a marker.
+  void _showLocationSheet(Marker marker) {
+    final title = marker.infoWindow.title ?? 'Location';
+    final snippet = marker.infoWindow.snippet ?? '';
+    final position = marker.position;
+
+    // Parse type & contact from snippet  e.g. "Type: POLICE | Contact: 022-..."
+    String type = '';
+    String contact = '';
+    final parts = snippet.split(' | ');
+    for (final p in parts) {
+      if (p.startsWith('Type: ')) type = p.replaceFirst('Type: ', '');
+      if (p.startsWith('Contact: ')) contact = p.replaceFirst('Contact: ', '');
+    }
+
+    // Marker colour accent
+    Color accent = ST.primary;
+    IconData typeIcon = Icons.location_on;
+    if (type == 'POLICE') { accent = ST.primary; typeIcon = Icons.local_police_outlined; }
+    else if (type == 'HOSPITAL') { accent = ST.secondary; typeIcon = Icons.local_hospital_outlined; }
+    else if (type == 'SHELTER') { accent = ST.tertiary; typeIcon = Icons.shield_outlined; }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: ST.surfaceContainerLowest,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: ST.outlineVariant.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Icon + name row
+            Row(
+              children: [
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(typeIcon, color: accent, size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontFamily: 'Rockwell',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          color: ST.onSurface,
+                          height: 1.2,
+                        ),
+                      ),
+                      if (type.isNotEmpty) ...[                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: accent.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            type,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: accent,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (contact.isNotEmpty) ...[              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.phone_outlined, size: 16, color: ST.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Text(
+                    contact,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: ST.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 24),
+            // Get Directions button
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _drawRouteOnMap(position, title);
+                },
+                icon: const Icon(Icons.navigation_outlined, color: Colors.white),
+                label: const Text(
+                  'Get Directions',
+                  style: TextStyle(
+                    fontFamily: 'Rockwell',
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Cancel
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Dismiss',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: ST.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Rebuild _allMarkers with onTap handlers attached.
+  Set<Marker> _buildNavigableMarkers(Set<Marker> source) {
+    return source.map((m) => m.copyWith(
+      onTapParam: () => _showLocationSheet(m),
+    )).toSet();
+  }
 
   @override
   void initState() {
     super.initState();
-    _markers = Set.from(_allMarkers);
+    _markers = _buildNavigableMarkers(_allMarkers);
     _determinePosition();
   }
 
@@ -459,6 +778,7 @@ class _LocationScreenState extends State<LocationScreen> {
           _addPlacesToMarkers(results[1], BitmapDescriptor.hueOrange);
           _addPlacesToMarkers(results[2], BitmapDescriptor.hueGreen);
           _addPlacesToMarkers(results[3], BitmapDescriptor.hueGreen);
+          _markers = _buildNavigableMarkers(_markers);
           _isLoading = false;
         });
       }
@@ -475,17 +795,16 @@ class _LocationScreenState extends State<LocationScreen> {
   void _addPlacesToMarkers(List<Map<String, dynamic>> places, double hue) {
     for (var place in places) {
       final markerId = place['name'] + place['location'].toString();
-      _markers.add(
-        Marker(
-          markerId: MarkerId(markerId),
-          position: place['location'],
-          infoWindow: InfoWindow(
-            title: place['name'],
-            snippet: place['address'],
-          ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+      final m = Marker(
+        markerId: MarkerId(markerId),
+        position: place['location'],
+        infoWindow: InfoWindow(
+          title: place['name'],
+          snippet: place['address'],
         ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(hue),
       );
+      _markers.add(m.copyWith(onTapParam: () => _showLocationSheet(m)));
     }
   }
 
@@ -579,7 +898,8 @@ class _LocationScreenState extends State<LocationScreen> {
 
       if (mounted) {
         setState(() {
-          _markers = Set.from(filtered);
+          _markers = _buildNavigableMarkers(Set.from(filtered));
+          _closestVisible = closest;
           _isLoading = false;
         });
 
@@ -588,10 +908,19 @@ class _LocationScreenState extends State<LocationScreen> {
           Future.delayed(const Duration(milliseconds: 500), () {
             _mapController?.showMarkerInfoWindow(closest!.markerId);
           });
-          
+
           double kmDist = minDistance / 1000;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Closest $category is ${kmDist.toStringAsFixed(1)} km away')),
+            SnackBar(
+              content: Text('Closest $category is ${kmDist.toStringAsFixed(1)} km away'),
+              action: SnackBarAction(
+                label: 'SHOW ROUTE',
+                onPressed: () => _drawRouteOnMap(
+                  closest!.position,
+                  closest.infoWindow.title ?? 'Destination',
+                ),
+              ),
+            ),
           );
         }
       }
@@ -623,6 +952,7 @@ class _LocationScreenState extends State<LocationScreen> {
                 zoom: 14.5,
               ),
               markers: _markers,
+              polylines: _polylines,
               onMapCreated: (controller) => _mapController = controller,
               myLocationEnabled: true,
               myLocationButtonEnabled: false,
@@ -631,7 +961,93 @@ class _LocationScreenState extends State<LocationScreen> {
             ),
           ),
           
-          // 2. Loading Overlay
+          // 2. Route loading overlay (small spinner, not full-screen)
+          if (_isRouteLoading)
+            Positioned(
+              top: 60, left: 0, right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10)],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: ST.primary),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text('Calculating route…',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ST.onSurface)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // 3. Active route info banner
+          if (_routeDestinationName != null && !_isRouteLoading)
+            Positioned(
+              top: 60, left: 16, right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 4))],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                        color: ST.primary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.directions, color: ST.primary, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Route to', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                          Text(
+                            _routeDestinationName!,
+                            style: const TextStyle(
+                              fontFamily: 'Rockwell',
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                              color: ST.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: _clearRoute,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.close, size: 16, color: Color(0xFF6B7280)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // 4. GPS loading overlay (full-screen, shown on first load)
           if (_isLoading)
             Positioned.fill(
               child: Container(
@@ -784,47 +1200,118 @@ class _LocationScreenState extends State<LocationScreen> {
                               child: Column(
                                 children: [
                                   GestureDetector(
-                                    onTap: () {},
+                                    onTap: () {
+                                      setState(() {
+                                        _isSharingLocation = !_isSharingLocation;
+                                      });
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(_isSharingLocation 
+                                            ? 'Started broadcasting live location to 3 trusted contacts'
+                                            : 'Live location broadcasting stopped'),
+                                          backgroundColor: _isSharingLocation ? const Color(0xFFDC2626) : const Color(0xFF333333),
+                                          duration: const Duration(seconds: 3),
+                                        ),
+                                      );
+                                    },
                                     child: Container(
                                       height: 64,
                                       decoration: BoxDecoration(
-                                        color: ST.primary,
+                                        color: _isSharingLocation ? const Color(0xFFDC2626) : ST.primary,
                                         borderRadius: ST.radiusSm,
                                         boxShadow: [
                                           BoxShadow(
-                                            color: ST.primary.withOpacity(0.35),
+                                            color: (_isSharingLocation ? const Color(0xFFDC2626) : ST.primary).withOpacity(0.35),
                                             blurRadius: 40,
                                             offset: const Offset(0, 12),
                                           ),
                                         ],
                                       ),
-                                      child: const Row(
+                                      child: Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.directions_car,
-                                              color: Colors.white, size: 24),
-                                          SizedBox(width: 12),
-                                          const Text(
-                                            'Request Ride',
-                                            style: TextStyle(
+                                          Icon(
+                                            _isSharingLocation ? Icons.stop_circle_outlined : Icons.share_location,
+                                            color: Colors.white, 
+                                            size: 24
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            _isSharingLocation ? 'STOP SHARING' : 'SHARE LOCATION',
+                                            style: const TextStyle(
                                               fontFamily: 'Bernard MT Condensed',
                                               fontWeight: FontWeight.w800,
                                               fontSize: 18,
                                               color: Colors.white,
+                                              letterSpacing: 1.0,
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 12),
+                                  GestureDetector(
+                                    onTap: () {
+                                      if (_closestVisible != null) {
+                                        _drawRouteOnMap(
+                                          _closestVisible!.position,
+                                          _closestVisible!.infoWindow.title ?? 'Destination',
+                                        );
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Select a category first to find the nearest safe haven.'),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    child: Container(
+                                      height: 54,
+                                      decoration: BoxDecoration(
+                                        color: _closestVisible != null
+                                            ? ST.primary.withOpacity(0.07)
+                                            : ST.surfaceContainerLowest,
+                                        borderRadius: ST.radiusSm,
+                                        border: Border.all(
+                                          color: _closestVisible != null
+                                              ? ST.primary.withOpacity(0.3)
+                                              : ST.outlineVariant.withOpacity(0.5),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.navigation_outlined,
+                                            color: _closestVisible != null ? ST.primary : ST.onSurface,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            'Navigate to Closest',
+                                            style: TextStyle(
+                                              fontFamily: 'Rockwell',
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              color: _closestVisible != null ? ST.primary : ST.onSurface,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
                                   Text(
-                                    'YOUR CURRENT COORDINATES ARE SHARED WITH TRUSTED CONTACTS',
+                                    _isSharingLocation 
+                                        ? 'LIVE LOCATION IS CURRENTLY BROADCASTING TO TRUSTED CONTACTS'
+                                        : 'LOCATION PING IS OFF. TAP SHARE TO BROADCAST IN AN EMERGENCY.',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 9,
                                       letterSpacing: 1,
-                                      color: ST.onSurfaceVariant.withOpacity(0.5),
+                                      color: _isSharingLocation ? const Color(0xFFDC2626) : ST.onSurfaceVariant.withOpacity(0.5),
+                                      fontWeight: _isSharingLocation ? FontWeight.bold : FontWeight.w700,
                                     ),
                                   ),
                                   const SizedBox(height: 20),

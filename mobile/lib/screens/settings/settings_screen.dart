@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../constants/st_style.dart';
 import '../../auth_service.dart';
 import '../home/home_screen.dart';
@@ -18,6 +19,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _silentAlerts = true;
   bool _checkinReminders = true;
   bool _enterPin = true;
+
+  List<Map<String, String>> _trustedContacts = [
+  ];
 
   Map<String, dynamic>? _user;
   bool _isLoading = true;
@@ -82,8 +86,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   iconBg: const Color(0xFFDAE1FF),
                   iconColor: ST.primary,
                   label: 'Trusted Circle',
-                  subtitle: '3 contacts added',
-                  onTap: () => _showComingSoon(context),
+                  subtitle: '${_trustedContacts.length} contacts added',
+                  onTap: () => _showTrustedCircleSetup(context),
                 ),
                 _buildNavRow(
                   icon: Icons.timer_outlined,
@@ -710,6 +714,174 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 24),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showTrustedCircleSetup(BuildContext context) {
+    List<Map<String, String>>? cachedFirebaseUsers;
+
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: ST.surfaceContainerLowest,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Trusted Circle',
+                      style: TextStyle(
+                        fontFamily: 'Bernard MT Condensed',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 20,
+                        color: ST.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Add emergency contacts who will receive your live location and SOS alerts.',
+                      style: TextStyle(fontSize: 14, color: ST.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 20),
+                    if (_trustedContacts.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 20.0),
+                        child: Text('No contacts added yet.', style: TextStyle(color: ST.onSurfaceVariant, fontStyle: FontStyle.italic)),
+                      )
+                    else
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        decoration: BoxDecoration(
+                          color: ST.surfaceContainerLow,
+                          borderRadius: ST.radiusSm,
+                          border: Border.all(color: ST.outlineVariant.withOpacity(0.5)),
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: _trustedContacts.length,
+                          separatorBuilder: (_, __) => Divider(height: 1, color: ST.outlineVariant.withOpacity(0.3)),
+                          itemBuilder: (ctx, i) {
+                            final contact = _trustedContacts[i];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: ST.primaryFixed,
+                                child: const Icon(Icons.person, color: ST.primary, size: 20),
+                              ),
+                              title: Text(contact['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              subtitle: Text(contact['phone'] ?? '', style: const TextStyle(fontSize: 12)),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.remove_circle, color: Color(0xFFDC2626), size: 20),
+                                onPressed: () {
+                                  setModalState(() => _trustedContacts.removeAt(i));
+                                  setState(() {}); // Update main screen counter
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'SEARCH FIREBASE USERS',
+                      style: TextStyle(fontFamily: 'Bernard MT Condensed', fontSize: 13, color: ST.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 12),
+                    Autocomplete<Map<String, String>>(
+                      optionsBuilder: (TextEditingValue textEditingValue) async {
+                        if (textEditingValue.text.trim().isEmpty) {
+                          return const Iterable<Map<String, String>>.empty();
+                        }
+                        
+                        try {
+                          if (cachedFirebaseUsers == null) {
+                            final querySnapshot = await FirebaseFirestore.instance.collection('users').get();
+                            cachedFirebaseUsers = querySnapshot.docs.map((doc) {
+                              final data = doc.data();
+                              return {
+                                'name': data['name']?.toString() ?? 'Unknown User',
+                                'phone': data['phone']?.toString() ?? data['email']?.toString() ?? 'No Contact',
+                              };
+                            }).toList();
+                          }
+                          
+                          final searchTerm = textEditingValue.text.toLowerCase();
+                          return cachedFirebaseUsers!.where((Map<String, String> option) {
+                            return option['name']!.toLowerCase().contains(searchTerm) || 
+                                   option['phone']!.toLowerCase().contains(searchTerm);
+                          });
+                        } catch (e) {
+                          debugPrint('Error searching firebase: $e');
+                          return const Iterable<Map<String, String>>.empty();
+                        }
+                      },
+                      displayStringForOption: (Map<String, String> option) => option['name']!,
+                      onSelected: (Map<String, String> selection) {
+                        setModalState(() {
+                          if (!_trustedContacts.any((c) => c['phone'] == selection['phone'])) {
+                            _trustedContacts.add(selection);
+                          }
+                        });
+                        setState(() {}); // Update main screen counter
+                      },
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        return TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          decoration: InputDecoration(
+                            labelText: 'Search Directory',
+                            hintText: 'Search by name or email...',
+                            prefixIcon: const Icon(Icons.search, color: ST.primary),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: ST.primary, width: 2),
+                            ),
+                          ),
+                        );
+                      },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 4,
+                            borderRadius: BorderRadius.circular(10),
+                            color: ST.surfaceContainerLowest,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 200, maxWidth: 300),
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                itemCount: options.length,
+                                itemBuilder: (BuildContext context, int index) {
+                                  final option = options.elementAt(index);
+                                  return ListTile(
+                                    leading: const Icon(Icons.person_add_alt_1, color: ST.primary),
+                                    title: Text(option['name']!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    subtitle: Text(option['phone']!),
+                                    onTap: () => onSelected(option),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
