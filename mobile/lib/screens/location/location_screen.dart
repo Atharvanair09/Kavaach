@@ -571,24 +571,19 @@ class _LocationScreenState extends State<LocationScreen> {
         throw 'Location services are disabled.';
       }
 
-      Position? currentPos = await Geolocator.getLastKnownPosition();
+      Position currentPos;
       LatLng fetchPos;
-
-      if (currentPos != null) {
+      try {
+        currentPos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.best,
+          timeLimit: const Duration(seconds: 8),
+        );
         fetchPos = LatLng(currentPos.latitude, currentPos.longitude);
-      } else {
-        try {
-          currentPos = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.medium,
-            timeLimit: const Duration(seconds: 8),
-          );
-          fetchPos = LatLng(currentPos.latitude, currentPos.longitude);
-        } catch (_) {
-          if (_userPosition.latitude != 28.6139) {
-            fetchPos = _userPosition;
-          } else {
-            rethrow; 
-          }
+      } catch (_) {
+        if (_userPosition.latitude != 28.6139) {
+          fetchPos = _userPosition;
+        } else {
+          rethrow; 
         }
       }
       
@@ -598,50 +593,64 @@ class _LocationScreenState extends State<LocationScreen> {
         });
       }
       
-      // Map category to marker type keyword
-      String matchType = '';
-      if (category == 'Police Station') matchType = 'POLICE';
-      else if (category == 'Hospital') matchType = 'HOSPITAL';
-      else if (category == 'Safe Shelter') matchType = 'SHELTER';
+      // Dynamic Place Search from Google Places API
+      List<Map<String, dynamic>> places = [];
+      double hue = BitmapDescriptor.hueRed;
+      String typeLabel = '';
+      
+      if (category == 'Police Station') {
+        places = await LocationService.getNearbyPlaces(fetchPos, 'police', radius: 5000);
+        hue = BitmapDescriptor.hueBlue;
+        typeLabel = 'POLICE';
+      } else if (category == 'Hospital') {
+        places = await LocationService.getNearbyPlaces(fetchPos, 'hospital', radius: 5000);
+        hue = BitmapDescriptor.hueOrange;
+        typeLabel = 'HOSPITAL';
+      } else if (category == 'Safe Shelter') {
+        places = await LocationService.searchNearbyPlacesByKeyword(fetchPos, 'women shelter', radius: 10000);
+        if (places.isEmpty) {
+          places = await LocationService.searchNearbyPlacesByKeyword(fetchPos, 'safe shelter', radius: 10000);
+        }
+        hue = BitmapDescriptor.hueGreen;
+        typeLabel = 'SHELTER';
+      }
 
-      // Filter all curated markers by type
-      List<Marker> filtered = _allMarkers.where((m) {
-        return m.infoWindow.snippet?.contains('Type: $matchType') == true;
-      }).toList();
-
-      if (filtered.isEmpty) {
+      if (places.isEmpty) {
         if (mounted) {
           setState(() {
             _isLoading = false;
             _markers.clear();
+            _closestVisible = null;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No $category found in local database.')),
+            SnackBar(content: Text('No $category found nearby.')),
           );
         }
         return;
       }
 
-      // Calculate distances using Geolocator
-      Marker? closest;
-      double minDistance = double.infinity;
-
-      for (var marker in filtered) {
-        double dist = Geolocator.distanceBetween(
-          fetchPos.latitude, 
-          fetchPos.longitude, 
-          marker.position.latitude, 
-          marker.position.longitude
+      // Convert results to Markers
+      Set<Marker> newMarkers = {};
+      for (var place in places) {
+        final m = Marker(
+          markerId: MarkerId(place['name'] + place['location'].toString()),
+          position: place['location'],
+          infoWindow: InfoWindow(
+            title: place['name'],
+            snippet: 'Type: $typeLabel | Address: ${place['address']}',
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(hue),
         );
-        if (dist < minDistance) {
-          minDistance = dist;
-          closest = marker;
-        }
+        newMarkers.add(m.copyWith(onTapParam: () => _showLocationSheet(m)));
       }
+
+      // Closest is simply the first result since getNearbyPlaces sorts by distance!
+      Marker? closest = newMarkers.first;
+      double minDistance = places.first['distance'];
 
       if (mounted) {
         setState(() {
-          _markers = _buildNavigableMarkers(Set.from(filtered));
+          _markers = newMarkers;
           _closestVisible = closest;
           _isLoading = false;
         });
@@ -874,9 +883,11 @@ class _LocationScreenState extends State<LocationScreen> {
               ),
             ),
 
-          // 4. GPS loading overlay (full-screen, shown on first load)
+          // 4. GPS loading overlay (centered on visible map area)
           if (_isLoading)
-            Positioned.fill(
+            Positioned(
+              top: 0, left: 0, right: 0,
+              bottom: MediaQuery.of(context).size.height * _sheetExtent,
               child: Container(
                 color: Colors.white60,
                 child: const Center(
