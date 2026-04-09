@@ -242,9 +242,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.lock_outline,
                   iconBg: const Color(0xFFFAEEDA),
                   iconColor: const Color(0xFF854F0B),
-                  label: 'Enter PIN',
-                  subtitle: 'Seceure your app using PIN',
-                  onTap: () => _showPinScreen(context),
+                  label: _enterPin ? 'Update PIN' : 'Enter PIN',
+                  subtitle: _enterPin ? 'PIN is securely active' : 'Secure your app using PIN',
+                  onTap: () {
+                    _showPinScreen(context);
+                    Future.delayed(const Duration(seconds: 10), () => _loadPinStatus());
+                  },
                 ),
                 _buildToggleRow(
                   icon: Icons.lock_outline,

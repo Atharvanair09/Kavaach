@@ -4,6 +4,7 @@ import '../../widgets/st_input_fields.dart';
 import '../../auth_service.dart';
 import '../home/home_screen.dart';
 import 'login_screen.dart';
+import 'pin_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -112,10 +113,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           final result = await AuthService.signInWithGoogle();
                           Navigator.pop(context);
                           if (result != null) {
+                            final hasPin = await AuthService.hasAppPin();
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) => const HomeScreen()),
+                                  builder: (_) => hasPin ? const PinScreen() : const HomeScreen()),
                             );
                           }
                         } catch (e) {

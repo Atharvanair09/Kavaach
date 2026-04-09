@@ -191,8 +191,6 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);
-    await prefs.remove(_appPinKey);
-    await prefs.remove(_decoyPinKey);
   }
 }
 
