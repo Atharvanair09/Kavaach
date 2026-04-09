@@ -13,6 +13,8 @@ import '../../timed_check_in.dart';
 import '../../my_circle.dart';
 import '../../fake_call.dart';
 import '../../shake_to_sos.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../services/journey_service.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -446,8 +448,18 @@ class _HomeContentState extends State<_HomeContent> {
 
   
               // 4. Journey Mode
-              const _JourneyCard(),
-              const SizedBox(height: 28),
+              ListenableBuilder(
+                listenable: JourneyStateNotifier(),
+                builder: (context, _) {
+                  return JourneyStateNotifier().isActive 
+                      ? const _JourneyCard() 
+                      : const SizedBox.shrink();
+                },
+              ),
+              ListenableBuilder(
+                listenable: JourneyStateNotifier(),
+                builder: (context, _) => SizedBox(height: JourneyStateNotifier().isActive ? 28 : 0),
+              ),
 
               // 5. Smart Tip (AI Insight)
               const Text('AI INSIGHT',
@@ -725,21 +737,27 @@ class _JourneyCard extends StatefulWidget {
 
 class _JourneyCardState extends State<_JourneyCard> {
   bool _isExpanded = false;
+  GoogleMapController? _miniMapController;
 
   @override
   Widget build(BuildContext context) {
+    final journey = JourneyStateNotifier();
+
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _isExpanded = !_isExpanded;
-        });
-      },
+      onTap: () => setState(() => _isExpanded = !_isExpanded),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
           color: const Color(0xFFF0FDF4),
           border: Border.all(color: const Color(0xFFBBF7D0)),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF16A34A).withOpacity(0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            )
+          ],
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -747,73 +765,128 @@ class _JourneyCardState extends State<_JourneyCard> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.location_on,
-                    color: Color(0xFF16A34A), size: 18),
-                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.navigation, color: Color(0xFF16A34A), size: 16),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text('Journey mode - active',
+                    children: [
+                      const Text('ACTIVE JOURNEY',
                           style: TextStyle(
                               color: Color(0xFF166534),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600)),
-                      SizedBox(height: 4),
-                      Text('Home → Phoenix Mall · 18 min left',
-                          style: TextStyle(
-                              color: Color(0xFF15803D), fontSize: 12)),
+                              fontSize: 10,
+                              height: 1.5,
+                              letterSpacing: 1.2,
+                              fontWeight: FontWeight.w800)),
+                      Text(
+                        'To: ${journey.destinationName ?? "Destination"}',
+                        style: const TextStyle(
+                            color: Color(0xFF14532D),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            height: 1.2),
+                      ),
                     ],
                   ),
                 ),
-                Row(
-                  children: [
-                    const Text('On track',
-                        style: TextStyle(
-                            color: Color(0xFF16A34A),
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 4),
-                    Icon(
-                      _isExpanded
-                          ? Icons.keyboard_arrow_up
-                          : Icons.keyboard_arrow_down,
-                      color: const Color(0xFF16A34A),
-                    ),
-                  ],
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFBBF7D0)),
+                  ),
+                  child: Text(
+                    '${journey.minutesRemaining} MIN',
+                    style: const TextStyle(
+                        color: Color(0xFF16A34A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Map Mini-view (follows user)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                height: 160,
+                width: double.infinity,
+                decoration: const BoxDecoration(color: Color(0xFFE2E8F0)),
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: journey.currentPosition ?? const LatLng(28.6139, 77.2090),
+                    zoom: 16,
+                  ),
+                  onMapCreated: (controller) => _miniMapController = controller,
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  compassEnabled: false,
+                  polylines: {
+                    if (journey.points.isNotEmpty)
+                      Polyline(
+                        polylineId: const PolylineId('mini_route'),
+                        points: journey.points,
+                        color: ST.primary,
+                        width: 4,
+                        startCap: Cap.roundCap,
+                        endCap: Cap.roundCap,
+                        jointType: JointType.round,
+                      ),
+                  },
+                  markers: {
+                     if (journey.destinationLocation != null)
+                      Marker(
+                        markerId: const MarkerId('dest'),
+                        position: journey.destinationLocation!,
+                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+                      )
+                  },
+                ),
+              ),
+            ),
+            
+            // Progress Bar
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  flex: (journey.progress * 100).toInt(),
+                  child: Container(
+                      height: 6,
+                      decoration: BoxDecoration(
+                          color: const Color(0xFF16A34A),
+                          borderRadius: BorderRadius.circular(3))),
+                ),
+                Expanded(
+                  flex: ((1.0 - journey.progress) * 100).toInt(),
+                  child: Container(
+                      height: 6,
+                      decoration: BoxDecoration(
+                          color: const Color(0xFFDCFCE7),
+                          borderRadius: BorderRadius.circular(3))),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  flex: 50,
-                  child: Container(
-                      height: 4,
-                      decoration: BoxDecoration(
-                          color: const Color(0xFF16A34A),
-                          borderRadius: BorderRadius.circular(2))),
-                ),
-                Expanded(
-                  flex: 50,
-                  child: Container(
-                      height: 4,
-                      decoration: BoxDecoration(
-                          color: const Color(0xFFDCFCE7),
-                          borderRadius: BorderRadius.circular(2))),
-                ),
+                const Text('ON TRACK', 
+                  style: TextStyle(color: Color(0xFF16A34A), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                Text('${(journey.progress * 100).toInt()}% COMPLETED', 
+                  style: const TextStyle(color: Color(0xFF15803D), fontSize: 10, fontWeight: FontWeight.w800)),
               ],
-            ),
-            AnimatedCrossFade(
-              firstChild: const SizedBox(width: double.infinity, height: 0),
-              secondChild: _buildExpandedContent(),
-              crossFadeState: _isExpanded
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              duration: const Duration(milliseconds: 300),
-              alignment: Alignment.topCenter,
-              sizeCurve: Curves.easeInOutCubic,
             ),
           ],
         ),
@@ -821,189 +894,12 @@ class _JourneyCardState extends State<_JourneyCard> {
     );
   }
 
-  Widget _buildExpandedContent() {
-    return Container(
-      margin: const EdgeInsets.only(top: 12),
-      child: Column(
-        children: [
-          Container(
-            height: 160,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E3A8A),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Container(width: 1, color: Colors.white.withOpacity(0.05)),
-                      Container(width: 1, color: Colors.white.withOpacity(0.05)),
-                    ],
-                  ),
-                ),
-                Positioned.fill(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Container(height: 1, color: Colors.white.withOpacity(0.05)),
-                      Container(height: 1, color: Colors.white.withOpacity(0.05)),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  child: Row(
-                    children: [
-                      Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                              color: Color(0xFF60A5FA),
-                              shape: BoxShape.circle)),
-                      const SizedBox(width: 8),
-                      const Text('AI routing live',
-                          style: TextStyle(
-                              color: Color(0xFF60A5FA),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12)),
-                    ],
-                  ),
-                ),
-                const Positioned(
-                    top: 16,
-                    right: 24,
-                    child: Text('Home',
-                        style: TextStyle(
-                            color: Color(0xFF34D399),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12))),
-                Positioned(
-                  top: 80,
-                  left: 32,
-                  right: 24,
-                  child: Row(
-                    children: [
-                      Column(
-                        children: [
-                          const Text('You',
-                              style: TextStyle(
-                                  color: Color(0xFFBFDBFE),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12)),
-                          const SizedBox(height: 12),
-                          Container(
-                              width: 16,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                  color: const Color(0xFF60A5FA),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: Colors.white, width: 3))),
-                        ],
-                      ),
-                      Expanded(
-                          flex: 60,
-                          child: Container(
-                              margin: const EdgeInsets.only(top: 26),
-                              height: 4,
-                              color: const Color(0xFF34D399))),
-                      Column(
-                        children: [
-                          Container(
-                              margin: const EdgeInsets.only(top: 26),
-                              width: 14,
-                              height: 14,
-                              decoration: BoxDecoration(
-                                  color: const Color(0xFFA78BFA),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: Colors.white, width: 2))),
-                        ],
-                      ),
-                      Expanded(
-                          flex: 40,
-                          child: Container(
-                              margin: const EdgeInsets.only(top: 26),
-                              height: 2,
-                              color: Colors.blueGrey.withOpacity(0.4))),
-                      Column(
-                        children: [
-                          Container(
-                              margin: const EdgeInsets.only(top: 26),
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                  color: const Color(0xFF34D399),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: Colors.white, width: 3))),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  top: 45,
-                  left: 60,
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                            color: const Color(0xFF991B1B),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: const Color(0xFFEF4444).withOpacity(0.5))),
-                        child: const Text('Avoid - poorly lit',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                      Container(
-                        width: 2,
-                        height: 12,
-                        color: const Color(0xFFEF4444).withOpacity(0.8),
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  top: 105,
-                  left: 100,
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 2,
-                        height: 12,
-                        color: const Color(0xFFFBBF24).withOpacity(0.8),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                            color: const Color(0xFFD97706),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: const Color(0xFFFCD34D))),
-                        child: const Text('Café - safe stop',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  @override
+  void didUpdateWidget(covariant _JourneyCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final pos = JourneyStateNotifier().currentPosition;
+    if (pos != null) {
+      _miniMapController?.animateCamera(CameraUpdate.newLatLng(pos));
+    }
   }
 }

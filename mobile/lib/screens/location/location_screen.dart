@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../constants/st_style.dart';
 import '../../widgets/st_widgets.dart';
 import '../../services/location_service.dart';
+import '../../services/journey_service.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 class LocationScreen extends StatefulWidget {
@@ -143,6 +144,16 @@ class _LocationScreenState extends State<LocationScreen> {
           _isRouteLoading = false;
         });
 
+        // Sync route to Home Screen if journey is active
+        if (_isSharingLocation) {
+          JourneyStateNotifier().startJourney(
+            destinationName: _routeDestinationName ?? 'Destination',
+            destinationLocation: _activeDestination!,
+            startPosition: _userPosition,
+            points: points,
+          );
+        }
+
         // Animate camera to show entire route.
         _mapController?.animateCamera(
           CameraUpdate.newLatLngBounds(
@@ -199,12 +210,35 @@ class _LocationScreenState extends State<LocationScreen> {
               ),
             ),
           );
+          // Sync with global journey service
+          if (_isSharingLocation) {
+             JourneyStateNotifier().updatePosition(_userPosition);
+          }
         }
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('In-app navigation active. Following your movement.'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.gps_fixed, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'In-app navigation active. Following your movement.',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: ST.primary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 220,
+            left: 20,
+            right: 20,
+          ),
+          duration: const Duration(seconds: 4),
         ),
       );
     } else {
@@ -220,6 +254,169 @@ class _LocationScreenState extends State<LocationScreen> {
   void dispose() {
     _positionStream?.cancel();
     super.dispose();
+  }
+
+  void _startSafeJourney() {
+    // If we have an active route destination or a hasn marker "closest" but not yet routed
+    if (_activeDestination != null || _closestVisible != null) {
+      if (!_isFollowingUser) _toggleLiveFollow();
+      setState(() {
+        _isSharingLocation = true;
+      });
+      if (_routeDestinationName == null && _closestVisible != null) {
+         _drawRouteOnMap(_closestVisible!.position, _closestVisible!.infoWindow.title ?? 'Destination');
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.shield_moon, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Safe Journey started! Broadcasting live location.',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF10B981), // Solid emerald green
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 220,
+            left: 20,
+            right: 20,
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      // Sync with Home Screen
+      JourneyStateNotifier().startJourney(
+        destinationName: _routeDestinationName ?? 'Custom Destination',
+        destinationLocation: _activeDestination ?? _userPosition,
+        startPosition: _userPosition,
+        points: _polylines.isNotEmpty ? _polylines.first.points : [],
+      );
+    } else {
+      _showCustomDestinationSearch();
+    }
+  }
+
+  void _stopSafeJourney() {
+    if (_isFollowingUser) _toggleLiveFollow();
+    setState(() {
+      _isSharingLocation = false;
+    });
+    _clearRoute();
+    JourneyStateNotifier().stopJourney();
+  }
+
+  void _showCustomDestinationSearch() {
+    String searchQuery = '';
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ST.surfaceContainerLowest,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            bool isSearching = false;
+            List<Map<String, dynamic>> searchResults = [];
+
+            Future<void> performSearch() async {
+              if (searchQuery.trim().isEmpty) return;
+              setModalState(() => isSearching = true);
+              try {
+                final results = await LocationService.searchNearbyPlacesByKeyword(
+                  _userPosition, searchQuery, radius: 20000
+                );
+                setModalState(() {
+                  searchResults = results;
+                  isSearching = false;
+                });
+              } catch (e) {
+                setModalState(() => isSearching = false);
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                left: 20, right: 20, top: 20
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(width: 40, height: 4, decoration: BoxDecoration(color: ST.outlineVariant, borderRadius: BorderRadius.circular(2))),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text('Where are you heading?', style: TextStyle(fontFamily: 'Rockwell', fontSize: 18, fontWeight: FontWeight.bold, color: ST.onSurface)),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: 'Search for any place...',
+                            prefixIcon: const Icon(Icons.search, color: ST.primary),
+                            filled: true,
+                            fillColor: ST.surface,
+                            border: OutlineInputBorder(borderRadius: ST.radiusSm, borderSide: BorderSide.none),
+                          ),
+                          onChanged: (val) => searchQuery = val,
+                          onSubmitted: (_) => performSearch(),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: performSearch,
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(color: ST.primary, borderRadius: ST.radiusSm),
+                          child: const Icon(Icons.arrow_forward, color: Colors.white),
+                        ),
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (isSearching)
+                    const Center(child: CircularProgressIndicator())
+                  else if (searchResults.isNotEmpty)
+                    SizedBox(
+                      height: 250,
+                      child: ListView.builder(
+                        itemCount: searchResults.length,
+                        itemBuilder: (context, index) {
+                          final place = searchResults[index];
+                          return ListTile(
+                            leading: const Icon(Icons.location_on, color: ST.primary),
+                            title: Text(place['name'], style: const TextStyle(fontWeight: FontWeight.w600)),
+                            subtitle: Text(place['address'], maxLines: 1, overflow: TextOverflow.ellipsis),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _userPosition = _userPosition; // trigger update
+                              _activeDestination = place['location'];
+                              _drawRouteOnMap(place['location'], place['name']);
+                              _startSafeJourney();
+                            },
+                          );
+                        },
+                      ),
+                    )
+                  else
+                    const SizedBox(height: 100),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            );
+          }
+        );
+      }
+    );
   }
 
   Future<void> _launchNavigation() async {
@@ -1011,36 +1208,63 @@ class _LocationScreenState extends State<LocationScreen> {
                             ),
                             const SizedBox(height: 20),
                             const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                _CategoryCard(
-                                  icon: Icons.local_police_outlined,
-                                  title: 'Police',
-                                  subtitle: 'STATION',
-                                  color: ST.primary,
-                                  isSelected: _selectedCategory == 'Police Station',
-                                  onTap: () => _showCategoryMarkers('Police Station'),
+                                Row(
+                                  children: [
+                                    _CategoryCard(
+                                      icon: Icons.local_police_outlined,
+                                      title: 'Police',
+                                      subtitle: 'STATION',
+                                      color: ST.primary,
+                                      isSelected: _selectedCategory == 'Police Station',
+                                      onTap: () {
+                                        if (_selectedCategory == 'Police Station') {
+                                          setState(() {
+                                            _selectedCategory = null;
+                                            _markers = _buildNavigableMarkers(_allMarkers);
+                                          });
+                                        } else {
+                                          _showCategoryMarkers('Police Station');
+                                        }
+                                      },
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _CategoryCard(
+                                      icon: Icons.shield_outlined,
+                                      title: 'Shelter',
+                                      subtitle: 'SAFE HAVEN',
+                                      color: ST.tertiary,
+                                      isSelected: _selectedCategory == 'Safe Shelter',
+                                      onTap: () {
+                                        if (_selectedCategory == 'Safe Shelter') {
+                                          setState(() {
+                                            _selectedCategory = null;
+                                            _markers = _buildNavigableMarkers(_allMarkers);
+                                          });
+                                        } else {
+                                          _showCategoryMarkers('Safe Shelter');
+                                        }
+                                      },
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _CategoryCard(
+                                      icon: Icons.local_hospital_outlined,
+                                      title: 'Hospital',
+                                      subtitle: 'MEDICAL',
+                                      color: ST.secondary,
+                                      isSelected: _selectedCategory == 'Hospital',
+                                      onTap: () {
+                                        if (_selectedCategory == 'Hospital') {
+                                          setState(() {
+                                            _selectedCategory = null;
+                                            _markers = _buildNavigableMarkers(_allMarkers);
+                                          });
+                                        } else {
+                                          _showCategoryMarkers('Hospital');
+                                        }
+                                      },
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 12),
-                                _CategoryCard(
-                                  icon: Icons.shield_outlined,
-                                  title: 'Shelter',
-                                  subtitle: 'SAFE HAVEN',
-                                  color: ST.tertiary,
-                                  isSelected: _selectedCategory == 'Safe Shelter',
-                                  onTap: () => _showCategoryMarkers('Safe Shelter'),
-                                ),
-                                const SizedBox(width: 12),
-                                _CategoryCard(
-                                  icon: Icons.local_hospital_outlined,
-                                  title: 'Hospital',
-                                  subtitle: 'MEDICAL',
-                                  color: ST.secondary,
-                                  isSelected: _selectedCategory == 'Hospital',
-                                  onTap: () => _showCategoryMarkers('Hospital'),
-                                ),
-                              ],
-                            ),
                             
                             // Bottom Action Area
                             Padding(
@@ -1049,18 +1273,12 @@ class _LocationScreenState extends State<LocationScreen> {
                                 children: [
                                   GestureDetector(
                                     onTap: () {
-                                      setState(() {
-                                        _isSharingLocation = !_isSharingLocation;
-                                      });
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(_isSharingLocation 
-                                            ? 'Started broadcasting live location to 3 trusted contacts'
-                                            : 'Live location broadcasting stopped'),
-                                          backgroundColor: _isSharingLocation ? const Color(0xFFDC2626) : const Color(0xFF333333),
-                                          duration: const Duration(seconds: 3),
-                                        ),
-                                      );
+                                      if (_isSharingLocation) {
+                                        _stopSafeJourney();
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Safe Journey Stopped')));
+                                      } else {
+                                        _startSafeJourney();
+                                      }
                                     },
                                     child: Container(
                                       height: 64,
@@ -1079,17 +1297,17 @@ class _LocationScreenState extends State<LocationScreen> {
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           Icon(
-                                            _isSharingLocation ? Icons.stop_circle_outlined : Icons.share_location,
+                                            _isSharingLocation ? Icons.stop_circle_outlined : Icons.shield_moon,
                                             color: Colors.white, 
                                             size: 24
                                           ),
                                           const SizedBox(width: 12),
                                           Text(
-                                            _isSharingLocation ? 'STOP SHARING' : 'SHARE LOCATION',
+                                            _isSharingLocation ? 'END JOURNEY' : 'START SAFE JOURNEY',
                                             style: const TextStyle(
                                               fontFamily: 'Bernard MT Condensed',
                                               fontWeight: FontWeight.w800,
-                                              fontSize: 18,
+                                              fontSize: 16,
                                               color: Colors.white,
                                               letterSpacing: 1.0,
                                             ),
