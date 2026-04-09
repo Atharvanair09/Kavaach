@@ -8,14 +8,33 @@ import 'chat_bubbles.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../services/location_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../constants/api_constants.dart';
+import '../../auth_service.dart';
 
 class MessageData {
+  final String id;
+  final String userId;
   final String text;
   final bool isUser;
+  final String category;
+  final String risk;
+  final String ui;
+  final String action;
+  final DateTime time;
 
-  MessageData({required this.text, required this.isUser});
+  MessageData({
+    required this.id,
+    required this.userId,
+    required this.text, 
+    required this.isUser,
+    this.category = "general",
+    this.risk = "low",
+    this.ui = "green",
+    this.action = "none",
+    DateTime? time,
+  }) : time = time ?? DateTime.now();
 }
 
 class ChatScreen extends StatefulWidget {
@@ -28,12 +47,8 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<MessageData> _messages = [
-    MessageData(
-      text: "I'm Jarvis, your personal safety assistant. I'm here with you. How are you feeling about your current surroundings?", 
-      isUser: false,
-    )
-  ];
+  final List<MessageData> _messages = [];
+  String? _currentUserId;
   String _nearbySafePlacesContext = "";
   bool _sosAlreadyFired = false;
   bool _isTyping = false;
@@ -47,8 +62,18 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _speech = stt.SpeechToText();
+    _speech = stt.speechToText();
+    _loadUser();
     _fetchNearbyPlaces();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await AuthService.getUser();
+    if (mounted) {
+      setState(() {
+        _currentUserId = user?['id'] ?? user?['email'] ?? 'anonymous_user';
+      });
+    }
   }
 
   void _listen() async {
@@ -108,12 +133,27 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _currentUserId == null) return;
 
-    setState(() {
-      _messages.add(MessageData(text: text, isUser: true));
-      _isTyping = true;
-    });
+    final userMessageId = "msg_${DateTime.now().millisecondsSinceEpoch}";
+    
+    // 1. Store User Message in Firestore
+    try {
+      await FirebaseFirestore.instance.collection('chats').add({
+        'userId': _currentUserId,
+        'message': text,
+        'category': 'none',
+        'risk': 'none',
+        'ui': 'blue',
+        'action': 'none',
+        'time': FieldValue.serverTimestamp(),
+        'reply': '',
+      });
+    } catch (e) {
+      debugPrint("Firestore save (user) failed: $e");
+    }
+
+    setState(() => _isTyping = true);
     _controller.clear();
     _scrollToBottom();
 
@@ -123,40 +163,43 @@ class _ChatScreenState extends State<ChatScreen> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'message': text,
-          'userId': 'mobile_user',
+          'userId': _currentUserId,
           'safePlaces': _nearbySafePlacesContext,
         }),
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        setState(() {
-          _isTyping = false;
-          _messages.add(MessageData(text: data['reply'] ?? '', isUser: false));
-        });
+        
+        // 2. Update Firestore with AI Reply
+        try {
+          await FirebaseFirestore.instance.collection('chats').add({
+            'userId': _currentUserId,
+            'message': '', // It's an AI message, text is in 'reply'
+            'reply': data['reply'] ?? '',
+            'category': data['category'] ?? 'general',
+            'risk': data['risk'] ?? 'low',
+            'ui': data['ui'] ?? 'green',
+            'action': data['action'] ?? 'none',
+            'time': FieldValue.serverTimestamp(),
+          });
+        } catch (e) {
+          debugPrint("Firestore save (reply) failed: $e");
+        }
+
+        setState(() => _isTyping = false);
 
         final action = data['action'] as String?;
         if (action == 'trigger_sos' && !_sosAlreadyFired) {
           setState(() => _sosAlreadyFired = true);
           _triggerSilentSos();
-        } else if (action == 'share_location') {
-          debugPrint('SILENT tracking: Activating location tracker covertly...');
         }
       } else {
-        setState(() {
-          _isTyping = false;
-          _messages.add(MessageData(text: "Jarvis could not process the request.", isUser: false));
-        });
+        setState(() => _isTyping = false);
       }
     } catch (e) {
       debugPrint("Sending message failed: $e");
-      setState(() {
-        _isTyping = false;
-        _messages.add(MessageData(
-          text: "Unable to reach Jarvis. You can continue this chat via SMS if you are offline.",
-          isUser: false,
-        ));
-      });
+      setState(() => _isTyping = false);
       _showOfflineSmsSuggestion(text);
     }
     _scrollToBottom();
@@ -294,22 +337,52 @@ class _ChatScreenState extends State<ChatScreen> {
             Expanded(
               child: CustomPaint(
                 painter: DotGridPainter(),
-                child: ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  // +1 for the typing indicator slot
-                  itemCount: _messages.length + (_isTyping ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    // Show typing bubble at the end
-                    if (_isTyping && index == _messages.length) {
-                      return const _TypingIndicator();
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('chats')
+                      .where('userId', isEqualTo: _currentUserId)
+                      .orderBy('time', descending: false)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
                     }
-                    final msg = _messages[index];
-                    if (msg.isUser) {
-                      return UserBubble(text: msg.text);
-                    } else {
-                      return SupportBubble(text: msg.text);
+
+                    final docs = snapshot.data?.docs ?? [];
+                    
+                    // Convert Firestore docs to local message objects
+                    final messages = <Widget>[];
+                    
+                    // First message ever
+                    messages.add(const SupportBubble(text: "I'm Jarvis, your personal safety assistant. I'm here with you. How are you feeling about your current surroundings?"));
+
+                    for (var doc in docs) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final userMsg = data['message'] as String? ?? "";
+                      final botReply = data['reply'] as String? ?? "";
+                      
+                      if (userMsg.isNotEmpty) {
+                        messages.add(UserBubble(text: userMsg));
+                      }
+                      if (botReply.isNotEmpty) {
+                        messages.add(SupportBubble(text: botReply));
+                      }
                     }
+
+                    // Schedule scroll after build
+                    if (docs.isNotEmpty) _scrollToBottom();
+
+                    return ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: messages.length + (_isTyping ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index < messages.length) {
+                          return messages[index];
+                        }
+                        return const _TypingIndicator();
+                      },
+                    );
                   },
                 ),
               ),

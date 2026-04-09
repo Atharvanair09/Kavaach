@@ -181,6 +181,7 @@ class _LocationScreenState extends State<LocationScreen> {
       _polylines.clear();
       _routeDestinationName = null;
       _activeDestination = null;
+      _closestVisible = null;
     });
   }
 
@@ -263,8 +264,14 @@ class _LocationScreenState extends State<LocationScreen> {
       setState(() {
         _isSharingLocation = true;
       });
-      if (_routeDestinationName == null && _closestVisible != null) {
-         _drawRouteOnMap(_closestVisible!.position, _closestVisible!.infoWindow.title ?? 'Destination');
+      // Prioritize activeDestination (searched) over closestVisible (haven)
+      if (_routeDestinationName == null) {
+         if (_activeDestination != null) {
+            // This case handles if _activeDestination was set but _drawRouteOnMap wasn't called yet
+            _drawRouteOnMap(_activeDestination!, 'Your Destination');
+         } else if (_closestVisible != null) {
+            _drawRouteOnMap(_closestVisible!.position, _closestVisible!.infoWindow.title ?? 'Destination');
+         }
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -314,6 +321,8 @@ class _LocationScreenState extends State<LocationScreen> {
 
   void _showCustomDestinationSearch() {
     String searchQuery = '';
+    Timer? debounce;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -325,19 +334,28 @@ class _LocationScreenState extends State<LocationScreen> {
             bool isSearching = false;
             List<Map<String, dynamic>> searchResults = [];
 
-            Future<void> performSearch() async {
-              if (searchQuery.trim().isEmpty) return;
+            Future<void> performSearch(String query) async {
+              if (query.trim().length < 2) {
+                setModalState(() {
+                  searchResults = [];
+                  isSearching = false;
+                });
+                return;
+              }
+              
               setModalState(() => isSearching = true);
               try {
                 final results = await LocationService.searchNearbyPlacesByKeyword(
-                  _userPosition, searchQuery, radius: 20000
+                  _userPosition, query, radius: 40000 // Increased radius to 40km
                 );
-                setModalState(() {
-                  searchResults = results;
-                  isSearching = false;
-                });
+                if (ctx.mounted) {
+                  setModalState(() {
+                    searchResults = results;
+                    isSearching = false;
+                  });
+                }
               } catch (e) {
-                setModalState(() => isSearching = false);
+                if (ctx.mounted) setModalState(() => isSearching = false);
               }
             }
 
@@ -354,51 +372,62 @@ class _LocationScreenState extends State<LocationScreen> {
                     child: Container(width: 40, height: 4, decoration: BoxDecoration(color: ST.outlineVariant, borderRadius: BorderRadius.circular(2))),
                   ),
                   const SizedBox(height: 20),
-                  const Text('Where are you heading?', style: TextStyle(fontFamily: 'Rockwell', fontSize: 18, fontWeight: FontWeight.bold, color: ST.onSurface)),
+                  const Text('Where are you heading?', 
+                    style: TextStyle(fontFamily: 'Rockwell', fontSize: 20, fontWeight: FontWeight.w800, color: ST.onSurface)),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Search for any place...',
-                            prefixIcon: const Icon(Icons.search, color: ST.primary),
-                            filled: true,
-                            fillColor: ST.surface,
-                            border: OutlineInputBorder(borderRadius: ST.radiusSm, borderSide: BorderSide.none),
-                          ),
-                          onChanged: (val) => searchQuery = val,
-                          onSubmitted: (_) => performSearch(),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      GestureDetector(
-                        onTap: performSearch,
-                        child: Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(color: ST.primary, borderRadius: ST.radiusSm),
-                          child: const Icon(Icons.arrow_forward, color: Colors.white),
-                        ),
-                      )
-                    ],
+                  TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Search for any place...',
+                      prefixIcon: const Icon(Icons.search, color: ST.primary),
+                      suffixIcon: isSearching ? const Padding(
+                        padding: EdgeInsets.all(12.0),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ) : null,
+                      filled: true,
+                      fillColor: ST.surfaceContainerLow,
+                      border: OutlineInputBorder(borderRadius: ST.radiusSm, borderSide: BorderSide.none),
+                      enabledBorder: OutlineInputBorder(borderRadius: ST.radiusSm, borderSide: BorderSide.none),
+                    ),
+                    onChanged: (val) {
+                      searchQuery = val;
+                      if (debounce?.isActive ?? false) debounce?.cancel();
+                      debounce = Timer(const Duration(milliseconds: 500), () {
+                        performSearch(val);
+                      });
+                    },
                   ),
                   const SizedBox(height: 16),
-                  if (isSearching)
-                    const Center(child: CircularProgressIndicator())
-                  else if (searchResults.isNotEmpty)
-                    SizedBox(
-                      height: 250,
-                      child: ListView.builder(
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    height: searchResults.isEmpty && !isSearching ? 0 : 320,
+                    child: Scrollbar(
+                      child: ListView.separated(
+                        shrinkWrap: true,
                         itemCount: searchResults.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1, indent: 56),
+                        padding: const EdgeInsets.only(bottom: 20),
                         itemBuilder: (context, index) {
                           final place = searchResults[index];
+                          final double distanceKm = (place['distance'] as double) / 1000;
+                          
                           return ListTile(
-                            leading: const Icon(Icons.location_on, color: ST.primary),
-                            title: Text(place['name'], style: const TextStyle(fontWeight: FontWeight.w600)),
-                            subtitle: Text(place['address'], maxLines: 1, overflow: TextOverflow.ellipsis),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: ST.primary.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.location_on, color: ST.primary, size: 20),
+                            ),
+                            title: Text(place['name'], 
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: ST.onSurface)),
+                            subtitle: Text('${place['address']}\n${distanceKm.toStringAsFixed(1)} km away', 
+                              style: TextStyle(fontSize: 12, color: ST.onSurfaceVariant, height: 1.4)),
+                            isThreeLine: true,
                             onTap: () {
                               Navigator.pop(ctx);
-                              _userPosition = _userPosition; // trigger update
                               _activeDestination = place['location'];
                               _drawRouteOnMap(place['location'], place['name']);
                               _startSafeJourney();
@@ -406,10 +435,14 @@ class _LocationScreenState extends State<LocationScreen> {
                           );
                         },
                       ),
-                    )
-                  else
-                    const SizedBox(height: 100),
-                  const SizedBox(height: 20),
+                    ),
+                  ),
+                  if (searchResults.isEmpty && !isSearching && searchQuery.isNotEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: Text('No places found nearby', style: TextStyle(color: ST.onSurfaceVariant))),
+                    ),
+                  const SizedBox(height: 10),
                 ],
               ),
             );

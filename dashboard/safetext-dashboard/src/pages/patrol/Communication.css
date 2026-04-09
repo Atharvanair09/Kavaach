@@ -1,0 +1,217 @@
+/* Tactical Zone Radio - Professional UI Redesign */
+
+.patrol-page-container.tactical {
+  background: #ffffff;
+  color: #1e293b;
+  min-height: calc(100vh - 80px);
+  padding: 1.5rem;
+}
+
+.tactical-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.unit-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: #f1f5f9;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.85rem;
+}
+
+.status-id { color: #64748b; font-weight: 700; letter-spacing: 1px; }
+.status-name { color: #1e293b; font-weight: 600; }
+.status-pill {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tactical-tabs {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.tab-btn {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  background: #f8fafc;
+  color: #020617;
+  border-color: #f8fafc;
+}
+
+.zone-radio-container {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 20px;
+  height: 650px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.radio-panel-header {
+  padding: 1.25rem 1.5rem;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.radio-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.radio-panel-title h3 { margin: 0; font-size: 1.1rem; font-weight: 800; letter-spacing: 0.5px; }
+.units-online { font-size: 0.8rem; color: #94a3b8; display: block; }
+
+.live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #10b981;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.live-pulse {
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+  animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.tactical-chat-area {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+  background: #0f172a;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0f172a;
+}
+
+.bubble-group {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+}
+
+.bubble-group.received { align-self: flex-start; }
+.bubble-group.sent { align-self: flex-end; align-items: flex-end; }
+
+.bubble {
+  padding: 1rem 1.25rem;
+  border-radius: 18px;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #f8fafc;
+}
+
+.bubble-group.received .bubble {
+  background: #1e293b;
+  border-bottom-left-radius: 4px;
+}
+
+.bubble-group.sent .bubble {
+  background: #10b981;
+  color: #020617;
+  border-bottom-right-radius: 4px;
+  font-weight: 600;
+}
+
+.bubble-meta {
+  font-size: 0.7rem;
+  color: #64748b;
+  margin: 6px 0 0 4px;
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.bubble-group.sent .bubble-meta {
+  margin-right: 4px;
+}
+
+.tactical-input-container {
+  padding: 1.5rem;
+  background: #1e293b;
+  display: flex;
+  gap: 1rem;
+}
+
+.tactical-input-wrapper {
+  flex: 1;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.tactical-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 1rem 0;
+  color: #f8fafc;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.tactical-input:focus { outline: none; }
+
+.send-btn-circle {
+  width: 44px;
+  height: 44px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.send-btn-circle:hover {
+  background: #334155;
+  color: #f8fafc;
+}
