@@ -1,94 +1,117 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin } from "lucide-react";
+import { Users, MapPin, Home, Clock } from "lucide-react";
+import "./PatrolIncidents.css";
 
-function PatrolIncidents({ incidents, updateStatus, patrolUnits, user }) {
-  // Filter for incidents that are either Unassigned (Pending) or Assigned to a unit
-  const activeIncidents = incidents.filter(i => 
-    i.status === "Pending" || i.status === "In Progress"
-  );
+function PatrolIncidents({ incidents, updateStatus, patrolUnits }) {
+  // Mock unit statuses and locations to match the image exactly
+  const [unitStatuses, setUnitStatuses] = useState({
+    "P1": "ON-BREAK",
+    "P2": "CURRENTLY ACTIVE",
+    "P3": "CURRENTLY ACTIVE"
+  });
 
-  const getPriorityColor = (priority) => {
-    const p = (priority || "").toLowerCase();
-    if (p === "high") return "red";
-    if (p === "medium") return "orange";
-    return "blue";
+  const handleStatusChange = (unitId, status) => {
+    setUnitStatuses(prev => ({ ...prev, [unitId]: status }));
   };
 
-  const handleAction = (id, status) => {
-     updateStatus(id, status);
+  const getUnitIncidents = (unitId) => {
+    return incidents.filter(i => i.assignedTo === unitId && i.status !== "Resolved");
+  };
+
+  const renderUnitCard = (unit) => {
+    const status = unitStatuses[unit.id] || "CURRENTLY ACTIVE";
+    const isActive = status === "CURRENTLY ACTIVE";
+    const unitIncidents = getUnitIncidents(unit.id);
+
+    return (
+      <div key={unit.id} className="unit-card">
+        <div className="unit-card-header">
+          <div className="unit-name-section">
+            <h3>{unit.name}</h3>
+          </div>
+          <select 
+            className="status-dropdown" 
+            value={status} 
+            onChange={(e) => handleStatusChange(unit.id, e.target.value)}
+          >
+            <option value="ON-BREAK">ON-BREAK</option>
+            <option value="CURRENTLY ACTIVE">CURRENTLY ACTIVE</option>
+          </select>
+        </div>
+
+        <div className={`status-badge-inline ${isActive ? 'status-active-bg' : 'status-break-bg'}`}>
+          {isActive ? 'ACTIVE' : 'ON BREAK'}
+        </div>
+
+        <div className="unit-location">
+          <MapPin size={16} />
+          <span>{unit.location}</span>
+        </div>
+
+        <div className="select-case-title">SELECT CASE FROM BELOW</div>
+
+        <div className="cases-container">
+          {unitIncidents.length > 0 ? (
+            unitIncidents.map((incident) => (
+              <div key={incident.id} className="mini-case-card">
+                <p>{incident.text}</p>
+                <div className="case-btn-row">
+                  <button 
+                    className="case-action-btn btn-accept"
+                    onClick={() => updateStatus(incident.id, "In Progress")}
+                  >
+                    Accept
+                  </button>
+                  <button 
+                    className="case-action-btn btn-reject"
+                    onClick={() => updateStatus(incident.id, "Pending")}
+                  >
+                    Reject
+                  </button>
+                </div>
+                <div className={`case-status-text ${incident.status === 'In Progress' ? 'text-accepted' : 'text-rejected'}`}>
+                  {incident.status === 'In Progress' ? 'Case Accepted' : 'Case Rejected'}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="empty-cases-state">
+              <p>No active cases assigned.</p>
+            </div>
+          )}
+        </div>
+
+        {!isActive && (
+          <div className="break-notice">
+            <Clock size={16} />
+            <span>Currently on break. Resume status to handle cases.</span>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
-    <div className="patrol-page-container">
-      <div className="patrol-header">
-        <h2>Incident Handling</h2>
-        <p>Incoming case queue and unit assignments.</p>
-      </div>
-
-      <div className="patrol-widgets-grid grid-2-1">
-        {/* Left column: Incoming Cases */}
-        <div className="widget-card full-height-widget">
-          <div className="widget-header">
-            <h3>Unit Task Queue</h3>
-            <span className="live-dot-text"><span className="dot green-dot"></span> LIVE UPDATES</span>
+    <div className="incident-handling-container">
+      <header className="incident-handling-header">
+        <div className="header-left">
+          <div className="handling-icon">
+            <Users size={28} />
           </div>
-          
-          <div className="incident-queue-list">
-             {activeIncidents.length > 0 ? (
-               activeIncidents.map((c, index) => {
-                const color = getPriorityColor(c.priority);
-                const assignedUnit = patrolUnits.find(p => p.id === c.assignedTo);
-                
-                return (
-                  <div key={c.id || index} className={`queue-card border-top-${color}`}>
-                     <div className="queue-card-top">
-                        <div className="queue-card-meta">
-                           <span className={`dot ${color}-dot`}></span>
-                           <span className="case-id">CASE-{c.id?.substring(0, 6) || `00${index+1}`}</span>
-                           {assignedUnit && <span className="badge-unit-assigned">{assignedUnit.name}</span>}
-                        </div>
-                        <span className="queue-time">{c.timestamp}</span>
-                     </div>
-                     <h4 className="queue-title">{c.intent}</h4>
-                     <p className="queue-location">
-                        <MapPin size={14} className="icon-subdued" />
-                        <span>{c.location || "Location pending tracking..."}</span>
-                     </p>
-                     
-                     <div className="queue-actions">
-                        {c.status === "Pending" ? (
-                          <button className="queue-btn primary-btn" onClick={() => handleAction(c.id, "In Progress")}>Accept Task</button>
-                        ) : (
-                          <button className="queue-btn success-btn" onClick={() => handleAction(c.id, "Resolved")}>Mark Resolved</button>
-                        )}
-                        <button className="queue-btn outline-btn">Details</button>
-                     </div>
-                  </div>
-                )
-               })
-             ) : (
-               <div className="empty-queue">
-                  <p>All clear. No active incidents assigned.</p>
-               </div>
-             )}
+          <div>
+            <h2>Incident Handling</h2>
+            <p>View all the assigned/incoming cases for your unit</p>
           </div>
         </div>
+        <Link to="/" className="back-home-btn">
+          <Home size={18} />
+          <span>Back to Home</span>
+        </Link>
+      </header>
 
-        {/* Right column: Scene Control */}
-        <div className="widget-card mark-scene-widget">
-          <div className="widget-header">
-            <h3>Unit Visibility</h3>
-          </div>
-          <div className="scene-content">
-             <p>Set your current field status for the dispatch center.</p>
-             <div className="scene-buttons">
-                <button className="scene-btn secure">Mark Secure</button>
-                <button className="scene-btn unsafe">Incident Area</button>
-             </div>
-             <p className="scene-status">Status: <strong>Available</strong></p>
-          </div>
-        </div>
+      <div className="unit-cards-grid">
+        {patrolUnits.map(unit => renderUnitCard(unit))}
       </div>
     </div>
   );

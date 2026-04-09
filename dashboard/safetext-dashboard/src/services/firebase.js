@@ -2,12 +2,12 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDR-pRkCHe3MiRK0cUh5iH7qgpnlOwbeO0",
-    authDomain: "safetext-cf7ab.firebaseapp.com",
-    projectId: "safetext-cf7ab",
-    storageBucket: "safetext-cf7ab.firebasestorage.app",
-    messagingSenderId: "55788182047",
-    appId: "1:55788182047:web:c91d8bf9b1d4c16828532a",
+    apiKey: "AIzaSyBDvJ-EVsgZBmW4QGXOLnp-E88tUuYyeqE",
+    authDomain: "kavaach-ee691.firebaseapp.com",
+    projectId: "kavaach-ee691",
+    storageBucket: "kavaach-ee691.firebasestorage.app",
+    messagingSenderId: "851304119288",
+    appId: "1:851304119288:web:7f6f7d4c8853c43202e", // Aligned with Kavaach Project
 };
 
 const app = initializeApp(firebaseConfig);

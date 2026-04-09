@@ -282,7 +282,13 @@ function App() {
 
         <Route
           path="/"
-          element={<Home user={currentUser} role={role} handleLogout={handleLogout} incidents={incidents} patrolUnits={patrolUnits} />}
+          element={
+            currentUser ? (
+              <Navigate to="/dashboard" />
+            ) : (
+              <Home user={currentUser} role={role} handleLogout={handleLogout} incidents={incidents} patrolUnits={patrolUnits} />
+            )
+          }
         />
 
         <Route path="/auth" element={<Auth onLogin={handleLogin} />} />

@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/api_constants.dart';
-
+import '../auth_service.dart';
 
 class EmergencyContact {
   final String name;
@@ -113,15 +114,16 @@ class EmergencyContactService {
   }) async {
 
     final contacts = await fetchContacts();
+    final user = await AuthService.getUser();
     
-    // Use the central API constants for connectivity
+    // Dispatch to backend for persistent logging + SMS/Third-party alerts
     final baseUrl = APIConstants.baseServerUrl;
 
     final res = await http.post(
       Uri.parse('$baseUrl/sos'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        if (userId != null) 'userId': userId,
+        if (userId != null || user?['email'] != null) 'userId': userId ?? user?['email'],
         'location': {'lat': lat, 'lng': lng},
         'message': message,
         'contacts': contacts.map((c) => c.toMap()).toList(),

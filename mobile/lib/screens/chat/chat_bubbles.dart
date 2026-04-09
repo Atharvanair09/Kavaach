@@ -4,7 +4,8 @@ import '../../widgets/st_widgets.dart';
 
 class SupportBubble extends StatelessWidget {
   final String text;
-  const SupportBubble({super.key, required this.text});
+  final String? translation;
+  const SupportBubble({super.key, required this.text, this.translation});
 
   @override
   Widget build(BuildContext context) {
@@ -45,15 +46,38 @@ class SupportBubble extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Text(
-                    text,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 1.5,
-                      fontWeight: FontWeight.w400,
-                      color: ST.onSurface,
-                      letterSpacing: 0.2,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        text,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          fontWeight: FontWeight.w400,
+                          color: ST.onSurface,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      if (translation != null) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.only(top: 8),
+                          decoration: BoxDecoration(
+                            border: Border(top: BorderSide(color: Colors.grey.shade100)),
+                          ),
+                          child: Text(
+                            translation!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.4,
+                              fontStyle: FontStyle.italic,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],
@@ -68,7 +92,8 @@ class SupportBubble extends StatelessWidget {
 
 class UserBubble extends StatelessWidget {
   final String text;
-  const UserBubble({super.key, required this.text});
+  final String? translation;
+  const UserBubble({super.key, required this.text, this.translation});
 
   @override
   Widget build(BuildContext context) {
@@ -95,15 +120,38 @@ class UserBubble extends StatelessWidget {
                       bottomRight: Radius.circular(4),
                     ),
                   ),
-                  child: Text(
-                    text,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      height: 1.5,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white,
-                      letterSpacing: 0.2,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        text,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      if (translation != null) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.only(top: 8),
+                          decoration: BoxDecoration(
+                            border: Border(top: BorderSide(color: Colors.white.withOpacity(0.2))),
+                          ),
+                          child: Text(
+                            translation!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.4,
+                              fontStyle: FontStyle.italic,
+                              color: Colors.white.withOpacity(0.8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 const SizedBox(height: 4),

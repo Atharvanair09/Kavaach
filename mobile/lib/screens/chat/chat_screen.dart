@@ -18,6 +18,7 @@ class MessageData {
   final String id;
   final String userId;
   final String text;
+  final String? translation;
   final bool isUser;
   final String category;
   final String risk;
@@ -28,7 +29,8 @@ class MessageData {
   MessageData({
     required this.id,
     required this.userId,
-    required this.text, 
+    required this.text,
+    this.translation,
     required this.isUser,
     this.category = "general",
     this.risk = "low",
@@ -96,6 +98,7 @@ class _ChatScreenState extends State<ChatScreen> {
               id: "hist_u_${_messages.length}",
               userId: _currentUserId!,
               text: userText,
+              translation: msg['messageEng'],
               isUser: true,
               time: time,
             ));
@@ -105,6 +108,7 @@ class _ChatScreenState extends State<ChatScreen> {
               id: "hist_b_${_messages.length}",
               userId: _currentUserId!,
               text: botText,
+              translation: msg['replyEng'],
               isUser: false,
               category: msg['category'] ?? 'general',
               risk: msg['risk'] ?? 'low',
@@ -230,12 +234,31 @@ class _ChatScreenState extends State<ChatScreen> {
           id: "b_${DateTime.now().millisecondsSinceEpoch}",
           userId: _currentUserId!,
           text: data['reply'] ?? '',
+          translation: data['replyTranslation'],
           isUser: false,
           category: data['category'] ?? 'general',
           risk: data['risk'] ?? 'low',
           ui: data['ui'] ?? 'green',
           action: data['action'] ?? 'none',
         );
+
+        if (data['userTranslation'] != null) {
+          // If the backend translated the user's message, we update the last user message to show it
+          setState(() {
+            final lastUserMsgIndex = _messages.lastIndexWhere((m) => m.isUser);
+            if (lastUserMsgIndex != -1) {
+              final old = _messages[lastUserMsgIndex];
+              _messages[lastUserMsgIndex] = MessageData(
+                id: old.id,
+                userId: old.userId,
+                text: old.text,
+                translation: data['userTranslation'],
+                isUser: true,
+                time: old.time,
+              );
+            }
+          });
+        }
 
         setState(() {
           _messages.add(botMsg);
@@ -479,6 +502,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                  id: m['id'] ?? "u_${m['time']}",
                                  userId: _currentUserId!,
                                  text: m['message'] ?? "",
+                                 translation: m['messageEng'],
                                  isUser: true,
                                  time: DateTime.tryParse(m['time']?.toString() ?? '') ?? DateTime.now(),
                                ));
@@ -487,6 +511,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                  id: "${m['id']}_bot",
                                  userId: "jarvis",
                                  text: m['reply'] ?? "",
+                                 translation: m['replyEng'],
                                  isUser: false,
                                  action: m['action'] ?? 'none',
                                  time: (DateTime.tryParse(m['time']?.toString() ?? '') ?? DateTime.now()).add(const Duration(seconds: 1)),
@@ -619,12 +644,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     final msgIndex = index - 1;
                     if (msgIndex < _messages.length) {
                       final m = _messages[msgIndex];
-                      if (m.isUser) return UserBubble(text: m.text);
+                      if (m.isUser) return UserBubble(text: m.text, translation: m.translation);
                       
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SupportBubble(text: m.text),
+                          SupportBubble(text: m.text, translation: m.translation),
                           if (m.action == 'show_safe_places' && _nearbySafePlacesList.isNotEmpty)
                             _SafePlacesCard(places: _nearbySafePlacesList),
                         ],

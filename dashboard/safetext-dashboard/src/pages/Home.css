@@ -1,0 +1,189 @@
+/* Home.css - Redesigned Landing Page Styles */
+
+.landing-page-v2 {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: white;
+  font-family: 'Inter', sans-serif;
+}
+
+.landing-layout {
+  display: flex;
+  max-width: 1400px;
+  width: 100%;
+  gap: 80px;
+  align-items: center;
+}
+
+.landing-left {
+  flex: 1;
+}
+
+.landing-right {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.top-pills {
+  margin-bottom: 24px;
+}
+
+.pill-badge {
+  background: #f1f5f9;
+  color: #6366f1;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 99px;
+  letter-spacing: 0.5px;
+}
+
+.hero-title {
+  font-size: 72px;
+  font-weight: 900;
+  line-height: 1.05;
+  color: #1e293b;
+  margin: 0 0 24px 0;
+  letter-spacing: -1.5px;
+}
+
+.hero-description {
+  font-size: 18px;
+  color: #64748b;
+  max-width: 520px;
+  line-height: 1.6;
+  margin-bottom: 48px;
+}
+
+.portal-selector-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.portal-v2-card {
+  background: white;
+  border-radius: 20px;
+  padding: 32px;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.03);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.portal-v2-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+}
+
+.p-card-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1e293b;
+  margin-bottom: 24px;
+}
+
+.portal-v2-card h3 {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0 0 16px 0;
+}
+
+.portal-v2-card p {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+.p-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.p-btn-primary {
+  background: #6366f1;
+  color: white;
+}
+
+.p-btn-primary:hover {
+  background: #4f46e5;
+}
+
+.p-btn-outline {
+  background: transparent;
+  border: 2px solid #e2e8f0;
+  color: #6366f1;
+}
+
+.p-btn-outline:hover {
+  background: #f8fafc;
+  border-color: #6366f1;
+}
+
+.hero-visual-container {
+  width: 100%;
+  max-width: 600px;
+}
+
+.hero-img-neon {
+  width: 100%;
+  height: auto;
+  border-radius: 32px;
+  box-shadow: 0 20px 80px rgba(99, 102, 241, 0.2);
+}
+
+/* Overview Styles for logged in users */
+.overview-dashboard {
+  padding: 20px;
+}
+
+.overview-header {
+  margin-bottom: 40px;
+}
+
+.welcome-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.welcome-banner h1 {
+  font-size: 32px;
+  font-weight: 800;
+  margin: 0 0 8px 0;
+}
+
+.welcome-subtitle {
+  color: #64748b;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 40px 0 20px 0;
+}
+
+.quick-link-card {
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  background: white;
+}

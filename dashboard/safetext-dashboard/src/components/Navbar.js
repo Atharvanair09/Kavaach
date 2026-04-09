@@ -7,22 +7,16 @@ function Navbar({ hasNewIncident, clearNotification, user, role, handleLogout })
   const location = useLocation();
 
   const adminNavLinks = [
-    { path: "/", label: "QuickView", icon: LayoutDashboard },
     { path: "/dashboard", label: "Cases", icon: Folder, notify: hasNewIncident },
-    { path: "/chat", label: "Chat Monitor", icon: MessageSquare },
     { path: "/analytics", label: "Analytics", icon: BarChart2 },
     { path: "/responders", label: "Responders", icon: Users },
-    { path: "/resources", label: "Resources", icon: FileText },
-    { path: "/notifications", label: "Notifications", icon: Bell },
-    { path: "/audit-log", label: "Audit Log", icon: ClipboardList },
   ];
 
   const patrolNavLinks = [
-    { path: "/patrol/status", label: "Overview", icon: LayoutDashboard },
+    { path: "/patrol/incidents", label: "Incident Handling", icon: Folder, notify: hasNewIncident },
+    { path: "/patrol/status", label: "My Hub", icon: LayoutDashboard },
     { path: "/patrol/navigation", label: "Navigation", icon: Map },
     { path: "/patrol/communication", label: "Communications", icon: MessageSquare },
-    { path: "/patrol/stats", label: "My Stats", icon: BarChart2 },
-    { path: "/responders", label: "Incident Handling", icon: Users },
   ];
 
   const navLinks = role === "patrol" ? patrolNavLinks : adminNavLinks;

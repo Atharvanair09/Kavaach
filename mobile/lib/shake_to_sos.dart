@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:shake/shake.dart';
+import 'package:geolocator/geolocator.dart';
+import 'services/emergency_contact_service.dart';
+import 'package:flutter/services.dart';
 
 class ShakeToSosScreen extends StatefulWidget {
   const ShakeToSosScreen({Key? key}) : super(key: key);
@@ -10,23 +14,67 @@ class ShakeToSosScreen extends StatefulWidget {
 
 class _ShakeToSosScreenState extends State<ShakeToSosScreen> {
   bool _isArmed = true;
-  double _sensitivity = 2.0; // 1 = Low, 2 = Medium, 3 = High
+  double _sensitivity = 2.0; // 1 = Low (Needs hard shake), 2 = Medium, 3 = High (Easy)
+  ShakeDetector? _detector;
 
-  void _triggerShakeSos() {
-    if (!_isArmed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Shake ignored. System is currently unarmed.'),
-          backgroundColor: Colors.orange.shade800,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
+  @override
+  void initState() {
+    super.initState();
+    _initShake();
+  }
 
-    // TODO: Plug in native sensors_plus and geolocator logic here!
+  void _initShake() {
+    _detector?.stopListening();
+    
+    // Map UI sensitivity (1,2,3) to shake threshold (Higher = Harder shake)
+    // Shake threshold 20 is medium, 15 is high(easy), 30 is low(hard)
+    double threshold = 20;
+    if (_sensitivity == 1) threshold = 30;
+    if (_sensitivity == 3) threshold = 15;
+
+    _detector = ShakeDetector.autoStart(
+      onPhoneShake: (event) {
+        if (_isArmed) {
+          _triggerShakeSos();
+        }
+      },
+      shakeThresholdGravity: threshold,
+    );
+  }
+
+  @override
+  void dispose() {
+    _detector?.stopListening();
+    super.dispose();
+  }
+
+  Future<void> _triggerShakeSos() async {
+    HapticFeedback.vibrate(); // Silent confirmation to user
+
     debugPrint("CRITICAL: SHAKE DETECTED. FIRING SOS SEQUENCE.");
 
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      await EmergencyContactService.sendSOS(
+        lat: position.latitude,
+        lng: position.longitude,
+        message: "SHAKE ALERT: I have triggered a Shake-to-SOS alert. Please check my location immediately.",
+      );
+
+      if (mounted) {
+        _showSosDialog("Emergency contacts alerted via shake sequence.");
+      }
+    } catch (e) {
+       if (mounted) {
+        _showSosDialog("Shake trigger detected but dispatch failed. Check your connection.");
+      }
+    }
+  }
+
+  void _showSosDialog(String message) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -39,9 +87,9 @@ class _ShakeToSosScreenState extends State<ShakeToSosScreen> {
             Text("SOS TRIGGERED", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ],
         ),
-        content: const Text(
-          "Shake sequence detected! Live GPS location and stealth audio broadcasts have been dispatched to your emergency contacts.",
-          style: TextStyle(height: 1.5),
+        content: Text(
+          message,
+          style: const TextStyle(height: 1.5),
         ),
         actions: [
           TextButton(
@@ -186,6 +234,7 @@ class _ShakeToSosScreenState extends State<ShakeToSosScreen> {
                       onChanged: (val) {
                         setState(() {
                           _sensitivity = val;
+                          _initShake();
                         });
                       },
                     ),

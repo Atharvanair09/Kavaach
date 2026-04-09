@@ -20,6 +20,7 @@ val mapsApiKey = localProperties.getProperty("MAPS_API_KEY") ?: ""
 
 dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.10.0"))
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 android {
@@ -30,6 +31,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {

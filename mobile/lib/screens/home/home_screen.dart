@@ -137,10 +137,20 @@ class _HomeContentState extends State<_HomeContent> {
     );
 
     try {
+      debugPrint("SOS: Starting sequence...");
       final position = await LocationService.getCurrentLocation();
       final user = await AuthService.getUser();
       
       if (position != null) {
+        debugPrint("SOS: Location found (${position.latitude}, ${position.longitude})");
+        
+        // Detailed feedback for user
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("LOCATION CAPTURED. SYNCING TO CLOUD..."), duration: Duration(seconds: 1)),
+          );
+        }
+
         await EmergencyContactService.sendSOS(
           lat: position.latitude,
           lng: position.longitude,
@@ -148,26 +158,27 @@ class _HomeContentState extends State<_HomeContent> {
           message: "EMERGENCY! I need help. My current location is being shared with you.",
         );
 
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text("SOS ALERTS SENT SUCCESSFULLY!"),
+              content: const Text("SOS BROADCAST & PERSISTENT LOG SUCCESSFUL!"),
               backgroundColor: Colors.green.shade700,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              duration: const Duration(seconds: 4),
             ),
           );
         }
+      } else {
+        throw Exception("Could not retrieve GPS coordinates.");
       }
     } catch (e) {
+      debugPrint("SOS CRITICAL FAILURE: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("SOS FAILED: $e"),
+            content: Text("SOS ERROR: $e"),
             backgroundColor: Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -258,11 +269,6 @@ class _HomeContentState extends State<_HomeContent> {
                         label: "Check-in",
                         color: const Color(0xFF3B82F6),
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TimedCheckInScreen()))),
-                    _powerAction(
-                        icon: Icons.people_alt_outlined,
-                        label: "My Circle",
-                        color: const Color(0xFFD946EF),
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MyCircleScreen()))),
                     _powerAction(
                         icon: Icons.phone_in_talk_outlined,
                         label: "Fake Call",

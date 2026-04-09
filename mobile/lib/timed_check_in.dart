@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'services/emergency_contact_service.dart';
 
 class TimedCheckInScreen extends StatefulWidget {
   const TimedCheckInScreen({Key? key}) : super(key: key);
@@ -13,6 +15,34 @@ class _TimedCheckInScreenState extends State<TimedCheckInScreen> {
   bool _isActive = false;
   int _selectedMinutes = 15;
   int _remainingSeconds = 0;
+  bool _isSosFiring = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location services are disabled.')),
+        );
+      }
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+  }
 
   @override
   void dispose() {
@@ -58,43 +88,72 @@ class _TimedCheckInScreenState extends State<TimedCheckInScreen> {
     }
   }
 
-  void _fireSOS() {
+  Future<void> _fireSOS() async {
     setState(() {
       _isActive = false;
+      _isSosFiring = true;
     });
     
-    // TODO: Hook up telephony & geolocator plugins here later!
-    debugPrint("CRITICAL: TIMER HIT ZERO. FIRING SOS AND GPS TO EMERGENCY CONTACTS.");
-    
-    if (mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.red),
-              SizedBox(width: 8),
-              Text("SOS TRIGGERED", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: const Text(
-            "You failed to check in. Your live location and an emergency message have been sent to your trusted circle.",
-            style: TextStyle(height: 1.5),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pop(); // Go back to Home Dashboard
-              },
-              child: const Text("CLOSE", style: TextStyle(fontWeight: FontWeight.bold)),
-            )
+    try {
+      // 1. Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // 2. Dispatch SOS via Backend
+      await EmergencyContactService.sendSOS(
+        lat: position.latitude,
+        lng: position.longitude,
+        message: "Timed Check-In ALERT: I failed to check in as planned. Please check on me.",
+      );
+
+      debugPrint("CRITICAL: SOS DISPATCHED SUCCESSFULLY.");
+      
+      if (mounted) {
+        _showSosDialog("Emergency contacts alerted with your live location.");
+      }
+    } catch (e) {
+      debugPrint("SOS Dispatch failed: $e");
+      if (mounted) {
+        _showSosDialog("Trigger failed locally. Call 100 immediately if you are in danger.");
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSosFiring = false;
+        });
+      }
+    }
+  }
+
+  void _showSosDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text("SOS TRIGGERED", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ],
         ),
-      );
-    }
+        content: Text(
+          message,
+          style: const TextStyle(height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop(); // Go back to Home Dashboard
+            },
+            child: const Text("CLOSE", style: TextStyle(fontWeight: FontWeight.bold)),
+          )
+        ],
+      ),
+    );
   }
 
   String get _formattedTime {
@@ -231,7 +290,19 @@ class _TimedCheckInScreenState extends State<TimedCheckInScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
                 )
-              ]
+              ],
+
+              if (_isSosFiring) ...[
+                const Center(
+                  child: Column(
+                    children: [
+                      CircularProgressIndicator(color: Colors.red),
+                      SizedBox(height: 16),
+                      Text("FIRING SOS...", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),

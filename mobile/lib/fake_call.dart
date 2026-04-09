@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/services.dart';
 
 class FakeCallScreen extends StatefulWidget {
   final String callerName;
@@ -17,21 +19,47 @@ class _FakeCallScreenState extends State<FakeCallScreen> {
   bool _isCallActive = false;
   int _callSeconds = 0;
   Timer? _timer;
+  final _player = AudioPlayer();
+  Timer? _vibrationTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startRinging();
+  }
+
+  void _startRinging() {
+    // Simulate phone vibration
+    _vibrationTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (!_isCallActive) {
+        HapticFeedback.heavyImpact();
+      } else {
+        timer.cancel();
+      }
+    });
+  }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _vibrationTimer?.cancel();
+    _player.dispose();
     super.dispose();
   }
 
-  void _answerCall() {
+  void _answerCall() async {
     setState(() {
       _isCallActive = true;
     });
     
-    // Simulate audio playback here if an audio plugin is installed.
-    // e.g. player.play(AssetSource('fake_conversation.mp3'));
-    debugPrint("Pre-recorded audio starting...");
+    _vibrationTimer?.cancel();
+
+    // In a real app, you'd play an asset. For now, we'll try to play a silent or mock conversation if available.
+    // try {
+    //   await _player.play(AssetSource('audio/fake_convo.mp3'));
+    // } catch (e) {
+    //   debugPrint("Audio play failed: $e");
+    // }
     
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
@@ -44,7 +72,8 @@ class _FakeCallScreenState extends State<FakeCallScreen> {
 
   void _endCall() {
     _timer?.cancel();
-    // Stop audio player here if playing
+    _vibrationTimer?.cancel();
+    _player.stop();
     Navigator.of(context).pop();
   }
 

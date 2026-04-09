@@ -32,7 +32,7 @@ router.post("/", async (req, res) => {
   try {
     // 1. Process message through our ML/Chat Logic
     // We use the sender's phone number as the userId to maintain their session history
-    const result = await processChatMessage(sender, message);
+    const result = await processChatMessage(sender, message, true);
     
     const botReply = result.reply;
     console.log(`🧠 ML Analysis complete. Risk: ${result.risk}. Category: ${result.category || 'N/A'}`);

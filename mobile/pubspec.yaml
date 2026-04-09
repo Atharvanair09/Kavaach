@@ -47,6 +47,10 @@ dependencies:
   url_launcher: ^6.3.0
   flutter_contacts: ^1.1.8
   permission_handler: ^11.3.0
+  flutter_local_notifications: ^21.0.0
+  shake: ^3.0.0
+  sensors_plus: ^6.1.2
+  audioplayers: ^6.6.0
 
 dev_dependencies:
   flutter_test:

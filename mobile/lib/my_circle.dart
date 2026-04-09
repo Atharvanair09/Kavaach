@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'services/emergency_contact_service.dart';
 
 class MyCircleScreen extends StatefulWidget {
   const MyCircleScreen({Key? key}) : super(key: key);
@@ -9,17 +10,41 @@ class MyCircleScreen extends StatefulWidget {
 }
 
 class _MyCircleScreenState extends State<MyCircleScreen> {
+  List<EmergencyContact> _contacts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCircle();
+  }
+
+  Future<void> _loadCircle() async {
+    try {
+      final contacts = await EmergencyContactService.fetchContacts();
+      setState(() {
+        _contacts = contacts;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FA), // Soft blue-grey background
       appBar: AppBar(
+        title: const Text('My Circle', style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: const BackButton(color: Color(0xFF1E293B)),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Column(
@@ -77,32 +102,8 @@ class _MyCircleScreenState extends State<MyCircleScreen> {
                         child: const Icon(Icons.shield, color: Colors.white, size: 32),
                       ),
 
-                      // Node: R (Top, Inner Orbit)
-                      Positioned(
-                        top: 40,
-                        child: _buildAvatarNode('R', const Color(0xFF1D4ED8), const Color(0xFFE0E7FF)),
-                      ),
-
-                      // Node: S (Bottom Left, Outer Orbit)
-                      Positioned(
-                        bottom: 30,
-                        left: 10,
-                        child: _buildAvatarNode('S', const Color(0xFF166534), const Color(0xFFDCFCE7)),
-                      ),
-
-                      // Node: A (Bottom Right, Outer Orbit)
-                      Positioned(
-                        bottom: 30,
-                        right: 15,
-                        child: _buildAvatarNode('A', const Color(0xFF9F1239), const Color(0xFFFCE7F3)),
-                      ),
-
-                      // Node: M (Top Right, slightly off outer)
-                      Positioned(
-                        top: 45,
-                        right: 10,
-                        child: _buildAvatarNode('M', const Color(0xFF92400E), const Color(0xFFFEF3C7), size: 28),
-                      ),
+                      // Build nodes from actual contacts
+                      ..._buildContactNodes(),
                     ],
                   ),
                 ),
@@ -110,10 +111,12 @@ class _MyCircleScreenState extends State<MyCircleScreen> {
                 const SizedBox(height: 56),
 
                 // Status Text
-                const Text(
-                  'Riya is 1.2 km away',
+                Text(
+                  _contacts.isNotEmpty 
+                      ? '${_contacts[0].name} is active' 
+                      : 'No contacts in circle',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF0F172A),
@@ -132,17 +135,19 @@ class _MyCircleScreenState extends State<MyCircleScreen> {
                 const SizedBox(height: 24),
 
                 // Distance Pills Row
+                if (_contacts.isNotEmpty)
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildDistancePill('Riya · 1.2km', const Color(0xFF166534), const Color(0xFFDCFCE7)),
-                      const SizedBox(width: 8),
-                      _buildDistancePill('Asha · 4.8km', const Color(0xFF312E81), const Color(0xFFE0E7FF)),
-                      const SizedBox(width: 8),
-                      _buildDistancePill('Sara · 12km', const Color(0xFF9F1239), const Color(0xFFFCE7F3)),
-                    ],
+                    children: _contacts.map((c) {
+                      // Simulated distance for UI polish
+                      final dist = (math.Random().nextDouble() * 15).toStringAsFixed(1);
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: _buildDistancePill('${c.name} · ${dist}km', const Color(0xFF166534), const Color(0xFFDCFCE7)),
+                      );
+                    }).toList(),
                   ),
                 ),
 
@@ -197,6 +202,38 @@ class _MyCircleScreenState extends State<MyCircleScreen> {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildContactNodes() {
+    if (_contacts.isEmpty) return [];
+
+    // Pre-defined positions for radar nodes
+    final positions = [
+       {'top': 40.0, 'left': null, 'right': null}, // Center Top
+       {'bottom': 30.0, 'left': 10.0, 'right': null}, // Bottom Left
+       {'bottom': 30.0, 'right': 15.0, 'left': null}, // Bottom Right
+       {'top': 45.0, 'right': 10.0, 'left': null}, // Top Right
+    ];
+
+    return _contacts.asMap().entries.map((entry) {
+      int idx = entry.key;
+      if (idx >= positions.length) return const SizedBox.shrink();
+      
+      final contact = entry.value;
+      final pos = positions[idx];
+      
+      return Positioned(
+        top: pos['top'] as double?,
+        bottom: pos['bottom'] as double?,
+        left: pos['left'] as double?,
+        right: pos['right'] as double?,
+        child: _buildAvatarNode(
+          contact.name[0], 
+          const Color(0xFF1D4ED8), 
+          const Color(0xFFE0E7FF)
+        ),
+      );
+    }).toList();
   }
 
   Widget _buildAvatarNode(String letter, Color textColor, Color bgColor, {double size = 36}) {

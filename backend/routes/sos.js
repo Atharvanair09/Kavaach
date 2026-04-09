@@ -20,6 +20,23 @@ router.post("/", async (req, res) => {
   console.log("User ID:", userId);
   console.log("Location:", { lat, lng });
 
+  // ── 0. Log SOS to Firestore Alerts Collection ──────────────────────────────
+  if (db) {
+    try {
+      await db.collection("sos_alerts").add({
+        senderEmail: userId || "unknown@user.com",
+        senderName: "Kavaach User", 
+        location: { lat, lng },
+        message: message || "Emergency! I need help.",
+        timestamp: new Date(),
+        status: "active",
+      });
+      console.log("✅ SOS persistent log created in Firestore collection 'sos_alerts'.");
+    } catch (err) {
+      console.error("❌ Firestore SOS logging failed:", err.message);
+    }
+  }
+
   if (!lat || !lng) {
     return res.status(400).json({ success: false, error: "Location (lat/lng) is required" });
   }
