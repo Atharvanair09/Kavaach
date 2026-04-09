@@ -226,89 +226,14 @@ class _HomeContentState extends State<_HomeContent> {
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              const SizedBox(height: 12),
-              
+            delegate: SliverChildListDelegate([      
               // 1. Safety Score Hero Card
               Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(32),
-                  boxShadow: [
-                    BoxShadow(
-                      color: ST.primary.withOpacity(0.04),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 140,
-                          height: 140,
-                          child: CircularProgressIndicator(
-                            value: 0.94,
-                            strokeWidth: 12,
-                            backgroundColor: ST.primary.withOpacity(0.05),
-                            valueColor: const AlwaysStoppedAnimation<Color>(ST.primary),
-                            strokeCap: StrokeCap.round,
-                          ),
-                        ),
-                        Column(
-                          children: [
-                            const Text('94',
-                                style: TextStyle(
-                                  fontSize: 42,
-                                  fontWeight: FontWeight.w900,
-                                  color: ST.onSurface,
-                                  height: 1,
-                                )),
-                            Text('SAFETY SCORE',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.2,
-                                  color: ST.onSurfaceVariant.withOpacity(0.5),
-                                )),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Your area is highly secure',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: ST.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Based on 127 local reports & AI scanning',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: ST.onSurfaceVariant.withOpacity(0.6),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      height: 1,
-                      color: ST.outlineVariant.withAlpha(50),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _miniStatus(Icons.wifi, "Network Sec: High", Colors.green),
-                        _miniStatus(Icons.location_on, "Active Guard", ST.primary),
-                      ],
-                    ),
+                    // const SizedBox(height: 24),
+                    // _buildThreatAlertFeed(),
+                    // const SizedBox(height: 12),
                   ],
                 ),
               ),
@@ -468,50 +393,15 @@ class _HomeContentState extends State<_HomeContent> {
               ),
 
               // 5. Smart Tip (AI Insight)
-              const Text('AI INSIGHT',
+              // 5. Threat Alert Component
+              const Text('NOTIFICATIONS',
                   style: TextStyle(
                       color: ST.onSurfaceVariant,
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.5)),
               const SizedBox(height: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: ST.primary.withOpacity(0.05)),
-                ),
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: ST.primary.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.auto_awesome, color: ST.primary, size: 20),
-                    ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Night Shift Recommendation',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'It’s getting late. Enable "Stay on Route" for extra security.',
-                            style: TextStyle(fontSize: 12, color: ST.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _buildThreatAlertFeed(),
               const SizedBox(height: 120), // Bottom padding for floating nav
             ]),
           ),
@@ -558,6 +448,49 @@ class _HomeContentState extends State<_HomeContent> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildThreatAlertFeed() {
+    return 
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E), // Deep terminal dark
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        children: [
+          _alertItem(Icons.warning_amber_rounded, "Harassment reported 0.3km away · 12 min ago", const Color(0xFFFBBF24)),
+          const SizedBox(height: 12),
+          _alertItem(Icons.circle, "Unsafe zone flagged near Dharavi · 1hr ago", const Color(0xFFEF4444)),
+          const SizedBox(height: 12),
+          _alertItem(Icons.check_box_rounded, "No incidents near you in last 2 hours", const Color(0xFF10B981)),
+        ],
+      ),
+    );
+  }
+
+  Widget _alertItem(IconData icon, String text, Color color) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Color(0xFFD1D5DB),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -749,9 +682,12 @@ class _JourneyCardState extends State<_JourneyCard> {
   Widget build(BuildContext context) {
     final journey = JourneyStateNotifier();
 
-    return GestureDetector(
-      onTap: () => setState(() => _isExpanded = !_isExpanded),
-      child: AnimatedContainer(
+    return AnimatedBuilder(
+      animation: journey,
+      builder: (context, child) {
+        return GestureDetector(
+          onTap: () => setState(() => _isExpanded = !_isExpanded),
+          child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
           color: const Color(0xFFF0FDF4),
@@ -799,6 +735,27 @@ class _JourneyCardState extends State<_JourneyCard> {
                             fontWeight: FontWeight.w900,
                             height: 1.2),
                       ),
+                      if (journey.checkInRemainingSeconds >= 0)
+                        Container(
+                          margin: const EdgeInsets.only(top: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDC2626).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFDC2626).withOpacity(0.4)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.timer_outlined, size: 12, color: Color(0xFFDC2626)),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Check-In: ${(journey.checkInRemainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(journey.checkInRemainingSeconds % 60).toString().padLeft(2, '0')}',
+                                style: const TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold, fontSize: 10),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -898,6 +855,7 @@ class _JourneyCardState extends State<_JourneyCard> {
         ),
       ),
     );
+   });
   }
 
   @override

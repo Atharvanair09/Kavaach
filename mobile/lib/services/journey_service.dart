@@ -17,6 +17,7 @@ class JourneyStateNotifier extends ChangeNotifier {
   int _minutesRemaining = 0;
   int _navIndex = 0;
   Map<String, dynamic>? _pendingRoute;
+  int _checkInRemainingSeconds = -1;
 
   bool get isActive => _isActive;
   String? get destinationName => _destinationName;
@@ -27,6 +28,12 @@ class JourneyStateNotifier extends ChangeNotifier {
   int get minutesRemaining => _minutesRemaining;
   int get navIndex => _navIndex;
   Map<String, dynamic>? get pendingRoute => _pendingRoute;
+  int get checkInRemainingSeconds => _checkInRemainingSeconds;
+
+  void updateCheckInRemaining(int seconds) {
+    _checkInRemainingSeconds = seconds;
+    notifyListeners();
+  }
 
   void setNavIndex(int index) {
     _navIndex = index;
@@ -121,6 +128,7 @@ class JourneyStateNotifier extends ChangeNotifier {
     _points = [];
     _progress = 0.0;
     _minutesRemaining = 0;
+    _checkInRemainingSeconds = -1;
     notifyListeners();
   }
 }

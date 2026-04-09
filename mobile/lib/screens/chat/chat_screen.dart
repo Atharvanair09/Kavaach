@@ -170,7 +170,7 @@ class _ChatScreenState extends State<ChatScreen> {
           setState(() {
             _nearbySafePlacesList = places.take(3).toList();
             final names = _nearbySafePlacesList.map((p) => p['name']).join(", ");
-            _nearbySafePlacesContext = "Nearby safe places: $names";
+            _nearbySafePlacesContext = "USER LOCATION: Lat ${position.latitude}, Lng ${position.longitude}. NEARBY SAFE PLACES: $names";
           });
         }
       }
@@ -211,6 +211,20 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        
+        // DEV DEBUG POPUP
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("DEV: RISK LEVEL = ${data['risk']?.toString().toUpperCase()}"),
+              duration: const Duration(milliseconds: 1500),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: ST.onSurface,
+            ),
+          );
+        }
+
         
         final botMsg = MessageData(
           id: "b_${DateTime.now().millisecondsSinceEpoch}",

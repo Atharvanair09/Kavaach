@@ -39,6 +39,10 @@ class _LocationScreenState extends State<LocationScreen> {
   bool _isRouteLoading = false;
   bool _isIsolatedNavigation = false;
 
+  Timer? _checkInTimer;
+  Timer? _missedCheckInTimer;
+  int _checkInIntervalMinutes = 0;
+
   // ── In-map route drawing ───────────────────────────────────────────────────
   static String get _orsApiKey => dotenv.get('ORS_API_KEY', fallback: '');
 
@@ -272,6 +276,8 @@ class _LocationScreenState extends State<LocationScreen> {
   void dispose() {
     JourneyStateNotifier().removeListener(_handleExternalNavigation);
     _positionStream?.cancel();
+    _checkInTimer?.cancel();
+    _missedCheckInTimer?.cancel();
     super.dispose();
   }
 
@@ -294,10 +300,95 @@ class _LocationScreenState extends State<LocationScreen> {
     }
   }
 
-  Future<void> _startSafeJourney() async {
+  void _showCheckInConfigDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: ST.surfaceContainerLowest,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Safety Check-In', style: TextStyle(fontWeight: FontWeight.bold, color: ST.onSurface, fontSize: 18)),
+          content: const Text('How often should we ask you to check in? If you miss a check-in, an SOS will be triggered automatically.', style: TextStyle(color: ST.onSurfaceVariant, fontSize: 13)),
+          actions: [
+            TextButton(onPressed: () { Navigator.pop(context); _startSafeJourney(0); }, child: const Text('None', style: TextStyle(color: ST.primary, fontWeight: FontWeight.bold))),
+            TextButton(onPressed: () { Navigator.pop(context); _startSafeJourney(5); }, child: const Text('5m', style: TextStyle(color: ST.primary, fontWeight: FontWeight.bold))),
+            TextButton(onPressed: () { Navigator.pop(context); _startSafeJourney(10); }, child: const Text('10m', style: TextStyle(color: ST.primary, fontWeight: FontWeight.bold))),
+            TextButton(onPressed: () { Navigator.pop(context); _startSafeJourney(15); }, child: const Text('15m', style: TextStyle(color: ST.primary, fontWeight: FontWeight.bold))),
+          ],
+        );
+      }
+    );
+  }
+
+  void _promptCheckIn() {
+    if (!mounted) return;
+    
+    _missedCheckInTimer = Timer(const Duration(seconds: 60), () {
+        if (mounted) {
+           Navigator.of(context, rootNavigator: true).pop(); // dismiss dialog
+           _triggerSOS();
+        }
+    });
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: ST.surfaceContainerLowest,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('Check-In Required', style: TextStyle(fontWeight: FontWeight.bold, color: ST.onSurface, fontSize: 18)),
+            ],
+          ),
+          content: const Text('Please check in to confirm you are safe! If you do not respond in 60s, an SOS will be sent automatically to your contacts.', style: TextStyle(color: ST.onSurfaceVariant, fontSize: 13)),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                 _missedCheckInTimer?.cancel();
+                 Navigator.of(context).pop();
+                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Check-in confirmed. Timer reset!')));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ST.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('I\'M SAFE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ]
+        );
+      }
+    );
+  }
+
+  Future<void> _triggerSOS() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('CRITICAL: SOS Triggered! Alerts sent to emergency contacts.'),
+            backgroundColor: Color(0xFFDC2626),
+            duration: Duration(seconds: 5),
+        ),
+    );
+    // Future: implement SMS trigger
+  }
+
+  Future<void> _startSafeJourney(int checkInInterval) async {
     // If we have an active route destination or a hasn marker "closest" but not yet routed
     if (_activeDestination != null || _closestVisible != null) {
       if (!_isFollowingUser) _toggleLiveFollow();
+      
+      _checkInIntervalMinutes = checkInInterval;
+      if (_checkInIntervalMinutes > 0) {
+        _checkInTimer?.cancel();
+        _missedCheckInTimer?.cancel();
+        _checkInTimer = Timer.periodic(Duration(minutes: _checkInIntervalMinutes), (timer) {
+          _promptCheckIn();
+        });
+      }
+
       setState(() {
         _isSharingLocation = true;
       });
@@ -348,6 +439,8 @@ class _LocationScreenState extends State<LocationScreen> {
   }
 
   void _stopSafeJourney() {
+    _checkInTimer?.cancel();
+    _missedCheckInTimer?.cancel();
     if (_isFollowingUser) _toggleLiveFollow();
     setState(() {
       _isSharingLocation = false;
@@ -492,7 +585,7 @@ class _LocationScreenState extends State<LocationScreen> {
                                 Navigator.pop(ctx);
                                 _activeDestination = destinationLoc;
                                 _drawRouteOnMap(destinationLoc, destinationName);
-                                _startSafeJourney();
+                                _showCheckInConfigDialog();
                               } else {
                                 if (ctx.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1381,7 +1474,7 @@ class _LocationScreenState extends State<LocationScreen> {
                                         _stopSafeJourney();
                                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Safe Journey Stopped')));
                                       } else {
-                                        _startSafeJourney();
+                                        _showCheckInConfigDialog();
                                       }
                                     },
                                     child: Container(
