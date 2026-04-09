@@ -217,4 +217,38 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// --- Update Profile Endpoint ---
+router.post("/update-profile", async (req, res) => {
+  try {
+    const { email, name, phone } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    // Find the user to get their ID
+    let user = await findUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Update user object
+    const updatedUser = {
+      ...user,
+      name: name || user.name,
+      phone: phone || user.phone || user.number, // Support both 'phone' and 'number' keys
+    };
+    
+    await storeUser(updatedUser);
+
+    res.status(200).json({
+      message: "Profile updated successfully",
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ error: "Server error during profile update" });
+  }
+});
+
 module.exports = router;

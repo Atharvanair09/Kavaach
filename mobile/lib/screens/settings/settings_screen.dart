@@ -84,13 +84,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final cleanEmail = email.trim().toLowerCase();
     debugPrint('🔍 LOADING CONTACTS FOR: $cleanEmail');
     try {
-      // Try new location (users collection)
-      final doc = await FirebaseFirestore.instance.collection('users').doc(cleanEmail).get();
+      // 1. Find the user document (it might be named by ID or by email)
+      DocumentSnapshot? doc;
+      
+      // Try by ID first if we have it
+      if (_user != null && _user!['id'] != null) {
+        doc = await FirebaseFirestore.instance.collection('users').doc(_user!['id'].toString()).get();
+      }
+      
+      // If not found or no ID, try by email as document ID
+      if (doc == null || !doc.exists) {
+        doc = await FirebaseFirestore.instance.collection('users').doc(cleanEmail).get();
+      }
+      
+      // If still not found, search by email field
+      if (!doc.exists) {
+        final query = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: cleanEmail)
+            .limit(1)
+            .get();
+        if (query.docs.isNotEmpty) {
+          doc = query.docs.first;
+        }
+      }
+
       List<dynamic>? contacts;
 
-      if (doc.exists && doc.data()!.containsKey('emergencyContacts')) {
-        contacts = doc.data()!['emergencyContacts'];
-      } else {
+      if (doc != null && doc.exists && doc.data() is Map) {
+        final data = doc.data() as Map<String, dynamic>;
+        if (data.containsKey('emergencyContacts')) {
+          contacts = data['emergencyContacts'];
+        }
+      } 
+      
+      if (contacts == null) {
         // Fallback to old location for migration
         final oldDoc = await FirebaseFirestore.instance.collection('emergency_contacts').doc(cleanEmail).get();
         if (oldDoc.exists && oldDoc.data()!.containsKey('contacts')) {
@@ -122,12 +150,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_user == null || _user!['email'] == null) return;
     final cleanEmail = _user!['email'].toString().trim().toLowerCase();
     try {
-      await FirebaseFirestore.instance.collection('users').doc(cleanEmail).set({
+      String docId = _user!['id'] ?? cleanEmail;
+      
+      // Verify if the document exists by ID, otherwise find by email
+      final docById = await FirebaseFirestore.instance.collection('users').doc(docId).get();
+      if (!docById.exists) {
+        final query = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: cleanEmail)
+            .limit(1)
+            .get();
+        if (query.docs.isNotEmpty) {
+          docId = query.docs.first.id;
+        }
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(docId).set({
         'emergencyContacts': _trustedContacts,
         'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       
-      // Also save locally so SOS button can access them without a network fetch
+      // Also save locally
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('emergency_contacts_local', jsonEncode(_trustedContacts));
 
@@ -150,6 +193,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
 
+
+  Future<void> _showEditProfileDialog(BuildContext context) async {
+    if (_user == null) return;
+    
+    final nameController = TextEditingController(text: _user!['name']?.toString());
+    final phoneController = TextEditingController(text: _user!['phone']?.toString());
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Profile', style: TextStyle(fontFamily: 'Bernard MT Condensed')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Full Name'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneController,
+              decoration: const InputDecoration(labelText: 'Phone Number'),
+              keyboardType: TextInputType.phone,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+                onPressed: () async {
+              final newName = nameController.text.trim();
+              final newPhone = phoneController.text.trim();
+              
+              if (newName.isEmpty) return;
+              
+              Navigator.pop(context);
+              
+              try {
+                final email = _user!['email'].toString().trim().toLowerCase();
+                
+                final result = await AuthService.updateProfile(
+                  email: email,
+                  name: newName,
+                  phone: newPhone,
+                );
+                
+                // Update local state from the response
+                if (mounted) {
+                  setState(() {
+                    _user = result['user'];
+                  });
+                }
+                
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Profile updated successfully!')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to update profile: ${e.toString().replaceAll('Exception: ', '')}')),
+                  );
+                }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -422,7 +540,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: ST.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 6),
+                if (_user!['phone'] != null && _user!['phone'].toString().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.phone_outlined, size: 12, color: ST.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Text(
+                        _user!['phone'].toString(),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: ST.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 8),
                 Container(
                   padding:
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -459,7 +593,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           IconButton(
             icon: const Icon(Icons.edit_outlined,
                 color: ST.onSurfaceVariant, size: 20),
-            onPressed: () {},
+            onPressed: () => _showEditProfileDialog(context),
           ),
         ],
       ),

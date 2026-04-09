@@ -257,7 +257,7 @@ class _LocationScreenState extends State<LocationScreen> {
     super.dispose();
   }
 
-  void _startSafeJourney() {
+  Future<void> _startSafeJourney() async {
     // If we have an active route destination or a hasn marker "closest" but not yet routed
     if (_activeDestination != null || _closestVisible != null) {
       if (!_isFollowingUser) _toggleLiveFollow();
@@ -268,9 +268,9 @@ class _LocationScreenState extends State<LocationScreen> {
       if (_routeDestinationName == null) {
          if (_activeDestination != null) {
             // This case handles if _activeDestination was set but _drawRouteOnMap wasn't called yet
-            _drawRouteOnMap(_activeDestination!, 'Your Destination');
+            await _drawRouteOnMap(_activeDestination!, 'Your Destination');
          } else if (_closestVisible != null) {
-            _drawRouteOnMap(_closestVisible!.position, _closestVisible!.infoWindow.title ?? 'Destination');
+            await _drawRouteOnMap(_closestVisible!.position, _closestVisible!.infoWindow.title ?? 'Destination');
          }
       }
       ScaffoldMessenger.of(context).showSnackBar(
@@ -300,7 +300,7 @@ class _LocationScreenState extends State<LocationScreen> {
       );
       // Sync with Home Screen
       JourneyStateNotifier().startJourney(
-        destinationName: _routeDestinationName ?? 'Custom Destination',
+        destinationName: _routeDestinationName ?? 'Active Route',
         destinationLocation: _activeDestination ?? _userPosition,
         startPosition: _userPosition,
         points: _polylines.isNotEmpty ? _polylines.first.points : [],
@@ -322,6 +322,8 @@ class _LocationScreenState extends State<LocationScreen> {
   void _showCustomDestinationSearch() {
     String searchQuery = '';
     Timer? debounce;
+    List<Map<String, dynamic>> searchResults = [];
+    bool isSearching = false;
 
     showModalBottomSheet(
       context: context,
@@ -331,9 +333,7 @@ class _LocationScreenState extends State<LocationScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
-            bool isSearching = false;
-            List<Map<String, dynamic>> searchResults = [];
-
+            
             Future<void> performSearch(String query) async {
               if (query.trim().length < 2) {
                 setModalState(() {
@@ -345,9 +345,18 @@ class _LocationScreenState extends State<LocationScreen> {
               
               setModalState(() => isSearching = true);
               try {
-                final results = await LocationService.searchNearbyPlacesByKeyword(
-                  _userPosition, query, radius: 40000 // Increased radius to 40km
+                // Try Autocomplete first (better for "as you type" behavior)
+                List<Map<String, dynamic>> results = await LocationService.getAutocompleteSuggestions(
+                  _userPosition, query
                 );
+                
+                // FALLBACK: If autocomplete finds nothing, try a generic Text Search (Google or ORS fallback)
+                if (results.isEmpty) {
+                  results = await LocationService.searchNearbyPlacesByKeyword(
+                    _userPosition, query
+                  );
+                }
+
                 if (ctx.mounted) {
                   setModalState(() {
                     searchResults = results;
@@ -382,7 +391,10 @@ class _LocationScreenState extends State<LocationScreen> {
                       prefixIcon: const Icon(Icons.search, color: ST.primary),
                       suffixIcon: isSearching ? const Padding(
                         padding: EdgeInsets.all(12.0),
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: SizedBox(
+                          width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2)
+                        ),
                       ) : null,
                       filled: true,
                       fillColor: ST.surfaceContainerLow,
@@ -392,7 +404,7 @@ class _LocationScreenState extends State<LocationScreen> {
                     onChanged: (val) {
                       searchQuery = val;
                       if (debounce?.isActive ?? false) debounce?.cancel();
-                      debounce = Timer(const Duration(milliseconds: 500), () {
+                      debounce = Timer(const Duration(milliseconds: 300), () {
                         performSearch(val);
                       });
                     },
@@ -409,7 +421,6 @@ class _LocationScreenState extends State<LocationScreen> {
                         padding: const EdgeInsets.only(bottom: 20),
                         itemBuilder: (context, index) {
                           final place = searchResults[index];
-                          final double distanceKm = (place['distance'] as double) / 1000;
                           
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(vertical: 4),
@@ -423,14 +434,35 @@ class _LocationScreenState extends State<LocationScreen> {
                             ),
                             title: Text(place['name'], 
                               style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: ST.onSurface)),
-                            subtitle: Text('${place['address']}\n${distanceKm.toStringAsFixed(1)} km away', 
+                            subtitle: Text(place['address'], 
                               style: TextStyle(fontSize: 12, color: ST.onSurfaceVariant, height: 1.4)),
-                            isThreeLine: true,
-                            onTap: () {
-                              Navigator.pop(ctx);
-                              _activeDestination = place['location'];
-                              _drawRouteOnMap(place['location'], place['name']);
-                              _startSafeJourney();
+                            onTap: () async {
+                              LatLng? destinationLoc;
+                              String destinationName = place['name'];
+
+                              if (place.containsKey('location')) {
+                                // Result already has location (from Text Search fallback)
+                                destinationLoc = place['location'];
+                              } else if (place.containsKey('placeId')) {
+                                // Result only has ID (from Autocomplete) - need to fetch details
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Locating place...'), duration: Duration(milliseconds: 500)),
+                                );
+                                destinationLoc = await LocationService.getPlaceDetails(place['placeId']);
+                              }
+                              
+                              if (destinationLoc != null && ctx.mounted) {
+                                Navigator.pop(ctx);
+                                _activeDestination = destinationLoc;
+                                _drawRouteOnMap(destinationLoc, destinationName);
+                                _startSafeJourney();
+                              } else {
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Could not find location details.')),
+                                  );
+                                }
+                              }
                             },
                           );
                         },
@@ -440,7 +472,7 @@ class _LocationScreenState extends State<LocationScreen> {
                   if (searchResults.isEmpty && !isSearching && searchQuery.isNotEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: Text('No places found nearby', style: TextStyle(color: ST.onSurfaceVariant))),
+                      child: Center(child: Text('No places found', style: TextStyle(color: ST.onSurfaceVariant))),
                     ),
                   const SizedBox(height: 10),
                 ],
@@ -876,7 +908,12 @@ class _LocationScreenState extends State<LocationScreen> {
 
       // Closest is simply the first result since getNearbyPlaces sorts by distance!
       Marker? closest = newMarkers.first;
-      double minDistance = places.first['distance'];
+      double minDistance = Geolocator.distanceBetween(
+        _userPosition.latitude,
+        _userPosition.longitude,
+        closest.position.latitude,
+        closest.position.longitude,
+      );
 
       if (mounted) {
         setState(() {

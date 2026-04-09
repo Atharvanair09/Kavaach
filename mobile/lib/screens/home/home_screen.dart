@@ -786,10 +786,10 @@ class _JourneyCardState extends State<_JourneyCard> {
                               letterSpacing: 1.2,
                               fontWeight: FontWeight.w800)),
                       Text(
-                        'To: ${journey.destinationName ?? "Destination"}',
+                        'To: ${journey.destinationName ?? "Active Journey"}',
                         style: const TextStyle(
                             color: Color(0xFF14532D),
-                            fontSize: 15,
+                            fontSize: 16,
                             fontWeight: FontWeight.w900,
                             height: 1.2),
                       ),

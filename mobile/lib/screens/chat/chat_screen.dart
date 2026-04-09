@@ -62,7 +62,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _speech = stt.speechToText();
+    _speech = stt.SpeechToText();
     _loadUser();
     _fetchNearbyPlaces();
   }

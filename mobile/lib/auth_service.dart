@@ -186,6 +186,38 @@ class AuthService {
     }
   }
 
+  static Future<Map<String, dynamic>> updateProfile({
+    required String email,
+    required String name,
+    String? phone,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$baseUrl/update-profile"),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'name': name,
+          'phone': phone,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['user'] != null) {
+          await saveUser(data['user']);
+        }
+        return data;
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['error'] ?? "Failed to update profile");
+      }
+    } catch (e) {
+      print("Update Profile Error: $e");
+      rethrow;
+    }
+  }
+
   static Future<void> signOut() async {
     await GoogleSignIn.instance.signOut();
     final prefs = await SharedPreferences.getInstance();
