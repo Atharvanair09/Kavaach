@@ -12,6 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../constants/api_constants.dart';
 import '../../auth_service.dart';
+import '../../services/journey_service.dart';
 
 class MessageData {
   final String id;
@@ -50,6 +51,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<MessageData> _messages = [];
   String? _currentUserId;
   String _nearbySafePlacesContext = "";
+  List<Map<String, dynamic>> _nearbySafePlacesList = [];
   bool _sosAlreadyFired = false;
   bool _isTyping = false;
 
@@ -164,8 +166,13 @@ class _ChatScreenState extends State<ChatScreen> {
       
       final places = await LocationService.getNearbyPlaces(location, 'police', radius: 5000);
       if (places.isNotEmpty) {
-        final topPlaces = places.take(3).map((p) => "${p['name']}").join(", ");
-        _nearbySafePlacesContext = "Nearby safe places: $topPlaces";
+        if (mounted) {
+          setState(() {
+            _nearbySafePlacesList = places.take(3).toList();
+            final names = _nearbySafePlacesList.map((p) => p['name']).join(", ");
+            _nearbySafePlacesContext = "Nearby safe places: $names";
+          });
+        }
       }
     } catch (e) {
       debugPrint("Could not fetch safe places context: $e");
@@ -492,7 +499,16 @@ class _ChatScreenState extends State<ChatScreen> {
                     final msgIndex = index - 1;
                     if (msgIndex < _messages.length) {
                       final m = _messages[msgIndex];
-                      return m.isUser ? UserBubble(text: m.text) : SupportBubble(text: m.text);
+                      if (m.isUser) return UserBubble(text: m.text);
+                      
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SupportBubble(text: m.text),
+                          if (m.action == 'show_safe_places' && _nearbySafePlacesList.isNotEmpty)
+                            _SafePlacesCard(places: _nearbySafePlacesList),
+                        ],
+                      );
                     }
                     
                     return const _TypingIndicator();
@@ -690,4 +706,90 @@ class _TypingIndicatorState extends State<_TypingIndicator>
     );
   }
 }
+
+class _SafePlacesCard extends StatelessWidget {
+  final List<Map<String, dynamic>> places;
+
+  const _SafePlacesCard({required this.places});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(left: 40, bottom: 24, right: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 20, offset: const Offset(0, 4)),
+        ],
+        border: Border.all(color: ST.primary.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: ST.primary.withOpacity(0.1), shape: BoxShape.circle),
+                child: const Icon(Icons.map_outlined, color: ST.primary, size: 18),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'CLOSEST SAFE HAVENS',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: ST.primary, letterSpacing: 1),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...places.map((place) => _buildPlaceItem(context, place)).toList(),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: Text(
+              'Jarvis has identified these locations as the nearest reachable safe points. Tap any to start navigation.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500, height: 1.4, fontStyle: FontStyle.italic),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceItem(BuildContext context, Map<String, dynamic> place) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: () {
+          final loc = place['location'] as LatLng;
+          final name = place['name'] ?? 'Safe Haven';
+          JourneyStateNotifier().setPendingRoute(loc, name);
+        },
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    place['name'] ?? 'Safe Location',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: ST.onSurface),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Police Station • Approx. 600m away',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.navigation_rounded, color: ST.primary, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 

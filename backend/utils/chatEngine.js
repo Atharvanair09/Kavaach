@@ -115,10 +115,16 @@ async function processChatMessage(userId, message) {
     ui = "red";
     if (userSessions[userId].lastRisk === "high") {
       action = "trigger_sos";
+    } else {
+      action = "show_safe_places";
     }
   } else if (risk === "medium" || (risk === "high" && msgCount === 1)) {
     ui = "yellow";
-    if (msgCount >= 2) action = "share_location";
+    if (category === "stalking" || category === "danger") {
+      action = "show_safe_places";
+    } else if (msgCount >= 2) {
+      action = "share_location";
+    }
   }
 
   // Update session

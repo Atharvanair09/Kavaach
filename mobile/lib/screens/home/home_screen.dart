@@ -36,17 +36,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      backgroundColor: ST.surface,
-      body: IndexedStack(
-        index: _navIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: STBottomNav(
-        selected: _navIndex,
-        onTap: (i) => setState(() => _navIndex = i),
-      ),
+    return ListenableBuilder(
+      listenable: JourneyStateNotifier(),
+      builder: (context, _) {
+        final journey = JourneyStateNotifier();
+        return Scaffold(
+          extendBody: true,
+          backgroundColor: ST.surface,
+          body: IndexedStack(
+            index: journey.navIndex,
+            children: _screens,
+          ),
+          bottomNavigationBar: STBottomNav(
+            selected: journey.navIndex,
+            onTap: (i) => journey.setNavIndex(i),
+          ),
+        );
+      }
     );
   }
 }

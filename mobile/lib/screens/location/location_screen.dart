@@ -37,6 +37,7 @@ class _LocationScreenState extends State<LocationScreen> {
   Marker? _closestVisible;
   String? _routeDestinationName;
   bool _isRouteLoading = false;
+  bool _isIsolatedNavigation = false;
 
   // ── In-map route drawing ───────────────────────────────────────────────────
   static String get _orsApiKey => dotenv.get('ORS_API_KEY', fallback: '');
@@ -142,6 +143,17 @@ class _LocationScreenState extends State<LocationScreen> {
           _routeDestinationName = destinationName;
           _activeDestination = destination;
           _isRouteLoading = false;
+          
+          if (_isIsolatedNavigation) {
+            _markers = {
+              Marker(
+                markerId: const MarkerId('isolation_target'),
+                position: destination,
+                infoWindow: InfoWindow(title: destinationName),
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+              )
+            };
+          }
         });
 
         // Sync route to Home Screen if journey is active
@@ -182,6 +194,11 @@ class _LocationScreenState extends State<LocationScreen> {
       _routeDestinationName = null;
       _activeDestination = null;
       _closestVisible = null;
+      
+      if (_isIsolatedNavigation) {
+        _isIsolatedNavigation = false;
+        _markers = _buildNavigableMarkers(_allMarkers);
+      }
     });
   }
 
@@ -253,8 +270,28 @@ class _LocationScreenState extends State<LocationScreen> {
 
   @override
   void dispose() {
+    JourneyStateNotifier().removeListener(_handleExternalNavigation);
     _positionStream?.cancel();
     super.dispose();
+  }
+
+  void _handleExternalNavigation() {
+    final pending = JourneyStateNotifier().pendingRoute;
+    if (pending != null && mounted) {
+      final loc = pending['location'] as LatLng;
+      final name = pending['name'] as String;
+      
+      setState(() {
+        _isIsolatedNavigation = true;
+        _markers = {}; // Clear others for focus
+      });
+
+      // We use a small delay to ensure the map is ready if we just switched tabs
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted) _drawRouteOnMap(loc, name);
+      });
+      JourneyStateNotifier().clearPendingRoute();
+    }
   }
 
   Future<void> _startSafeJourney() async {
@@ -730,9 +767,12 @@ class _LocationScreenState extends State<LocationScreen> {
   @override
   void initState() {
     super.initState();
+    JourneyStateNotifier().addListener(_handleExternalNavigation);
     _markers = _buildNavigableMarkers(_allMarkers);
     _determinePosition();
     _loadHavensFromFirestore();
+    // Check if there was already a pending route on start
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handleExternalNavigation());
   }
 
   Future<void> _determinePosition() async {

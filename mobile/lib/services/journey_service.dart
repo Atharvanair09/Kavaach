@@ -15,6 +15,8 @@ class JourneyStateNotifier extends ChangeNotifier {
   List<LatLng> _points = [];
   double _progress = 0.0;
   int _minutesRemaining = 0;
+  int _navIndex = 0;
+  Map<String, dynamic>? _pendingRoute;
 
   bool get isActive => _isActive;
   String? get destinationName => _destinationName;
@@ -23,6 +25,24 @@ class JourneyStateNotifier extends ChangeNotifier {
   List<LatLng> get points => _points;
   double get progress => _progress;
   int get minutesRemaining => _minutesRemaining;
+  int get navIndex => _navIndex;
+  Map<String, dynamic>? get pendingRoute => _pendingRoute;
+
+  void setNavIndex(int index) {
+    _navIndex = index;
+    notifyListeners();
+  }
+
+  void setPendingRoute(LatLng location, String name) {
+    _pendingRoute = {'location': location, 'name': name};
+    _navIndex = 2; // Auto-switch to Map tab (Index 2)
+    notifyListeners();
+  }
+
+  void clearPendingRoute() {
+    _pendingRoute = null;
+    notifyListeners();
+  }
 
   void startJourney({
     required String destinationName,
