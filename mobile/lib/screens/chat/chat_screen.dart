@@ -650,7 +650,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SupportBubble(text: m.text, translation: m.translation),
-                          if (m.action == 'show_safe_places' && _nearbySafePlacesList.isNotEmpty)
+                          if ((m.action == 'show_safe_places' || m.action == 'trigger_sos') && _nearbySafePlacesList.isNotEmpty)
                             _SafePlacesCard(places: _nearbySafePlacesList),
                         ],
                       );
