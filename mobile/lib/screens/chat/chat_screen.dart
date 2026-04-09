@@ -52,6 +52,7 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _currentUserId;
   String _nearbySafePlacesContext = "";
   List<Map<String, dynamic>> _nearbySafePlacesList = [];
+  String? _sessionId;
   bool _sosAlreadyFired = false;
   bool _isTyping = false;
 
@@ -75,7 +76,6 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _currentUserId = user?['id'] ?? user?['email'] ?? 'anonymous_user';
       });
-      _fetchInitialHistory();
     }
   }
 
@@ -204,6 +204,7 @@ class _ChatScreenState extends State<ChatScreen> {
         body: jsonEncode({
           'message': text,
           'userId': _currentUserId,
+          'sessionId': _sessionId,
           'safePlaces': _nearbySafePlacesContext,
         }),
       ).timeout(const Duration(seconds: 15));
@@ -375,6 +376,35 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             const SizedBox(height: 8),
             Text('Review your past safety interactions', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    _messages.clear();
+                    _sessionId = "session_${DateTime.now().millisecondsSinceEpoch}";
+                  });
+                  Navigator.pop(context);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: ST.primary,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: ST.primary.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))],
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_circle_outline, color: Colors.white, size: 20),
+                      SizedBox(width: 8),
+                      Text("START FRESH SESSION", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
             Expanded(
               child: FutureBuilder<List<dynamic>>(
@@ -390,33 +420,109 @@ class _ChatScreenState extends State<ChatScreen> {
                     ));
                   }
 
-                  final history = snapshot.data ?? [];
-                  if (history.isEmpty) return const Center(child: Text('No history found'));
+                  final sessions = snapshot.data ?? [];
+                  if (sessions.isEmpty) return const Center(child: Text('No history found'));
 
-                  return ListView.separated(
+                  return ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    itemCount: history.length,
-                    separatorBuilder: (_, __) => const Divider(height: 32),
+                    itemCount: sessions.length,
                     itemBuilder: (context, index) {
-                      final data = history[index] as Map<String, dynamic>;
-                      final time = DateTime.tryParse(data['time']?.toString() ?? '') ?? DateTime.now();
+                      final data = sessions[index] as Map<String, dynamic>;
+                      
+                      // Hybrid Support: Handle both new 'Session' objects and old 'Message' objects
+                      List<Map<String, dynamic>> messages;
+                      DateTime time;
+
+                      if (data.containsKey('messages')) {
+                        // New Session Format
+                        final rawList = data['messages'] as List? ?? [];
+                        messages = rawList.cast<Map<String, dynamic>>();
+                        time = DateTime.tryParse(data['time']?.toString() ?? '') ?? DateTime.now();
+                      } else {
+                        // Legacy Message Format
+                        messages = [data];
+                        time = DateTime.tryParse(data['time']?.toString() ?? '') ?? DateTime.now();
+                      }
+
+                      if (messages.isEmpty) return const SizedBox.shrink();
+                      
+                      // Sort messages within session
+                      messages.sort((a,b) => (DateTime.tryParse(b['time']?.toString() ?? '') ?? DateTime.now()).compareTo(DateTime.tryParse(a['time']?.toString() ?? '') ?? DateTime.now()));
+                      
+                      final lastMsg = messages.first;
                       
                       return InkWell(
-                        onTap: () => Navigator.pop(context),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("${time.day}/${time.month}/${time.year}  at  ${time.hour}:${time.minute.toString().padLeft(2, '0')}", 
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: ST.primary)),
-                            const SizedBox(height: 8),
-                            Text(data['message'] ?? "[Safe Interaction]",
-                              maxLines: 2, overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 14, color: ST.onSurface, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 4),
-                            Text(data['reply'] ?? '',
-                              maxLines: 2, overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.4)),
-                          ],
+                        onTap: () {
+                          setState(() {
+                            _messages.clear();
+                            _sessionId = data['sessionId'] ?? "session_${DateTime.now().millisecondsSinceEpoch}";
+                            
+                            // Re-add messages in chronological order (backend returns them sorted, but we want to display properly)
+                            final chronological = messages.reversed.toList();
+                            for (var m in chronological) {
+                               // Add user part
+                               _messages.add(MessageData(
+                                 id: m['id'] ?? "u_${m['time']}",
+                                 userId: _currentUserId!,
+                                 text: m['message'] ?? "",
+                                 isUser: true,
+                                 time: DateTime.tryParse(m['time']?.toString() ?? '') ?? DateTime.now(),
+                               ));
+                               // Add bot part
+                               _messages.add(MessageData(
+                                 id: "${m['id']}_bot",
+                                 userId: "jarvis",
+                                 text: m['reply'] ?? "",
+                                 isUser: false,
+                                 action: m['action'] ?? 'none',
+                                 time: (DateTime.tryParse(m['time']?.toString() ?? '') ?? DateTime.now()).add(const Duration(seconds: 1)),
+                               ));
+                            }
+                          });
+                          Navigator.pop(context);
+                          _scrollToBottom();
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 20),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.grey.shade100),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text("CONVERSATION SESSION", 
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.grey.shade400, letterSpacing: 1)),
+                                  Text("${time.day}/${time.month} ${time.hour}:${time.minute.toString().padLeft(2, '0')}", 
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: ST.primary.withOpacity(0.6))),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(lastMsg['message'] ?? '...', 
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ST.onSurface)),
+                              const SizedBox(height: 4),
+                              Text(lastMsg['reply'] ?? '', 
+                                maxLines: 2, overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.4)),
+                              if (messages.length > 1) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(color: ST.primary.withOpacity(0.05), borderRadius: BorderRadius.circular(8)),
+                                  child: Text("+ ${messages.length - 1} more interactions in this session", 
+                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: ST.primary)),
+                                ),
+                              ]
+                            ],
+                          ),
                         ),
                       );
                     },

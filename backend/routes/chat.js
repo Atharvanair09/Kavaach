@@ -6,6 +6,7 @@ const { db, admin } = require("../firebase");
 router.post("/", async (req, res) => {
   const userId = req.body.userId || "default";
   const message = req.body.message || "";
+  const sessionId = req.body.sessionId || "unknown_session";
 
   if (!message) {
     return res.status(400).json({
@@ -23,6 +24,7 @@ router.post("/", async (req, res) => {
       try {
         await db.collection("chats").add({
           userId: userId,
+          sessionId: sessionId,
           message: message,
           reply: result.reply,
           category: result.category || "general",
@@ -31,7 +33,7 @@ router.post("/", async (req, res) => {
           action: result.action || "none",
           time: admin.firestore.FieldValue.serverTimestamp()
         });
-        console.log(`✅ Chat history updated for user: ${userId}`);
+        console.log(`✅ Chat updated for session: ${sessionId}`);
       } catch (dbError) {
         console.error("❌ Firestore Chat Save Error:", dbError.message);
       }
@@ -56,20 +58,37 @@ router.get("/history/:userId", async (req, res) => {
       .where("userId", "==", userId)
       .get();
 
-    const history = [];
+    const allMessages = [];
     snapshot.forEach(doc => {
       const data = doc.data();
-      history.push({
+      allMessages.push({
         id: doc.id,
         ...data,
         time: data.time ? data.time.toDate() : new Date()
       });
     });
 
-    // Sort in memory to avoid needing a composite index
-    history.sort((a, b) => b.time - a.time);
+    // Group into sessions
+    const sessionsMap = {};
+    allMessages.forEach(msg => {
+      const sid = msg.sessionId || "legacy_session";
+      if (!sessionsMap[sid]) {
+        sessionsMap[sid] = {
+          sessionId: sid,
+          time: msg.time,
+          messages: []
+        };
+      }
+      sessionsMap[sid].messages.push(msg);
+      // Keep the session time as the time of the latest message in that session
+      if (msg.time > sessionsMap[sid].time) {
+          sessionsMap[sid].time = msg.time;
+      }
+    });
 
-    res.json(history);
+    const sessionHistory = Object.values(sessionsMap).sort((a, b) => b.time - a.time);
+
+    res.json(sessionHistory);
   } catch (error) {
     console.error("Error fetching chat history:", error);
     res.status(500).json({ error: "Internal server error during history fetch" });
