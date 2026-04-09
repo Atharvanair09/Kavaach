@@ -44,4 +44,36 @@ router.post("/", async (req, res) => {
   }
 });
 
+router.get("/history/:userId", async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not initialized" });
+    }
+
+    const snapshot = await db.collection("chats")
+      .where("userId", "==", userId)
+      .get();
+
+    const history = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      history.push({
+        id: doc.id,
+        ...data,
+        time: data.time ? data.time.toDate() : new Date()
+      });
+    });
+
+    // Sort in memory to avoid needing a composite index
+    history.sort((a, b) => b.time - a.time);
+
+    res.json(history);
+  } catch (error) {
+    console.error("Error fetching chat history:", error);
+    res.status(500).json({ error: "Internal server error during history fetch" });
+  }
+});
+
 module.exports = router;

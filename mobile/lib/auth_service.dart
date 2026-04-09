@@ -265,11 +265,24 @@ class AuthService {
 }
 
 class ApiService {
-  static String get baseUrl => kIsWeb ? "http://localhost:5000" : "http://10.0.2.2:5000";
+  static String get baseUrl => APIConstants.chatUrl;
+
+  static Future<List<dynamic>> getChatHistory(String userId) async {
+    try {
+      final res = await http.get(Uri.parse("$baseUrl/history/$userId"));
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body);
+      }
+      return [];
+    } catch (e) {
+      debugPrint("History API Error: $e");
+      return [];
+    }
+  }
 
   static Future<Map<String, dynamic>> sendMessage(String userId, String message) async {
     final res = await http.post(
-      Uri.parse("$baseUrl/chat"),
+      Uri.parse("$baseUrl"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"userId": userId, "message": message}),
     );

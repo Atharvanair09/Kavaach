@@ -717,12 +717,6 @@ class _LocationScreenState extends State<LocationScreen> {
           _allMarkers.addAll(fetchedMarkers);
           _markers = _buildNavigableMarkers(_allMarkers);
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Loaded ${snapshot.docs.length} docs, ${fetchedMarkers.length} markers'),
-            duration: const Duration(seconds: 4)
-          ),
-        );
       }
     } catch (e) {
       debugPrint('Error loading havens from Firestore: $e');

@@ -73,6 +73,47 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _currentUserId = user?['id'] ?? user?['email'] ?? 'anonymous_user';
       });
+      _fetchInitialHistory();
+    }
+  }
+
+  Future<void> _fetchInitialHistory() async {
+    if (_currentUserId == null) return;
+    final history = await ApiService.getChatHistory(_currentUserId!);
+    if (mounted && history.isNotEmpty) {
+      setState(() {
+        _messages.clear();
+        for (var item in history.reversed) { // Backend returns desc, we want asc for long list
+          final msg = item as Map<String, dynamic>;
+          final userText = msg['message'] as String? ?? '';
+          final botText = msg['reply'] as String? ?? '';
+          final time = DateTime.tryParse(msg['time']?.toString() ?? '') ?? DateTime.now();
+
+          if (userText.isNotEmpty) {
+            _messages.add(MessageData(
+              id: "hist_u_${_messages.length}",
+              userId: _currentUserId!,
+              text: userText,
+              isUser: true,
+              time: time,
+            ));
+          }
+          if (botText.isNotEmpty) {
+            _messages.add(MessageData(
+              id: "hist_b_${_messages.length}",
+              userId: _currentUserId!,
+              text: botText,
+              isUser: false,
+              category: msg['category'] ?? 'general',
+              risk: msg['risk'] ?? 'low',
+              ui: msg['ui'] ?? 'green',
+              action: msg['action'] ?? 'none',
+              time: time,
+            ));
+          }
+        }
+      });
+      _scrollToBottom();
     }
   }
 
@@ -130,30 +171,22 @@ class _ChatScreenState extends State<ChatScreen> {
       debugPrint("Could not fetch safe places context: $e");
     }
   }
-
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _currentUserId == null) return;
 
-    final userMessageId = "msg_${DateTime.now().millisecondsSinceEpoch}";
-    
-    // 1. Store User Message in Firestore
-    try {
-      await FirebaseFirestore.instance.collection('chats').add({
-        'userId': _currentUserId,
-        'message': text,
-        'category': 'none',
-        'risk': 'none',
-        'ui': 'blue',
-        'action': 'none',
-        'time': FieldValue.serverTimestamp(),
-        'reply': '',
-      });
-    } catch (e) {
-      debugPrint("Firestore save (user) failed: $e");
-    }
+    final userMsg = MessageData(
+      id: "u_${DateTime.now().millisecondsSinceEpoch}",
+      userId: _currentUserId!,
+      text: text,
+      isUser: true,
+    );
 
-    setState(() => _isTyping = true);
+    setState(() {
+      _messages.add(userMsg);
+      _isTyping = true;
+    });
+    
     _controller.clear();
     _scrollToBottom();
 
@@ -171,23 +204,21 @@ class _ChatScreenState extends State<ChatScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
-        // 2. Update Firestore with AI Reply
-        try {
-          await FirebaseFirestore.instance.collection('chats').add({
-            'userId': _currentUserId,
-            'message': '', // It's an AI message, text is in 'reply'
-            'reply': data['reply'] ?? '',
-            'category': data['category'] ?? 'general',
-            'risk': data['risk'] ?? 'low',
-            'ui': data['ui'] ?? 'green',
-            'action': data['action'] ?? 'none',
-            'time': FieldValue.serverTimestamp(),
-          });
-        } catch (e) {
-          debugPrint("Firestore save (reply) failed: $e");
-        }
+        final botMsg = MessageData(
+          id: "b_${DateTime.now().millisecondsSinceEpoch}",
+          userId: _currentUserId!,
+          text: data['reply'] ?? '',
+          isUser: false,
+          category: data['category'] ?? 'general',
+          risk: data['risk'] ?? 'low',
+          ui: data['ui'] ?? 'green',
+          action: data['action'] ?? 'none',
+        );
 
-        setState(() => _isTyping = false);
+        setState(() {
+          _messages.add(botMsg);
+          _isTyping = false;
+        });
 
         final action = data['action'] as String?;
         if (action == 'trigger_sos' && !_sosAlreadyFired) {
@@ -312,6 +343,86 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _showHistoryDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.75,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Safety Archives',
+              style: TextStyle(fontFamily: 'Rockwell', fontSize: 22, fontWeight: FontWeight.w900, color: ST.onSurface),
+            ),
+            const SizedBox(height: 8),
+            Text('Review your past safety interactions', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+            const SizedBox(height: 24),
+            Expanded(
+              child: FutureBuilder<List<dynamic>>(
+                future: ApiService.getChatHistory(_currentUserId!),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Text('Error: ${snapshot.error}', textAlign: TextAlign.center),
+                    ));
+                  }
+
+                  final history = snapshot.data ?? [];
+                  if (history.isEmpty) return const Center(child: Text('No history found'));
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    itemCount: history.length,
+                    separatorBuilder: (_, __) => const Divider(height: 32),
+                    itemBuilder: (context, index) {
+                      final data = history[index] as Map<String, dynamic>;
+                      final time = DateTime.tryParse(data['time']?.toString() ?? '') ?? DateTime.now();
+                      
+                      return InkWell(
+                        onTap: () => Navigator.pop(context),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("${time.day}/${time.month}/${time.year}  at  ${time.hour}:${time.minute.toString().padLeft(2, '0')}", 
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: ST.primary)),
+                            const SizedBox(height: 8),
+                            Text(data['message'] ?? "[Safe Interaction]",
+                              maxLines: 2, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 14, color: ST.onSurface, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 4),
+                            Text(data['reply'] ?? '',
+                              maxLines: 2, overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.4)),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -319,70 +430,72 @@ class _ChatScreenState extends State<ChatScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 16),
-            // Date Divider
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Text(
-                'JARVIS SECURE CHAT',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
-                  letterSpacing: 0.5,
-                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'JARVIS',
+                        style: TextStyle(
+                          fontFamily: 'Rockwell',
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          color: ST.onSurface,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      Text(
+                        'SECURE SAFETY ASSISTANT',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.grey.shade500,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  GestureDetector(
+                    onTap: _showHistoryDialog,
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: ST.primary.withOpacity(0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.history_rounded, color: ST.primary, size: 24),
+                    ),
+                  ),
+                ],
               ),
             ),
+            const Divider(height: 32, thickness: 0.5, indent: 24, endIndent: 24),
             // Messages
             Expanded(
               child: CustomPaint(
                 painter: DotGridPainter(),
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('chats')
-                      .where('userId', isEqualTo: _currentUserId)
-                      .orderBy('time', descending: false)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  itemCount: _messages.length + (_isTyping ? 1 : 0) + 1,
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return const SupportBubble(
+                        text: "I'm Jarvis, your personal safety assistant. I'm here with you. How are you feeling about your current surroundings?",
+                      );
                     }
-
-                    final docs = snapshot.data?.docs ?? [];
                     
-                    // Convert Firestore docs to local message objects
-                    final messages = <Widget>[];
-                    
-                    // First message ever
-                    messages.add(const SupportBubble(text: "I'm Jarvis, your personal safety assistant. I'm here with you. How are you feeling about your current surroundings?"));
-
-                    for (var doc in docs) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final userMsg = data['message'] as String? ?? "";
-                      final botReply = data['reply'] as String? ?? "";
-                      
-                      if (userMsg.isNotEmpty) {
-                        messages.add(UserBubble(text: userMsg));
-                      }
-                      if (botReply.isNotEmpty) {
-                        messages.add(SupportBubble(text: botReply));
-                      }
+                    final msgIndex = index - 1;
+                    if (msgIndex < _messages.length) {
+                      final m = _messages[msgIndex];
+                      return m.isUser ? UserBubble(text: m.text) : SupportBubble(text: m.text);
                     }
-
-                    // Schedule scroll after build
-                    if (docs.isNotEmpty) _scrollToBottom();
-
-                    return ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: messages.length + (_isTyping ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index < messages.length) {
-                          return messages[index];
-                        }
-                        return const _TypingIndicator();
-                      },
-                    );
+                    
+                    return const _TypingIndicator();
                   },
                 ),
               ),
