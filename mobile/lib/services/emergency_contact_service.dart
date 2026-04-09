@@ -34,6 +34,19 @@ class EmergencyContactService {
 
   // ─── Local Storage (SharedPreferences) ──────────────────────────────────────
 
+  static Future<String> _scopedKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawUser = prefs.getString('user_data');
+    if (rawUser != null) {
+      try {
+        final Map<String, dynamic> user = jsonDecode(rawUser);
+        final email = user['email'];
+        if (email != null) return '${_localKey}_$email';
+      } catch (_) {}
+    }
+    return _localKey;
+  }
+
   /// Adds a contact locally in SharedPreferences.
   static Future<void> addContact(EmergencyContact contact) async {
     final contacts = await fetchContacts();
@@ -51,7 +64,7 @@ class EmergencyContactService {
   /// Fetches all emergency contacts from local storage.
   static Future<List<EmergencyContact>> fetchContacts() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_localKey);
+    final raw = prefs.getString(await _scopedKey());
     if (raw == null) return [];
     final list = jsonDecode(raw) as List<dynamic>;
     return list
@@ -62,7 +75,7 @@ class EmergencyContactService {
   /// Saves the full contacts list to SharedPreferences.
   static Future<void> _saveAll(List<EmergencyContact> contacts) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_localKey, jsonEncode(contacts.map((c) => c.toMap()).toList()));
+    await prefs.setString(await _scopedKey(), jsonEncode(contacts.map((c) => c.toMap()).toList()));
   }
 
   // ─── Validation ─────────────────────────────────────────────────────────────

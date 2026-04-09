@@ -251,4 +251,37 @@ router.post("/update-profile", async (req, res) => {
   }
 });
 
+// --- Update Emergency Contacts Endpoint ---
+router.post("/update-contacts", async (req, res) => {
+  try {
+    const { email, contacts } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    // Find the user
+    let user = await findUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Update emergencyContacts array
+    const updatedUser = {
+      ...user,
+      emergencyContacts: contacts || [],
+    };
+    
+    await storeUser(updatedUser);
+
+    res.status(200).json({
+      message: "Emergency contacts updated successfully",
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("Update contacts error:", error);
+    res.status(500).json({ error: "Server error during contacts update" });
+  }
+});
+
 module.exports = router;

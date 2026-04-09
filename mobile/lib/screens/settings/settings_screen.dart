@@ -138,7 +138,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         // Sync back to local storage
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('emergency_contacts_local', jsonEncode(typedContacts));
+        final localKey = 'emergency_contacts_local_${_user!['email']}';
+        await prefs.setString(localKey, jsonEncode(typedContacts));
       }
     } catch (e) {
       debugPrint('Error loading emergency contacts: $e');
@@ -150,29 +151,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_user == null || _user!['email'] == null) return;
     final cleanEmail = _user!['email'].toString().trim().toLowerCase();
     try {
-      String docId = _user!['id'] ?? cleanEmail;
-      
-      // Verify if the document exists by ID, otherwise find by email
-      final docById = await FirebaseFirestore.instance.collection('users').doc(docId).get();
-      if (!docById.exists) {
-        final query = await FirebaseFirestore.instance
-            .collection('users')
-            .where('email', isEqualTo: cleanEmail)
-            .limit(1)
-            .get();
-        if (query.docs.isNotEmpty) {
-          docId = query.docs.first.id;
-        }
-      }
-
-      await FirebaseFirestore.instance.collection('users').doc(docId).set({
-        'emergencyContacts': _trustedContacts,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await AuthService.updateContacts(
+        email: cleanEmail,
+        contacts: _trustedContacts,
+      );
       
       // Also save locally
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('emergency_contacts_local', jsonEncode(_trustedContacts));
+      final localKey = 'emergency_contacts_local_${_user!['email']}';
+      await prefs.setString(localKey, jsonEncode(_trustedContacts));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

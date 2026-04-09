@@ -28,39 +28,47 @@ class AuthService {
     await prefs.setString(_userKey, jsonEncode(user));
   }
 
+  static Future<String> _scopedKey(String baseKey) async {
+    final user = await getUser();
+    if (user != null && user['email'] != null) {
+      return '${baseKey}_${user['email']}';
+    }
+    return baseKey; // Fallback
+  }
+
   static Future<void> saveAppPin(String pin) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_appPinKey, pin);
+    await prefs.setString(await _scopedKey(_appPinKey), pin);
   }
 
   static Future<String?> getAppPin() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_appPinKey);
+    return prefs.getString(await _scopedKey(_appPinKey));
   }
 
   static Future<bool> hasAppPin() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(_appPinKey);
+    return prefs.containsKey(await _scopedKey(_appPinKey));
   }
 
   static Future<void> saveDecoyPin(String pin) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_decoyPinKey, pin);
+    await prefs.setString(await _scopedKey(_decoyPinKey), pin);
   }
 
   static Future<String?> getDecoyPin() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_decoyPinKey);
+    return prefs.getString(await _scopedKey(_decoyPinKey));
   }
 
   static Future<bool> hasDecoyPin() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(_decoyPinKey);
+    return prefs.containsKey(await _scopedKey(_decoyPinKey));
   }
 
   static Future<void> clearDecoyPin() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_decoyPinKey);
+    await prefs.remove(await _scopedKey(_decoyPinKey));
   }
 
   static Future<Map<String, dynamic>?> getUser() async {
@@ -214,6 +222,36 @@ class AuthService {
       }
     } catch (e) {
       print("Update Profile Error: $e");
+      rethrow;
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateContacts({
+    required String email,
+    required List<Map<String, String>> contacts,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$baseUrl/update-contacts"),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'contacts': contacts,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['user'] != null) {
+          await saveUser(data['user']);
+        }
+        return data;
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['error'] ?? "Failed to update contacts");
+      }
+    } catch (e) {
+      print("Update Contacts Error: $e");
       rethrow;
     }
   }
