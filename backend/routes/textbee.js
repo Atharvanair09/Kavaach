@@ -3,6 +3,11 @@ const router = express.Router();
 const sendSMS = require("../utils/sendSMS");
 const { processChatMessage } = require("../utils/chatEngine");
 
+// GET route for browser verification
+router.get("/", (req, res) => {
+  res.send("<h1>✅ TextBee Webhook is LIVE!</h1><p>Your ngrok tunnel and Node server are connected correctly. Now, send an SMS to this device to trigger the chatbot logic.</p>");
+});
+
 /**
  * Webhook for TextBee.dev incoming messages.
  * Matches your actual payload:
