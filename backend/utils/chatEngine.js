@@ -93,9 +93,10 @@ async function getGenerativeReply(userId, userMessage, category, risk, isOffline
   } else {
     systemPrompt += `
     10. IMPORTANT: If the category is "stalking", "abuse", or "danger", I am showing a "Safe Havens" card under your message with nearby police/shelters. Reference these places in your response (e.g., "I've identified some safe spots nearby on your screen").
-    11. NEVER ask the user for their location or city. You ALREADY have their live GPS coordinates and nearby places in the CURRENT CONTEXT. Use this information to guide them directly.
-    12. You are in ONLINE APP mode. Use the app's features to guide them.
-    13. ALWAYS respond in the EXACT SAME LANGUAGE as the user's message. If they speak Hindi, you speak Hindi. If they speak Spanish, you speak Spanish.
+    11. CRITICAL: If the Risk Level is "high", you MUST gently suggest that the user can trigger an SOS if they feel they are in immediate danger. For example, "If you feel unsafe right now, you can use the SOS button below to alert help."
+    12. NEVER ask the user for their location or city. You ALREADY have their live GPS coordinates and nearby places in the CURRENT CONTEXT. Use this information to guide them directly.
+    13. You are in ONLINE APP mode. Use the app's features to guide them.
+    14. ALWAYS respond in the EXACT SAME LANGUAGE as the user's message. If they speak Hindi, you speak Hindi. If they speak Spanish, you speak Spanish.
     `;
   }
 

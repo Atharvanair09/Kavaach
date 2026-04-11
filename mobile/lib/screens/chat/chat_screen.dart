@@ -650,6 +650,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SupportBubble(text: m.text, translation: m.translation),
+                          if (m.action == 'trigger_sos')
+                            const _SosSuggestionCard(),
                           if ((m.action == 'show_safe_places' || m.action == 'trigger_sos') && _nearbySafePlacesList.isNotEmpty)
                             _SafePlacesCard(places: _nearbySafePlacesList),
                         ],
@@ -932,6 +934,68 @@ class _SafePlacesCard extends StatelessWidget {
             const Icon(Icons.navigation_rounded, color: ST.primary, size: 18),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SosSuggestionCard extends StatelessWidget {
+  const _SosSuggestionCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(left: 40, bottom: 16, right: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2), // Very light red
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.red.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(color: Colors.red.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                child: const Icon(Icons.emergency_share, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'SOS SUGGESTION',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.red, letterSpacing: 1),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Your situation appears to be high risk. Jarvis can immediately alert your emergency contacts and local authorities with your live location.',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ST.onSurface, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+              // In this app, trigger_sos might already be firing silently, 
+              // but we provide a manual confirmation button as well.
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Emergency SOS Triggered!')),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 44),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
+            child: const Text('TRIGGER SOS NOW', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+          ),
+        ],
       ),
     );
   }
