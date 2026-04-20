@@ -130,7 +130,9 @@ function App() {
         threat_level: classification.priority.toUpperCase(),
         status: "Pending",
         timestamp: serverTimestamp(),
-        location: "Detected Location" // Mock
+        location: "Detected Location",
+        lat: 19.0760 + (Math.random() - 0.5) * 0.1, // Near Mumbai for demo
+        lng: 72.8777 + (Math.random() - 0.5) * 0.1
       });
 
       // 2. Create Notification

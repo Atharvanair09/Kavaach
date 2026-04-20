@@ -1,7 +1,7 @@
 /* Sidebar Container */
 .sidebar {
   width: 260px;
-  min-height: 100vh;
+  height: 100vh;
   background-color: #0B0F19; /* Dark background matching the image */
   color: #9CA3AF;
   display: flex;
