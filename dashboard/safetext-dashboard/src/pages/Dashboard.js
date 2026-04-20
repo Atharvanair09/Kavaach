@@ -66,12 +66,39 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
   );
 
   // Simplified stats for the "one-to-one" look
+  // Calculate Real Stats
   const stats = [
-    { label: "Active SOS Alerts", value: "3", icon: Asterisk, type: "sos", badge: "CRITICAL" },
-    { label: "Ongoing Emergencies", value: "8", icon: AlertTriangle, type: "emergency" },
-    { label: "Sharing Location", value: "142", icon: Navigation, type: "sharing" },
-    { label: "Check-in Misses", value: "12", icon: UserMinus, type: "misses" },
-    { label: "Resolved Today", value: "24", icon: CheckCircle, type: "resolved" }
+    { 
+      label: "Active SOS Alerts", 
+      value: incidents.filter(i => i.status === "Pending" && i.category === "Emergency").length, 
+      icon: Asterisk, 
+      type: "sos", 
+      badge: incidents.filter(i => i.status === "Pending" && i.category === "Emergency").length > 0 ? "CRITICAL" : null 
+    },
+    { 
+      label: "Ongoing Emergencies", 
+      value: incidents.filter(i => i.status === "In Progress").length, 
+      icon: AlertTriangle, 
+      type: "emergency" 
+    },
+    { 
+      label: "Sharing Location", 
+      value: incidents.filter(i => i.category === "General").length + 102, // Mocking extra active users
+      icon: Navigation, 
+      type: "sharing" 
+    },
+    { 
+      label: "Check-in Misses", 
+      value: incidents.filter(i => i.text?.toLowerCase().includes("missed")).length, 
+      icon: UserMinus, 
+      type: "misses" 
+    },
+    { 
+      label: "Resolved Total", 
+      value: incidents.filter(i => i.status === "Resolved").length, 
+      icon: CheckCircle, 
+      type: "resolved" 
+    }
   ];
 
   return (
