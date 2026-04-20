@@ -269,15 +269,7 @@ function App() {
       )}
 
       <main className="main-content">
-        {currentUser && role && (
-          <header className={`panel-top-header ${role}-theme`}>
-            <Shield size={20} className="panel-header-icon" />
-            <h2>{role === "admin" ? "Admin Security Panel" : "Crime Patrol Interface"}</h2>
-            <span className={`badge-role badge-role-${role}`}>
-              {role === "admin" ? "Administrator" : "Patrol Unit"}
-            </span>
-          </header>
-        )}
+
         <Routes>
 
         <Route

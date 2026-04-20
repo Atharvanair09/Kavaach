@@ -283,7 +283,7 @@ class _HomeContentState extends State<_HomeContent> {
                         icon: Icons.map_outlined,
                         label: "Havens",
                         color: const Color(0xFF6366F1),
-                        onTap: () => _showComingSoon(context)),
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LocationScreen()))),
                   ],
                 ),
               ),

@@ -1,264 +1,192 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  Activity,
-  AlertOctagon,
-  CheckCircle2,
-  Clock,
-  Inbox,
-  Shield,
-  UserCheck,
-  ChevronDown,
-  Home
+  Search,
+  Bell,
+  Settings,
+  FileDown,
+  Plus,
+  Asterisk,
+  AlertTriangle,
+  Navigation,
+  UserMinus,
+  CheckCircle,
+  MoreHorizontal,
+  Minus,
+  Target,
+  PhoneCall
 } from "lucide-react";
+import "./Dashboard.css";
 
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "../services/firebase";
+function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
+  const [searchQuery, setSearchQuery] = useState("");
 
-function Dashboard({ incidents, updateStatus, role, user, assignPatrol, patrolUnits }) {
-  const [showAssignModal, setShowAssignModal] = useState(null);
-
-  const isAdmin = role === "admin";
-  const sourceIncidents = incidents;
-
-  const userIncidents = isAdmin
-    ? sourceIncidents
-    : sourceIncidents.filter(
-        (i) => i.assignedTo === user.id || i.assignedTo === "P1"
-      );
-
-  const pendingCases = userIncidents.filter(
-    (incident) =>
-      incident.status === "Pending" || incident.status === "In Progress"
-  );
-
-  const resolvedCases = userIncidents.filter(
-    (incident) => incident.status === "Resolved"
-  );
-
+  // Simplified stats for the "one-to-one" look
   const stats = [
-    {
-      label: "Total Incidents",
-      value: userIncidents.length,
-      icon: Inbox,
-      color: "primary"
-    },
-    {
-      label: "High Priority",
-      value: userIncidents.filter((i) => i.priority === "High").length,
-      icon: AlertOctagon,
-      color: "danger"
-    },
-    {
-      label: "Active Cases",
-      value: pendingCases.length,
-      icon: Activity,
-      color: "warning"
-    },
-    {
-      label: "Resolved",
-      value: resolvedCases.length,
-      icon: CheckCircle2,
-      color: "success"
-    }
+    { label: "Active SOS Alerts", value: "3", icon: Asterisk, type: "sos", badge: "CRITICAL" },
+    { label: "Ongoing Emergencies", value: "8", icon: AlertTriangle, type: "emergency" },
+    { label: "Sharing Location", value: "142", icon: Navigation, type: "sharing" },
+    { label: "Check-in Misses", value: "12", icon: UserMinus, type: "misses" },
+    { label: "Resolved Today", value: "24", icon: CheckCircle, type: "resolved" }
   ];
 
   return (
-    <div className="page-container dashboard-page">
-      <header className="dashboard-header flex-header">
-        <div className="header-text">
-          <div className="header-badge">
-            {role === "admin"
-              ? "Monitoring Command Center"
-              : "Patrol Response Unit"}
-          </div>
-          <h1>
-            {role === "admin" ? "Strategic Dashboard" : "Your Patrol Log"}
-          </h1>
-          <p className="subtitle">
-            {role === "admin"
-              ? "Assign resources and manage global safety response."
-              : "Respond to incidents assigned to your patrol hub."}
-          </p>
+    <div className="dashboard-container">
+      {/* Top Navigation */}
+      <nav className="top-nav">
+        <div className="search-container">
+          <Search className="search-icon" size={18} />
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search incidents, users, or tags..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
-        <Link to="/" className="btn btn-outline btn-sm back-btn">
-          <Home size={18} />
-          <span>Back to Home</span>
-        </Link>
-      </header>
-
-      {isAdmin && (
-        <section className="patrol-monitoring shadow-sm card mb-3">
-          <div className="section-header">
-            <UserCheck className="section-icon primary" />
-            <h2>Active Patrol Personnel</h2>
-            <span className="live-pill">Live Monitoring</span>
+        <div className="nav-right">
+          <div className="nav-icons">
+            <button className="icon-btn">
+              <Bell size={20} />
+              <span className="notification-dot"></span>
+            </button>
+            <button className="icon-btn">
+              <Settings size={20} />
+            </button>
           </div>
-          <div className="patrol-mini-list">
-            {patrolUnits.map((unit) => (
-              <div key={unit.id} className="patrol-unit-pill">
-                <div
-                  className={`status-dot ${
-                    unit.status === "Active" ? "success" : "muted"
-                  }`}
-                ></div>
-                <div className="unit-info">
-                  <strong>{unit.name}</strong>
-                  <span>
-                    {unit.location} • {unit.status}
-                  </span>
-                </div>
-              </div>
-            ))}
+          <div className="user-profile">
+            <div className="user-info">
+              <span className="user-name">Sarah Connor</span>
+              <span className="user-role">Senior Admin</span>
+            </div>
+            <img src="/sarah_avatar.png" alt="User Profile" className="user-avatar" />
           </div>
-        </section>
-      )}
+        </div>
+      </nav>
 
-      <div className="stats-grid">
+      {/* Header Row */}
+      <div className="dashboard-header-row">
+        <div className="header-left">
+          <h1>Live Overview</h1>
+          <p>Real-time surveillance and incident management portal.</p>
+        </div>
+        <div className="header-actions">
+          <button className="btn-export">
+            <FileDown size={18} />
+            Export Report
+          </button>
+          <button className="btn-new-case">
+            <Plus size={18} />
+            New Case
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="stats-row">
         {stats.map((stat, idx) => (
-          <div key={idx} className="card stat-card">
-            <div className={`stat-icon-wrapper ${stat.color}`}>
-              <stat.icon size={24} />
+          <div key={idx} className={`stat-card-v2 ${stat.type}`}>
+            {stat.badge && (
+              <span className="status-label-badge critical">{stat.badge}</span>
+            )}
+            <div className="stat-icon-badge">
+              <stat.icon size={20} />
             </div>
-            <div className="stat-info">
-              <span className="stat-label">{stat.label}</span>
-              <span className="stat-value">{stat.value}</span>
-            </div>
+            <span className="stat-v2-value">{stat.value}</span>
+            <span className="stat-v2-label">{stat.label}</span>
           </div>
         ))}
       </div>
 
-      <div className="dashboard-content no-sidebar">
-        <section className="dashboard-section">
-          <div className="section-header">
-            <Clock className="section-icon warning" />
-            <h2>
-              {isAdmin
-                ? "Incoming Priority Alerts"
-                : "Assigned Case Log"}
-            </h2>
+      {/* Main Content Grid */}
+      <div className="dashboard-main-grid">
+        {/* Map Section */}
+        <section className="map-container-v2">
+          <img src="/map_bg.png" alt="City Map" className="map-mock" />
+          
+          <div className="map-controls-top">
+            <button className="map-control-pill active">
+              <span className="dot" style={{backgroundColor: '#3b82f6'}}></span>
+              Users
+            </button>
+            <button className="map-control-pill">
+              <span className="dot" style={{backgroundColor: '#ef4444'}}></span>
+              SOS
+            </button>
+            <button className="map-control-pill">
+              <span className="dot" style={{backgroundColor: '#10b981'}}></span>
+              Responders
+            </button>
           </div>
 
-          {pendingCases.length === 0 ? (
-            <div className="empty-state">
-              <Inbox size={48} className="empty-icon" />
-              <p>No active incidents requiring immediate attention.</p>
-            </div>
-          ) : (
-            <div className="cases-list-grid">
-              {pendingCases.map((incident, index) => {
-                const originalIndex = sourceIncidents.findIndex(
-                  (i) => i.id === incident.id
-                );
-                const isAssigned = !!incident.assignedTo;
-                const assignedUnit = patrolUnits.find(
-                  (p) => p.id === incident.assignedTo
-                );
+          <div className="active-sos-label">
+            <div className="sos-label-header">ACTIVE SOS</div>
+            <div className="sos-label-id">ID: #99283-A</div>
+          </div>
 
-                return (
-                  <div
-                    key={incident.id}
-                    className="card incident-card enhanced-card"
-                  >
-                    <div className="incident-header">
-                      <span
-                        className={`badge badge-${incident.priority.toLowerCase()}`}
-                      >
-                        {incident.priority}
-                      </span>
-                      <span className="incident-time">
-                        {incident.timestamp}
-                      </span>
-                    </div>
-
-                    <div className="incident-body">
-                      <h3>{incident.intent}</h3>
-                      <p>{incident.text}</p>
-
-                      {isAssigned && (
-                        <div className="assignment-badge">
-                          <Shield size={14} />
-                          <span>
-                            Unit: {assignedUnit?.name || "Local Response"}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="incident-footer">
-                      <div
-                        className={`status-badge status-${incident.status
-                          .toLowerCase()
-                          .replace(" ", "-")}`}
-                      >
-                        {incident.status}
-                      </div>
-
-                      <div className="actions">
-                        {isAdmin && !isAssigned && (
-                          <div className="dispatch-select-wrapper">
-                            <button
-                              className="btn btn-primary btn-sm"
-                              onClick={() =>
-                                setShowAssignModal(incident.id)
-                              }
-                            >
-                              Dispatch Patrol{" "}
-                              <ChevronDown size={14} />
-                            </button>
-
-                            {showAssignModal === incident.id && (
-                              <div className="patrol-dropdown shadow-lg">
-                                {patrolUnits.map((unit) => (
-                                  <button
-                                    key={unit.id}
-                                    onClick={() => {
-                                      assignPatrol(
-                                        incident.id,
-                                        unit.id
-                                      );
-                                      setShowAssignModal(null);
-                                    }}
-                                  >
-                                    Assign {unit.name}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {!isAdmin &&
-                          incident.status === "Pending" && (
-                            <button
-                              className="btn btn-primary btn-sm"
-                              onClick={() =>
-                                updateStatus(
-                                  incident.id,
-                                  "In Progress"
-                                )
-                              }
-                            >
-                              Start Response
-                            </button>
-                          )}
-
-                        <button
-                          className="btn btn-outline btn-sm"
-                          onClick={() =>
-                            updateStatus(incident.id, "Resolved")
-                          }
-                        >
-                          Confirm Resolution
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div className="map-controls-bottom">
+            <button className="map-action-btn"><Plus size={20} /></button>
+            <button className="map-action-btn"><Minus size={20} /></button>
+            <button className="map-action-btn"><Target size={20} /></button>
+          </div>
         </section>
+
+        {/* Incident Feed */}
+        <aside className="incident-feed-card">
+          <div className="feed-header">
+            <h2>Active Incident Feed</h2>
+            <span className="live-updates-tag">Live Updates</span>
+          </div>
+          
+          <div className="feed-list">
+            <div className="feed-item sos">
+              <div className="feed-item-top">
+                <span className="feed-item-title">SOS Triggered</span>
+                <span className="feed-item-time">2m ago</span>
+              </div>
+              <span className="feed-item-user">User ID: USER_8829</span>
+              <div className="feed-actions">
+                <button className="btn-dispatch">DISPATCH</button>
+                <button className="btn-details">DETAILS</button>
+              </div>
+            </div>
+
+            <div className="feed-item miss">
+              <div className="feed-item-top">
+                <span className="feed-item-title">Check-in Missed</span>
+                <span className="feed-item-time">12m ago</span>
+              </div>
+              <span className="feed-item-user">User ID: USER_1142</span>
+              <div className="feed-item-msg">
+                <PhoneCall size={12} />
+                Attempting Voice Contact...
+              </div>
+            </div>
+
+            <div className="feed-item safezone">
+              <div className="feed-item-top">
+                <span className="feed-item-title">Safe-Zone Exit</span>
+                <span className="feed-item-time">18m ago</span>
+              </div>
+              <span className="feed-item-user">User ID: USER_4498</span>
+              <div className="feed-item-msg">
+                Transit monitoring initiated via automatic protocol 4.2
+              </div>
+            </div>
+
+            <div className="feed-item resolved">
+              <div className="feed-item-top">
+                <span className="feed-item-title">Incident Resolved</span>
+                <span className="feed-item-time">45m ago</span>
+              </div>
+              <p className="feed-item-msg" style={{margin: 0}}>Case #8821-C Closed</p>
+            </div>
+          </div>
+
+          <Link to="/history" className="view-history-link">
+            View Full History Log
+          </Link>
+        </aside>
       </div>
     </div>
   );

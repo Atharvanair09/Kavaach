@@ -1,37 +1,55 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock, Mail, User, ShieldCheck, Briefcase } from "lucide-react";
-import { db } from "../services/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db, auth, googleProvider } from "../services/firebase";
+import { collection, addDoc, serverTimestamp, getDocs, query, where } from "firebase/firestore";
+import { signInWithPopup, signOut } from "firebase/auth";
 
 function Auth({ onLogin }) {
-  const [isLogin, setIsLogin] = useState(true);
   const [role, setRole] = useState("admin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Mock Auth logic
-    const user = { name: name || email.split("@")[0], email, id: Math.random().toString(36).substr(2, 9) };
-    
-    // Log Activity to Firebase Audit Log
+  const handleGoogleLogin = async () => {
+    setError(null);
     try {
-      addDoc(collection(db, "audit_logs"), {
-        action: isLogin ? "Login" : "Registration",
-        details: `${isLogin ? "Successful login" : "New account created"} by ${user.name} (${role})`,
-        ip: "Client " + Math.floor(Math.random() * 255) + "." + Math.floor(Math.random() * 255) + ".1.1", // Realistic mock IP
+      const result = await signInWithPopup(auth, googleProvider);
+      const email = result.user.email;
+
+      // 🛑 CHECK: Is this user already signed up via the mobile app?
+      // Mobile app users are stored in the "users" collection.
+      const userQuery = query(collection(db, "users"), where("email", "==", email));
+      const querySnapshot = await getDocs(userQuery);
+
+      if (!querySnapshot.empty) {
+        // User found in "users" collection (mobile app user)
+        await signOut(auth); // Sign them out from Firebase
+        setError("Access Denied: This account is registered as a User. Dashboard access is restricted to Admin/Patrol personnel.");
+        return;
+      }
+
+      const user = {
+        name: result.user.displayName,
+        email: result.user.email,
+        id: result.user.uid,
+        photo: result.user.photoURL
+      };
+
+      // Log Activity to Firebase Audit Log
+      await addDoc(collection(db, "audit_logs"), {
+        action: "Google Login",
+        details: `Successful Google login by ${user.name} (${role})`,
+        ip: "Client " + Math.floor(Math.random() * 255) + "." + Math.floor(Math.random() * 255) + ".1.1",
         timestamp: serverTimestamp(),
         userId: user.id
       });
-    } catch (err) {
-      console.error("Error logging audit event:", err);
-    }
 
-    onLogin(user, role);
-    navigate(role === "admin" ? "/" : "/dashboard");
+      onLogin(user, role);
+      navigate(role === "admin" ? "/" : "/dashboard");
+    } catch (error) {
+      console.error("Error during Google Login:", error);
+      setError("An error occurred during authentication. Please try again.");
+    }
   };
 
   return (
@@ -41,89 +59,56 @@ function Auth({ onLogin }) {
           <div className="auth-icon-badge">
             <Lock size={24} />
           </div>
-          <h2>{isLogin ? "Welcome Back" : "Create Account"}</h2>
+          <h2>Sign In to SafeText</h2>
           <p className="subtitle">
-            {isLogin 
-              ? "Access the SafeText monitoring portal" 
-              : "Join the emergency response network"}
+            Access the secure environmental & public safety portal
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          {!isLogin && (
-            <div className="form-group">
-              <label><User size={16} /> Full Name</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                placeholder="John Doe" 
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required 
-              />
-            </div>
-          )}
-
-          <div className="form-group">
-            <label><Mail size={16} /> Email Address</label>
-            <input 
-              type="email" 
-              className="form-control" 
-              placeholder="name@example.com" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required 
-            />
+        {error && (
+          <div className="auth-error-panel">
+            <p>{error}</p>
           </div>
+        )}
 
-          <div className="form-group">
-            <label><Lock size={16} /> Password</label>
-            <input 
-              type="password" 
-              className="form-control" 
-              placeholder="••••••••" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required 
-            />
+        <div className="role-selector">
+          <label className="role-label-main">Select Your Role</label>
+          <div className="role-options">
+            <button 
+              type="button" 
+              className={`role-btn ${role === "admin" ? "active" : ""}`}
+              onClick={() => setRole("admin")}
+            >
+              <ShieldCheck size={20} />
+              <span>Admin</span>
+            </button>
+            <button 
+              type="button" 
+              className={`role-btn ${role === "patrol" ? "active" : ""}`}
+              onClick={() => setRole("patrol")}
+            >
+              <Briefcase size={20} />
+              <span>Crime Patrol</span>
+            </button>
           </div>
+        </div>
 
-          <div className="role-selector">
-            <label className="role-label-main">Select Your Role</label>
-            <div className="role-options">
-              <button 
-                type="button" 
-                className={`role-btn ${role === "admin" ? "active" : ""}`}
-                onClick={() => setRole("admin")}
-              >
-                <ShieldCheck size={20} />
-                <span>Admin</span>
-              </button>
-              <button 
-                type="button" 
-                className={`role-btn ${role === "patrol" ? "active" : ""}`}
-                onClick={() => setRole("patrol")}
-              >
-                <Briefcase size={20} />
-                <span>Crime Patrol</span>
-              </button>
-            </div>
-          </div>
-
-          <button type="submit" className="btn btn-primary btn-block btn-lg">
-            {isLogin ? "Sign In" : "Register"}
-          </button>
-        </form>
+        <button 
+          onClick={handleGoogleLogin} 
+          className="btn btn-primary btn-block google-btn-large"
+        >
+          <img 
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+            alt="Google" 
+            width="20" 
+            style={{ filter: "brightness(0) invert(1)" }}
+          />
+          <span>Continue with Google</span>
+        </button>
 
         <div className="auth-footer">
-          <p>
-            {isLogin ? "New to SafeText?" : "Already have an account?"}
-            <button 
-              className="btn-link" 
-              onClick={() => setIsLogin(!isLogin)}
-            >
-              {isLogin ? " Create an account" : " Login here"}
-            </button>
+          <p className="text-muted text-xs">
+            By signing in, you agree to our terms of service and security protocols.
           </p>
         </div>
       </div>
