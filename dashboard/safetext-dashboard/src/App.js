@@ -293,12 +293,12 @@ function App() {
           path="/resources"
           element={
             <ProtectedRoute>
-              <ResourceList />
+              <ResourceList user={currentUser} role={role} />
             </ProtectedRoute>
           }
         />
 
-        <Route path="/analytics" element={<ProtectedRoute allowedRole="admin"><Analytics /></ProtectedRoute>} />
+        <Route path="/analytics" element={<ProtectedRoute allowedRole="admin"><Analytics user={currentUser} role={role} /></ProtectedRoute>} />
         <Route path="/chat" element={<ProtectedRoute allowedRole="admin"><ChatMonitor user={currentUser} role={role} /></ProtectedRoute>} />
         <Route path="/responders" element={
           <ProtectedRoute>
@@ -310,11 +310,12 @@ function App() {
               updateStatus={updateStatus}
               updateUnitStatus={updateUnitStatus}
               role={role}
+              user={currentUser}
             />
           </ProtectedRoute>
         } />
-        <Route path="/notifications" element={<ProtectedRoute allowedRole="admin"><Notifications /></ProtectedRoute>} />
-        <Route path="/audit-log" element={<ProtectedRoute allowedRole="admin"><AuditLog /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute allowedRole="admin"><Notifications user={currentUser} role={role} /></ProtectedRoute>} />
+        <Route path="/audit-log" element={<ProtectedRoute allowedRole="admin"><AuditLog user={currentUser} role={role} /></ProtectedRoute>} />
 
         <Route path="/patrol/status" element={<ProtectedRoute allowedRole="patrol"><StatusSafety incidents={incidents} patrolUnits={patrolUnits} /></ProtectedRoute>} />
         <Route path="/patrol/incidents" element={<ProtectedRoute allowedRole="patrol"><PatrolIncidents incidents={incidents} updateStatus={updateStatus} patrolUnits={patrolUnits} user={currentUser}/></ProtectedRoute>} />

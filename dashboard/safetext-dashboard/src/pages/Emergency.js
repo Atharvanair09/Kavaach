@@ -10,8 +10,8 @@ function Emergency({ incidents = [] }) {
   return (
     <div className="page-container dashboard-page">
       <header className="emergency-header flex-header">
-        <div className="紧急-title-wrapper">
-          <ShieldAlert className="紧急-icon pulse-red" size={48} />
+        <div className="emergency-title-wrapper">
+          <ShieldAlert className="emergency-icon pulse-red" size={48} />
           <div>
             <h1>Emergency Response Center</h1>
             <p className="subtitle">High-priority incidents requiring immediate attention.</p>

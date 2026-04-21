@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Users, MapPin, ClipboardSignature, Home, ChevronDown, CheckCircle, Clock } from "lucide-react";
+import { Users, MapPin, ClipboardSignature, Home, ChevronDown, CheckCircle, Clock, Search, Bell, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 
 
-function Responders({ patrolUnits, incidents, assignPatrol, addManualIncident, updateStatus, updateUnitStatus, role }) {
+function Responders({ patrolUnits, incidents, assignPatrol, addManualIncident, updateStatus, updateUnitStatus, role, user }) {
+  const [searchQuery, setSearchQuery] = useState("");
   const [manualInputs, setManualInputs] = useState({});
   const [recentActions, setRecentActions] = useState({}); // { taskId: { action: 'accepted'|'rejected', unitId: string } }
 
@@ -54,6 +55,42 @@ function Responders({ patrolUnits, incidents, assignPatrol, addManualIncident, u
 
   return (
     <div className="page-container">
+      {/* Top Nav */}
+      <nav className="top-nav">
+        <div className="search-container">
+          <Search className="search-icon" size={18} />
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search incidents, users, or tags..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="nav-right">
+          <div className="nav-icons">
+            <button className="icon-btn">
+              <Bell size={20} />
+              <span className="notification-dot"></span>
+            </button>
+            <button className="icon-btn">
+              <Settings size={20} />
+            </button>
+          </div>
+          <div className="user-profile">
+            <div className="user-info">
+              <span className="user-name">{user?.name || "Dashboard User"}</span>
+              <span className="user-role">{role === "admin" ? "Senior Admin" : "Crime Patrol"}</span>
+            </div>
+            <img 
+              src={user?.photo || "/sarah_avatar.png"} 
+              alt="User Profile" 
+              className="user-avatar" 
+              onError={(e) => { e.target.src = "/sarah_avatar.png" }}
+            />
+          </div>
+        </div>
+      </nav>
       <style>{`
         .action-feedback {
           animation: slideUp 0.3s ease-out forwards;

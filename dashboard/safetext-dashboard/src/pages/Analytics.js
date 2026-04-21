@@ -1,177 +1,315 @@
-import React, { useState, useEffect } from "react";
-import { BarChart2, TrendingUp, Users, Clock, Home, AlertOctagon } from "lucide-react";
-import { Link } from "react-router-dom";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "../services/firebase";
+import React, { useState } from "react";
+import { 
+  Calendar, Download, Clock, AlarmClock, CheckCircle, 
+  TrendingUp, Eye, Search, Bell, Settings 
+} from "lucide-react";
+import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid } from "recharts";
+import "./Analytics.css";
 
-function Analytics() {
-  const [stats, setStats] = useState({ total: 0, resolved: 0, active: 0, highRisk: 0, mediumRisk: 0, lowRisk: 0 });
+function Analytics({ user, role }) {
+  const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "incidents"), (snapshot) => {
-      let resolved = 0;
-      let active = 0;
-      let highRisk = 0;
-      let mediumRisk = 0;
-      let lowRisk = 0;
-      let total = snapshot.docs.length;
+  const lineData = [
+    { name: "AUG 01", sos: 10, checkin: 50 },
+    { name: "AUG 07", sos: 35, checkin: 40 },
+    { name: "AUG 14", sos: 15, checkin: 60 },
+    { name: "AUG 21", sos: 75, checkin: 55 },
+    { name: "AUG 30", sos: 20, checkin: 65 }
+  ];
 
-      snapshot.docs.forEach(doc => {
-        const d = doc.data();
-        if (d.status === "Resolved") resolved++;
-        else active++;
+  const pieData = [
+    { name: "AI FLAG", value: 42, color: "#0561f0" },
+    { name: "CHECK-IN", value: 40, color: "#e2e8f0" },
+    { name: "SOS", value: 18, color: "#e11d48" }
+  ];
 
-        // Threat level check
-        if (d.threat_level === "HIGH") highRisk++;
-        else if (d.threat_level === "MEDIUM") mediumRisk++;
-        else lowRisk++;
-      });
+  const recentAlerts = [
+    { id: "#TX-8821", type: "SOS TRIGGER", typeClass: "sos", location: "Brooklyn, NY", status: "Active Dispatch", statusColor: "#0561f0", time: "2 mins ago" },
+    { id: "#TX-8819", type: "AI FLAG", typeClass: "ai", location: "Queens, NY", status: "Pending Review", statusColor: "#64748b", time: "14 mins ago" },
+    { id: "#TX-8815", type: "CHECK-IN", typeClass: "checkin", location: "Manhattan, NY", status: "Resolved", statusColor: "#22c55e", time: "45 mins ago" }
+  ];
 
-      setStats({ total, resolved, active, highRisk, mediumRisk, lowRisk });
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const highPct = stats.total ? (stats.highRisk / stats.total) * 100 : 0;
-  const mediumPct = stats.total ? (stats.mediumRisk / stats.total) * 100 : 0;
-  const lowPct = stats.total ? (stats.lowRisk / stats.total) * 100 : 0;
   return (
-    <div className="page-container">
-      <div className="card-header flex-header" style={{display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center'}}>
-        <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
-          <BarChart2 className="header-icon primary" />
-          <div>
-            <h2 style={{fontSize: '1.75rem', fontWeight: 800}}>Platform Analytics</h2>
-            <p className="card-subtitle" style={{marginBottom: 0}}>Mock reporting and performance KPIs</p>
+    <div className="analytics-page">
+      {/* Top Nav (Persistent across pages) */}
+      <nav className="top-nav">
+          <div className="search-container">
+            <Search className="search-icon" size={18} />
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Search incidents, users, or tags..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-        </div>
-        <Link to="/" className="btn btn-outline btn-sm back-btn">
-          <Home size={18} />
-          <span>Back to Home</span>
-        </Link>
-      </div>
+          <div className="nav-right">
+            <div className="nav-icons">
+              <button className="icon-btn">
+                <Bell size={20} />
+                <span className="notification-dot"></span>
+              </button>
+              <button className="icon-btn">
+                <Settings size={20} />
+              </button>
+            </div>
+            <div className="user-profile">
+              <div className="user-info">
+                <span className="user-name">{user?.name || "Dashboard User"}</span>
+                <span className="user-role">{role === "admin" ? "Senior Admin" : "Crime Patrol"}</span>
+              </div>
+              <img 
+                src={user?.photo || "/sarah_avatar.png"} 
+                alt="User Profile" 
+                className="user-avatar" 
+                onError={(e) => { e.target.src = "/sarah_avatar.png" }}
+              />
+            </div>
+          </div>
+        </nav>
 
-      <div className="stats-grid" style={{marginTop: '2rem'}}>
-        <div className="card stat-card">
-          <div className="stat-icon-wrapper danger"><AlertOctagon size={24} /></div>
+      <div className="analytics-content">
+        <header className="page-heading">
           <div>
-            <span className="stat-label">High Priority Cases</span>
-            <span className="stat-value">{stats.highRisk}</span>
+            <h1>Platform Analytics</h1>
+            <p>Data-driven insights for SafeText emergency response systems.</p>
           </div>
-        </div>
-        <div className="card stat-card">
-          <div className="stat-icon-wrapper success"><TrendingUp size={24} /></div>
-          <div>
-            <span className="stat-label">Incidents Resolved</span>
-            <span className="stat-value">{stats.resolved}</span>
+          <div className="heading-actions">
+            <button className="btn-outline-gray"><Calendar size={16}/> Last 30 Days</button>
+            <button className="btn-primary"><Download size={16}/> Export Report</button>
           </div>
-        </div>
-        <div className="card stat-card">
-          <div className="stat-icon-wrapper warning"><Users size={24} /></div>
-          <div>
-            <span className="stat-label">Active / Pending</span>
-            <span className="stat-value">{stats.active}</span>
-          </div>
-        </div>
-      </div>
+        </header>
 
-      {/* Advanced Threat Classification Chart Section */}
-      <div className="card" style={{marginTop: '2rem', padding: '2.5rem'}}>
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem'}}>
-          <div>
-             <h3 style={{fontSize: '1.5rem', marginBottom: '0.5rem', fontWeight: 800}}>Threat Level Classification Ratio</h3>
-             <p style={{color: '#64748b', fontSize: '0.95rem'}}>Detailed breakdown of live incidents currently in the system.</p>
+        <section className="kpi-cards">
+          {/* Card 1 */}
+          <div className="kpi-card">
+            <div className="kpi-icon-wrap blue"><Clock size={20}/></div>
+            <span className="trend-badge positive">+12%</span>
+            <div className="kpi-info">
+              <label>Avg Response Time</label>
+              <h2 className="blue-text">4.2m</h2>
+            </div>
           </div>
-        </div>
+          {/* Card 2 */}
+          <div className="kpi-card critical">
+            <div className="kpi-icon-wrap red"><AlarmClock size={20}/></div>
+            <span className="trend-badge danger">CRITICAL</span>
+            <div className="kpi-info">
+              <label>Peak Incident Hours</label>
+              <h2>9 PM - 2 AM</h2>
+            </div>
+          </div>
+          {/* Card 3 */}
+          <div className="kpi-card">
+            <div className="kpi-icon-wrap blue"><CheckCircle size={20}/></div>
+            <span className="trend-badge positive">94.8%</span>
+            <div className="kpi-info">
+              <label>Success Resolution</label>
+              <h2>1,242</h2>
+            </div>
+          </div>
+          {/* Card 4 - Dark Blue */}
+          <div className="kpi-card dark-blue">
+            <div className="kpi-info-top">
+              <label>Total Active Responders</label>
+              <h2>158</h2>
+            </div>
+            <div className="avatars-group">
+               <img src="/sarah_avatar.png" alt="" onError={(e)=>{e.target.style.display='none'}}/>
+               <img src="/sarah_avatar.png" alt="" onError={(e)=>{e.target.style.display='none'}}/>
+               <img src="/sarah_avatar.png" alt="" onError={(e)=>{e.target.style.display='none'}}/>
+               <span className="avatar-more">+155</span>
+            </div>
+          </div>
+        </section>
 
-        {stats.total === 0 ? (
-           <div style={{padding: '4rem', textAlign: 'center', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '12px', border: '2px dashed #e2e8f0'}}>
-             Waiting for live incident data...
-           </div>
-        ) : (
-          <div style={{display: 'flex', alignItems: 'center', gap: '4rem', flexWrap: 'wrap'}}>
-            {/* Elegant Donut Chart */}
-            <div style={{position: 'relative'}}>
-              <div style={{
-                width: '240px',
-                height: '240px',
-                borderRadius: '50%',
-                background: `conic-gradient(
-                  #ef4444 0% ${highPct}%,
-                  #f59e0b ${highPct}% ${highPct + mediumPct}%,
-                  #3b82f6 ${highPct + mediumPct}% 100%
-                )`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
-                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
-              }}>
-                <div style={{
-                  width: '170px', 
-                  height: '170px', 
-                  backgroundColor: 'var(--surface)', 
-                  borderRadius: '50%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: 'inset 0 4px 6px rgba(0,0,0,0.05)'
-                }}>
-                  <h4 style={{fontSize: '3rem', margin: 0, fontWeight: 900, color: 'var(--text-main)', lineHeight: '1'}}>{stats.total}</h4>
-                  <span style={{fontSize: '0.9rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '6px'}}>Total</span>
-                </div>
+        <section className="charts-grid">
+          {/* Incident Trends */}
+          <div className="chart-card">
+            <div className="chart-header">
+              <div>
+                <h3>Incident Trends</h3>
+                <p>Volume of distress signals over 30 days</p>
+              </div>
+              <div className="chart-legend">
+                <span><span className="dot blue"></span> SOS Alerts</span>
+                <span><span className="dot gray"></span> Proactive Checks</span>
               </div>
             </div>
+            <div className="chart-body" style={{ height: 260, marginLeft: '-15px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={lineData} margin={{top: 20, right: 10, left: 0, bottom: 0}}>
+                  <CartesianGrid vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: "#94a3b8", fontSize: 10, fontWeight: 700}} dy={10} />
+                  <Tooltip wrapperStyle={{ outline: 'none' }} cursor={{stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4'}} />
+                  <Line type="monotone" dataKey="sos" stroke="#0561f0" strokeWidth={3} dot={false} activeDot={{r: 6}} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
 
-            {/* Detailed Legend Blocks */}
-            <div style={{flex: 1, minWidth: '280px'}}>
-               <div style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
-                 
-                 {/* High Priority Item */}
-                 <div style={{display: 'flex', alignItems: 'center', padding: '1.25rem', backgroundColor: '#fef2f2', borderRadius: '12px', borderLeft: '6px solid #ef4444', transition: 'transform 0.2s', cursor: 'default'}} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}>
-                   <div style={{width: '14px', height: '14px', borderRadius: '50%', backgroundColor: '#ef4444', marginRight: '1.25rem', flexShrink: 0, boxShadow: '0 0 0 4px #fee2e2'}} />
-                   <div style={{flex: 1}}>
-                     <h5 style={{margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#991b1b'}}>High Priority</h5>
-                     <span style={{fontSize: '0.9rem', color: '#b91c1c', fontWeight: 500}}>Requires immediate dispatch</span>
-                   </div>
-                   <div style={{textAlign: 'right'}}>
-                     <div style={{fontSize: '1.5rem', fontWeight: 900, color: '#991b1b'}}>{stats.highRisk}</div>
-                     <div style={{fontSize: '0.95rem', fontWeight: 800, color: '#ef4444'}}>{highPct.toFixed(1)}%</div>
-                   </div>
-                 </div>
+          {/* Alert Types Donut */}
+          <div className="chart-card">
+            <div className="chart-header">
+              <div>
+                <h3>Alert Types</h3>
+                <p>Classification of incoming data</p>
+              </div>
+            </div>
+            <div className="chart-body pie-chart-area">
+              <div className="pie-wrapper" style={{ width: '100%', height: 180, position: 'relative' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie 
+                      data={pieData} 
+                      innerRadius={65} 
+                      outerRadius={85} 
+                      paddingAngle={4} 
+                      dataKey="value" 
+                      stroke="none"
+                      cornerRadius={4}
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pie-center">
+                  <h2>3.8k</h2>
+                  <span>TOTAL</span>
+                </div>
+              </div>
+              <div className="pie-legend">
+                {pieData.map(d => (
+                  <div key={d.name} className="legend-item">
+                    <span className="dot" style={{backgroundColor: d.color}}></span>
+                    <div className="legend-text">
+                      <span className="label">{d.name}</span>
+                      <span className="value">{d.value}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
-                 {/* Medium Priority Item */}
-                 <div style={{display: 'flex', alignItems: 'center', padding: '1.25rem', backgroundColor: '#fffbeb', borderRadius: '12px', borderLeft: '6px solid #f59e0b', transition: 'transform 0.2s', cursor: 'default'}} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}>
-                   <div style={{width: '14px', height: '14px', borderRadius: '50%', backgroundColor: '#f59e0b', marginRight: '1.25rem', flexShrink: 0, boxShadow: '0 0 0 4px #fef3c7'}} />
-                   <div style={{flex: 1}}>
-                     <h5 style={{margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#92400e'}}>Medium Priority</h5>
-                     <span style={{fontSize: '0.9rem', color: '#b45309', fontWeight: 500}}>Active monitoring & assessment</span>
-                   </div>
-                   <div style={{textAlign: 'right'}}>
-                     <div style={{fontSize: '1.5rem', fontWeight: 900, color: '#92400e'}}>{stats.mediumRisk}</div>
-                     <div style={{fontSize: '0.95rem', fontWeight: 800, color: '#f59e0b'}}>{mediumPct.toFixed(1)}%</div>
-                   </div>
-                 </div>
+          {/* Geographic Hotspots */}
+          <div className="chart-card geo-card">
+             <div className="geo-map">
+                <style>{`
+                  .geo-bg {
+                    width: 100%; height: 100%;
+                    background: radial-gradient(circle at 40% 40%, rgba(255,255,255,0.8) 0%, transparent 40%),
+                                radial-gradient(circle at 60% 60%, rgba(0,0,0,0.1) 0%, transparent 50%);
+                    background-size: 60px 60px;
+                    opacity: 0.8;
+                    position: absolute;
+                    top: 0; left: 0;
+                  }
+                  .geo-dots {
+                    position: absolute;
+                    width: 12px; height: 12px;
+                    background: #0f172a;
+                    border-radius: 50%;
+                    box-shadow: 0 0 0 4px rgba(15,23,42,0.2);
+                  }
+                `}</style>
+                <div className="absolute-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                  <div>
+                    <h3 style={{margin: '0 0 0.25rem 0', fontSize: '1.15rem', fontWeight: 800}}>Geographic Hotspots</h3>
+                    <p style={{margin: 0, color: '#64748b', fontSize: '0.85rem'}}>Real-time distress signal density</p>
+                  </div>
+                  <div className="live-badge"><span className="dot blueblink"></span> Live Monitoring</div>
+                </div>
+                
+                {/* Simulated topo map via an image */}
+                <img src="/map_placeholder.png" alt="Map" style={{width: '100%', height:'100%', objectFit: 'cover', opacity: 0.5}} 
+                     onError={(e) => { e.target.style.display='none'; e.target.parentElement.style.background = 'radial-gradient(circle at 50% 50%, #aaaaaa, #e2e8f0)'}} />
+                
+                <div className="geo-bg">
+                   {/* Abstract representation of map hotspots */}
+                   <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style={{position: 'absolute'}}>
+                      <filter id="blur"><feGaussianBlur stdDeviation="10" /></filter>
+                      <circle cx="30%" cy="40%" r="60" fill="rgba(0,0,0,0.15)" filter="url(#blur)" />
+                      <circle cx="70%" cy="60%" r="80" fill="rgba(0,0,0,0.2)" filter="url(#blur)" />
+                      <circle cx="50%" cy="80%" r="50" fill="rgba(0,0,0,0.1)" filter="url(#blur)" />
+                      <path d="M 0,50 Q 80,10 150,60 T 350,70 T 500,40" stroke="rgba(0,0,0,0.08)" strokeWidth="30" fill="none" filter="url(#blur)" />
+                      <path d="M 50,150 Q 180,90 250,160 T 450,170 T 600,140" stroke="rgba(0,0,0,0.12)" strokeWidth="50" fill="none" filter="url(#blur)" />
+                   </svg>
+                </div>
+                <div className="geo-dots" style={{top: '45%', left: '32%'}}></div>
+                <div className="geo-dots" style={{top: '65%', left: '68%'}}></div>
+                <div style={{width: 16, height: 16, top: '80%', left: '45%', position: 'absolute', background: '#0f172a', borderRadius: '50%', boxShadow: '0 0 0 6px rgba(15,23,42,0.3)'}}></div>
+             </div>
+          </div>
 
-                 {/* Low Priority Item */}
-                 <div style={{display: 'flex', alignItems: 'center', padding: '1.25rem', backgroundColor: '#eff6ff', borderRadius: '12px', borderLeft: '6px solid #3b82f6', transition: 'transform 0.2s', cursor: 'default'}} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}>
-                   <div style={{width: '14px', height: '14px', borderRadius: '50%', backgroundColor: '#3b82f6', marginRight: '1.25rem', flexShrink: 0, boxShadow: '0 0 0 4px #dbeafe'}} />
-                   <div style={{flex: 1}}>
-                     <h5 style={{margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#1e40af'}}>Low Priority</h5>
-                     <span style={{fontSize: '0.9rem', color: '#1d4ed8', fontWeight: 500}}>Standard review queue</span>
-                   </div>
-                   <div style={{textAlign: 'right'}}>
-                     <div style={{fontSize: '1.5rem', fontWeight: 900, color: '#1e40af'}}>{stats.lowRisk}</div>
-                     <div style={{fontSize: '0.95rem', fontWeight: 800, color: '#3b82f6'}}>{lowPct.toFixed(1)}%</div>
-                   </div>
-                 </div>
-
+          {/* Case Resolution Rate */}
+          <div className="chart-card">
+            <div className="chart-header">
+              <div>
+                <h3>Case Resolution Rate</h3>
+                <p>Monthly performance benchmark</p>
+              </div>
+            </div>
+            <div className="chart-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingTop: '20px'}}>
+               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '0 10px' }}>
+                 <span className="x-label">MAR</span>
+                 <span className="x-label">APR</span>
+                 <span className="x-label">MAY</span>
+                 <span className="x-label blue">JUN</span>
+                 <span className="x-label">JUL</span>
+                 <span className="x-label">AUG</span>
+               </div>
+               <div className="performance-box">
+                  <div className="perf-left">
+                     <div className="trend-icon"><TrendingUp size={20} strokeWidth={2.5}/></div>
+                     <p>Performance increased by 4%<br/>vs last month</p>
+                  </div>
+                  <a href="#" className="view-details">View<br/>Details</a>
                </div>
             </div>
           </div>
-        )}
+        </section>
+
+        {/* Bottom Table */}
+        <section className="table-section">
+           <div className="table-header">
+             <h3>Recent Alert History</h3>
+             <a href="#">View All Records</a>
+           </div>
+           <div className="table-wrapper">
+             <table>
+               <thead>
+                 <tr>
+                   <th>USER ID</th>
+                   <th>ALERT TYPE</th>
+                   <th>LOCATION</th>
+                   <th>STATUS</th>
+                   <th>TIME</th>
+                   <th className="action-cell">ACTIONS</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 {recentAlerts.map(alert => (
+                   <tr key={alert.id}>
+                     <td className="user-id">{alert.id}</td>
+                     <td><span className={`alert-badge ${alert.typeClass}`}>{alert.type}</span></td>
+                     <td>{alert.location}</td>
+                     <td>
+                        <span className="status-cell">
+                           <span className="dot" style={{backgroundColor: alert.statusColor}}></span> 
+                           {alert.status}
+                        </span>
+                     </td>
+                     <td className="time-cell">{alert.time}</td>
+                     <td className="action-cell"><button className="icon-btn-small"><Eye size={16}/></button></td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           </div>
+        </section>
       </div>
     </div>
   );
