@@ -1,60 +1,63 @@
 import React, { useState } from "react";
-import { Users, MapPin, ClipboardSignature, Home, ChevronDown, CheckCircle, Clock, Search, Bell, Settings } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Filter, Download, ArrowRightLeft, Mail, TriangleAlert, CheckCircle, Search, Bell, Settings, UserPlus, ChevronLeft, ChevronRight } from "lucide-react";
+import "./Responders.css";
 
-
-function Responders({ patrolUnits, incidents, assignPatrol, addManualIncident, updateStatus, updateUnitStatus, role, user }) {
+function Responders({ user, role }) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [manualInputs, setManualInputs] = useState({});
-  const [recentActions, setRecentActions] = useState({}); // { taskId: { action: 'accepted'|'rejected', unitId: string } }
 
-  const units = patrolUnits || [];
-
-  const handleManualAssign = async (unitId) => {
-    const text = manualInputs[unitId];
-    if (!text || text.trim() === "") return;
-    
-    await addManualIncident(unitId, text);
-    // Clear input
-    setManualInputs(prev => ({ ...prev, [unitId]: "" }));
-  };
-
-  const handleInputChange = (unitId, value) => {
-    setManualInputs(prev => ({ ...prev, [unitId]: value }));
-  };
-
-  const handlePatrolAction = async (unit, taskId, action) => {
-    // Prevent actions if on break
-    if (unit.availability === 'break') return;
-
-    // 1. Set local feedback state with unit scoping
-    setRecentActions(prev => ({ ...prev, [taskId]: { action, unitId: unit.id } }));
-    
-    // 2. Perform the update
-    if (action === 'accepted') {
-      await updateStatus(taskId, "In Progress");
-    } else {
-      await updateStatus(taskId, "Pending"); // Rejects the assignment
+  const respondersData = [
+    { 
+      id: 1, 
+      name: "Sarah Chen", 
+      role: "Crisis Specialist", 
+      avatar: "/sarah_avatar.png", 
+      status: "Available", 
+      statusColor: "green",
+      loadNum: 2, 
+      loadMax: 5, 
+      loadPct: 40, 
+      avgResp: "3.2m" 
+    },
+    { 
+      id: 2, 
+      name: "Marcus Thorne", 
+      role: "Senior Responder", 
+      avatar: "/sarah_avatar.png", 
+      status: "Busy", 
+      statusColor: "yellow",
+      loadNum: 5, 
+      loadMax: 5, 
+      loadPct: 100, 
+      avgResp: "5.8m" 
+    },
+    { 
+      id: 3, 
+      name: "Elena Rodriguez", 
+      role: "Legal Advocate", 
+      avatar: "/sarah_avatar.png", 
+      status: "Available", 
+      statusColor: "green",
+      loadNum: 1, 
+      loadMax: 5, 
+      loadPct: 20, 
+      avgResp: "2.4m" 
+    },
+    { 
+      id: 4, 
+      name: "Jordan Smith", 
+      role: "Support Staff", 
+      avatar: "/sarah_avatar.png", 
+      status: "Offline", 
+      statusColor: "gray",
+      loadNum: 0, 
+      loadMax: 5, 
+      loadPct: 0, 
+      avgResp: "-" 
     }
-
-    // Optional: clear the 'rejected' feedback after a short delay
-    if (action === 'rejected') {
-      setTimeout(() => {
-        setRecentActions(prev => {
-          const updated = { ...prev };
-          delete updated[taskId];
-          return updated;
-          });
-      }, 2500);
-    }
-  };
-
-  const handleStatusChange = (unitId, status) => {
-    updateUnitStatus(unitId, status);
-  };
+  ];
 
   return (
-    <div className="page-container">
+    <div className="responders-page">
       {/* Top Nav */}
       <nav className="top-nav">
         <div className="search-container">
@@ -91,219 +94,163 @@ function Responders({ patrolUnits, incidents, assignPatrol, addManualIncident, u
           </div>
         </div>
       </nav>
-      <style>{`
-        .action-feedback {
-          animation: slideUp 0.3s ease-out forwards;
-        }
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(5px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .status-select {
-          padding: 4px 8px;
-          border-radius: 8px;
-          border: 1px solid #e2e8f0;
-          font-size: 0.75rem;
-          font-weight: 700;
-          background: #f8fafc;
-          color: #475569;
-          cursor: pointer;
-          outline: none;
-        }
-        .status-select:hover { border-color: #cbd5e1; }
-        .on-break-overlay {
-          color: #94a3b8;
-          font-style: italic;
-          font-size: 0.8rem;
-          margin-top: 10px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-      `}</style>
-      <div className="card-header flex-header" style={{display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center'}}>
-        <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
-          <Users className="header-icon primary" />
-          <div>
-            <h2 style={{fontSize: '1.75rem', fontWeight: 800}}>
-              {role === 'admin' ? "Responders Directory" : "Incident Handling"}
-            </h2>
-            <p className="card-subtitle" style={{marginBottom: 0}}>
-              {role === 'admin' 
-                ? "Manage patrol units and dispatch teams" 
-                : "View all the assigned/incoming cases for your unit"}
-            </p>
+
+      <div className="responders-content">
+        <div className="page-header-top">
+          <div className="header-text">
+            <h1>Responder Management</h1>
+            <p>Manage emergency response personnel, monitor real-time workloads, and coordinate immediate crisis intervention.</p>
+          </div>
+          <div className="header-stats">
+             <div className="stat-pill">
+               <label>ACTIVE NOW</label>
+               <h3>24/32</h3>
+             </div>
+             <div className="stat-pill">
+               <label>AVG RESPONSE</label>
+               <h3>4.2m</h3>
+             </div>
           </div>
         </div>
-        <Link to="/" className="btn btn-outline btn-sm back-btn">
-          <Home size={18} />
-          <span>Back to Home</span>
-        </Link>
-      </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '2rem', marginTop: '2rem' }}>
-        {units.map(unit => {
-          const isPatrol = role === 'patrol';
-          const isBreak = unit.availability === 'break';
-
-          // Filter cases assigned to this unit OR cases that were just rejected by THIS SPECIFIC unit
-          const unitTasks = incidents?.filter(i => 
-            (i.assignedTo === unit.id && i.status !== "Resolved") || 
-            (recentActions[i.id]?.unitId === unit.id && recentActions[i.id]?.action === 'rejected')
-          ) || [];
-          
-          return (
-            <div key={unit.id} className="card" style={{padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', opacity: isBreak ? 0.75 : 1, transition: 'all 0.3s'}}>
-               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap'}}>
-                  <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                    <h3 style={{margin: 0, fontSize: '1.3rem'}}>{unit.name}</h3>
-                    {isPatrol && (
-                      <select 
-                        className="status-select"
-                        value={unit.availability || 'active'}
-                        onChange={(e) => handleStatusChange(unit.id, e.target.value)}
-                      >
-                        <option value="active">CURRENTLY ACTIVE</option>
-                        <option value="break">ON-BREAK</option>
-                      </select>
-                    )}
-                  </div>
-                  <span style={{
-                     padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 800,
-                     backgroundColor: isBreak ? '#fee2e2' : (unit.status === 'Active' ? '#dcfce7' : '#f1f5f9'),
-                     color: isBreak ? '#dc2626' : (unit.status === 'Active' ? '#16a34a' : '#64748b'),
-                     textTransform: 'uppercase'
-                  }}>
-                    {isBreak ? 'ON BREAK' : unit.status}
-                  </span>
-               </div>
-               
-               <div style={{display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b'}}>
-                 <MapPin size={16} />
-                 <span style={{fontSize: '0.95rem'}}>{unit.location}</span>
-               </div>
-
-               {/* --- ADMIN VIEW: TEXTBOX + ASSIGN --- */}
-               {role === 'admin' && (
-                 <div style={{marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1rem', backgroundColor: isBreak ? '#f1f5f9' : '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', filter: isBreak ? 'grayscale(1)' : 'none'}}>
-                    <label style={{fontSize: '0.85rem', fontWeight: 700, color: '#475569'}}>Manual Task Entry</label>
-                    <textarea 
-                      placeholder={isBreak ? "Unit is currently on break..." : "Type specific case details..."}
-                      style={{
-                        padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', 
-                        fontSize: '0.9rem', resize: 'none', height: '80px', fontFamily: 'inherit'
-                      }}
-                      value={manualInputs[unit.id] || ""}
-                      onChange={(e) => handleInputChange(unit.id, e.target.value)}
-                      disabled={isBreak}
-                    />
-                    <button 
-                      className="btn btn-primary" 
-                      style={{width: '100%', padding: '0.75rem', display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center'}}
-                      onClick={() => handleManualAssign(unit.id)}
-                      disabled={isBreak || !manualInputs[unit.id] || manualInputs[unit.id].trim() === ""}
-                    >
-                      {isBreak ? (
-                        <>
-                          <Clock size={18} /> Unit on Break
-                        </>
-                      ) : (
-                        <>
-                          <ClipboardSignature size={18} /> Assign Case
-                        </>
-                      )}
-                    </button>
-                    {isBreak && (
-                      <p style={{margin: '5px 0 0 0', fontSize: '0.7rem', color: '#dc2626', fontWeight: 700, textAlign: 'center'}}>
-                        LOCK ENABLED: Wait for unit to resume active status.
-                      </p>
-                    )}
-                 </div>
-               )}
-
-               {/* --- PATROL VIEW: ASSIGNED CASES + ACCEPT/REJECT --- */}
-               {isPatrol && (
-                 <div style={{marginTop: '0.5rem'}}>
-                    <h4 style={{fontSize: '0.85rem', fontWeight: 800, color: isBreak ? '#94a3b8' : '#3b82f6', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px'}}>
-                      Select case from below
-                    </h4>
-                    
-                    <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                       {unitTasks.length > 0 ? (
-                         unitTasks.map(task => {
-                           const actionData = recentActions[task.id];
-                           const isMyTask = task.assignedTo === unit.id;
-
-                           let actionTaken = null;
-                           if (actionData?.unitId === unit.id) {
-                             actionTaken = actionData.action;
-                           } else if (isMyTask && task.status === 'In Progress') {
-                             actionTaken = 'accepted';
-                           } else if (isMyTask && task.status === 'Rejected') {
-                             actionTaken = 'rejected';
-                           }
-                           
-                           return (
-                             <div key={task.id} style={{padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', opacity: isBreak ? 0.6 : 1}}>
-                                <p style={{margin: '0 0 10px 0', fontSize: '0.95rem', fontWeight: 500, color: '#1e293b'}}>
-                                  {task.text || task.message}
-                                </p>
-                                <div style={{display: 'flex', gap: '0.5rem', marginTop: '1rem'}}>
-                                   <button 
-                                     className="btn btn-sm" 
-                                     style={{
-                                       flex: 1, border: 'none', fontWeight: 700,
-                                       backgroundColor: actionTaken === 'rejected' ? '#f1f5f9' : '#dcfce7',
-                                       color: actionTaken === 'rejected' ? '#94a3b8' : '#16a34a',
-                                       transition: 'all 0.2s'
-                                     }}
-                                     onClick={() => handlePatrolAction(unit, task.id, 'accepted')}
-                                     disabled={!!actionTaken || isBreak}
-                                   >
-                                     Accept
-                                   </button>
-                                   <button 
-                                     className="btn btn-sm" 
-                                     style={{
-                                       flex: 1, border: 'none', fontWeight: 700,
-                                       backgroundColor: actionTaken === 'accepted' ? '#f1f5f9' : '#fee2e2',
-                                       color: actionTaken === 'accepted' ? '#94a3b8' : '#dc2626',
-                                       transition: 'all 0.2s'
-                                     }}
-                                     onClick={() => handlePatrolAction(unit, task.id, 'rejected')}
-                                     disabled={!!actionTaken || isBreak}
-                                   >
-                                     Reject
-                                   </button>
-                                </div>
-                                {actionTaken && (
-                                   <p className="action-feedback" style={{
-                                     textAlign: 'center', marginTop: '10px', marginBottom: 0, 
-                                     fontSize: '0.85rem', fontWeight: 800,
-                                     color: actionTaken === 'accepted' ? '#16a34a' : '#dc2626'
-                                   }}>
-                                     Case {actionTaken === 'accepted' ? 'Accepted' : 'Rejected'}
-                                   </p>
-                                )}
-                             </div>
-                           );
-                         })
-                       ) : (
-                         <div style={{padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', border: '1px dashed #cbd5e1', borderRadius: '8px', opacity: 0.7}}>
-                           No active cases assigned.
-                         </div>
-                       )}
-                    </div>
-                    {isBreak && (
-                      <div className="on-break-overlay">
-                        <Clock size={14} /> Currently on break. Resume status to handle cases.
-                      </div>
-                    )}
-                 </div>
-               )}
+        <div className="responders-table-container">
+          <div className="table-controls">
+            <div className="tabs-group">
+              <button className="tab-btn active">All Responders</button>
+              <button className="tab-btn">Available</button>
+              <button className="tab-btn">On Duty</button>
             </div>
-          );
-        })}
+            <div className="action-btns">
+               <button className="btn-outline-gray"><Filter size={14}/> Filter</button>
+               <button className="btn-outline-gray"><Download size={14}/> Export</button>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>RESPONDER</th>
+                <th>STATUS</th>
+                <th>CASELOAD</th>
+                <th>AVG RESPONSE</th>
+                <th style={{textAlign: 'right'}}>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {respondersData.map(res => (
+                <tr key={res.id} className={res.status === 'Offline' ? 'row-fade' : ''}>
+                  <td>
+                    <div className="responder-cell">
+                      <div className="avatar-wrapper">
+                        <img src={res.avatar} alt={res.name} onError={(e)=>{e.target.style.display='none'}} />
+                        <span className={`status-dot ${res.statusColor}`}></span>
+                      </div>
+                      <div className="responder-info">
+                        <h4>{res.name}</h4>
+                        <p>{res.role}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`status-pill ${res.status.toLowerCase()}`}>
+                       <span className="dot"></span> {res.status}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="caseload-cell">
+                      <div className="caseload-top">
+                        <span>{res.loadNum}/{res.loadMax}</span>
+                        <span style={{ color: res.loadPct === 100 ? '#ef4444' : '#94a3b8' }}>{res.loadPct}%</span>
+                      </div>
+                      <div className="progress-bar">
+                        <div className="progress-fill" style={{ 
+                          width: `${res.loadPct}%`, 
+                          background: res.loadPct === 100 ? '#ef4444' : (res.loadPct === 0 ? '#e2e8f0' : '#2563eb')
+                        }}></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="metrics-cell">
+                    {res.avgResp}
+                  </td>
+                  <td style={{textAlign: 'right'}}>
+                     <div className="actions-cell" style={{justifyContent: 'flex-end'}}>
+                       <button className="icon-action" style={{opacity: res.status === 'Offline' ? 0.3 : 1}}><ArrowRightLeft size={16}/></button>
+                       <button className="icon-action" style={{opacity: res.status === 'Offline' ? 0.3 : 1}}><Mail size={16}/></button>
+                       <button className="btn-gray-pill" style={{opacity: res.status === 'Offline' ? 0.5 : 1}}>View History</button>
+                     </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="pagination">
+            <span className="pagination-info">Showing 1 to 4 of 32 responders</span>
+            <div className="pagination-controls">
+               <button className="page-btn"><ChevronLeft size={16}/></button>
+               <button className="page-btn active">1</button>
+               <button className="page-btn">2</button>
+               <button className="page-btn dots">...</button>
+               <button className="page-btn"><ChevronRight size={16}/></button>
+            </div>
+          </div>
+        </div>
+
+        <div className="bottom-grid">
+           {/* Load Balancing Board */}
+           <div className="load-card">
+              <div className="load-content">
+                 <h2>Load Balancing Required</h2>
+                 <p>System has detected high traffic in the Eastern region. Three responders are currently at maximum capacity. Consider re-routing non-critical cases.</p>
+                 <button className="btn-white">Optimize Workload</button>
+              </div>
+              <div className="load-graphic">
+                 <h3>12</h3>
+                 <span>QUEUED CASES</span>
+                 <svg width="80" height="80" style={{position: 'absolute', bottom: '-15px', right: '-15px', opacity: 0.3}} viewBox="0 0 24 24" fill="white">
+                    <circle cx="12" cy="12" r="5" />
+                    <circle cx="4" cy="5" r="3" />
+                    <circle cx="21" cy="7" r="2.5" />
+                    <circle cx="6" cy="20" r="3.5" />
+                    <circle cx="20" cy="19" r="2.5" />
+                    <line x1="12" y1="12" x2="4" y2="5" stroke="white" strokeWidth="2" />
+                    <line x1="12" y1="12" x2="21" y2="7" stroke="white" strokeWidth="2" />
+                    <line x1="12" y1="12" x2="6" y2="20" stroke="white" strokeWidth="2" />
+                    <line x1="12" y1="12" x2="20" y2="19" stroke="white" strokeWidth="2" />
+                 </svg>
+              </div>
+           </div>
+
+           {/* Alerts */}
+           <div className="alerts-card">
+              <h3>Recent Alerts</h3>
+              
+              <div className="alert-item">
+                 <div className="alert-icon red">
+                    <TriangleAlert size={18} />
+                 </div>
+                 <div className="alert-text">
+                    <h4>Emergency Response Needed</h4>
+                    <p>Case #8827 has been waiting &gt; 5 mins</p>
+                 </div>
+              </div>
+
+              <div className="alert-item">
+                 <div className="alert-icon green">
+                    <CheckCircle size={18} />
+                 </div>
+                 <div className="alert-text">
+                    <h4>Marcus Thorne Handover</h4>
+                    <p>Shift completion confirmed</p>
+                 </div>
+              </div>
+           </div>
+
+           <div className="fab-btn">
+              <UserPlus size={24} strokeWidth={2.5} />
+           </div>
+        </div>
       </div>
     </div>
   );
