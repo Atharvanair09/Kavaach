@@ -23,6 +23,8 @@ import PatrolIncidents from "./pages/patrol/PatrolIncidents";
 import NavigationScreen from "./pages/patrol/NavigationScreen";
 import Communication from "./pages/patrol/Communication";
 import MyStats from "./pages/patrol/MyStats";
+import Cases from "./pages/Cases";
+
 
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -319,6 +321,10 @@ function App() {
         <Route path="/patrol/navigation" element={<ProtectedRoute allowedRole="patrol"><NavigationScreen /></ProtectedRoute>} />
         <Route path="/patrol/communication" element={<ProtectedRoute allowedRole="patrol"><Communication incidents={incidents} user={currentUser} role={role}/></ProtectedRoute>} />
         <Route path="/patrol/stats" element={<ProtectedRoute allowedRole="patrol"><MyStats incidents={incidents} user={currentUser} /></ProtectedRoute>} />
+        
+        <Route path="/cases" element={<ProtectedRoute><Cases user={currentUser} role={role} /></ProtectedRoute>} />
+
+
 
         <Route
           path="/dashboard"
