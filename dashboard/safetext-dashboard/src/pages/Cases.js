@@ -17,84 +17,79 @@ import "./Cases.css";
 // Import the generated map image
 const MAP_IMAGE = "/case_map.png"; 
 
-function Cases({ user, role }) {
+function Cases({ user, role, incidents, updateStatus }) {
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Dynamic Kanban Mapping
   const kanbanData = [
-
     {
       id: "New",
-      count: 12,
+      count: incidents.filter(i => i.status === "Pending" && i.priority !== "High").length,
       dotClass: "new",
-      cards: [
-        {
-          id: "#ST-9821",
-          time: "4m ago",
-          title: "Manual SOS",
-          priority: "High Priority",
-          priorityClass: "high",
-          hasImage: true,
-          location: "51.5074° N, 0.1278° W",
-          user: "UN",
-          action: "Claim Case"
-        },
-        {
-          id: "#ST-9815",
-          time: "12m ago",
-          title: "AI Flag: Pattern Shift",
-          priority: "Standard",
-          priorityClass: "standard",
-          assignee: "James L."
-        }
-      ]
+      cards: incidents
+        .filter(i => i.status === "Pending" && i.priority !== "High")
+        .map(i => ({
+          id: `#ST-${i.id.substring(0, 4).toUpperCase()}`,
+          time: i.timestamp || "Just now",
+          title: i.category === "Dispatch" ? i.text : `${i.category} Detected`,
+          priority: i.priority,
+          priorityClass: i.priority?.toLowerCase() || "standard",
+          user: i.assignedTo || "Unassigned",
+          action: "Claim Case",
+          dbId: i.id
+        }))
     },
     {
       id: "In Progress",
-      count: 8,
+      count: incidents.filter(i => i.status === "In Progress").length,
       dotClass: "in-progress",
-      cards: [
-        {
-          id: "#ST-9702",
-          status: "Active Chat",
-          title: "Missed Check-in",
-          priority: "Follow-up",
+      cards: incidents
+        .filter(i => i.status === "In Progress")
+        .map(i => ({
+          id: `#ST-${i.id.substring(0, 4).toUpperCase()}`,
+          status: "Active Tracking",
+          title: i.category === "Dispatch" ? i.text : `${i.category} Response`,
+          priority: "Responding",
           priorityClass: "follow-up",
-          user: "Elena R.",
-          isTyping: true,
-          hasChat: true
-        }
-      ]
+          user: i.assignedTo || "Unit Assigned",
+          hasChat: true,
+          dbId: i.id
+        }))
     },
     {
       id: "Escalated",
-      count: 3,
+      count: incidents.filter(i => i.status === "Pending" && i.priority === "High").length,
       dotClass: "escalated",
-      cards: [
-        {
-          id: "#ST-9644",
+      cards: incidents
+        .filter(i => i.status === "Pending" && i.priority === "High")
+        .map(i => ({
+          id: `#ST-${i.id.substring(0, 4).toUpperCase()}`,
           isCritical: true,
-          title: "Voice Alert: Danger",
+          title: i.category === "Emergency" ? "SOS ALERT: HELP" : i.text,
           priority: "Critical",
           priorityClass: "critical",
-          msg: "Local law enforcement notified. Arrival in 6 mins.",
-          user: "Marcus Thorne"
-        }
-      ]
+          msg: i.category === "Emergency" ? "Immediate dispatch required. Responder in route." : i.text,
+          user: i.assignedTo || "Awaiting Dispatch",
+          hasImage: i.category === "Emergency",
+          location: i.lat ? `${i.lat.toFixed(4)}° N, ${i.lng.toFixed(4)}° E` : "Location Unknown",
+          dbId: i.id
+        }))
     },
     {
       id: "Resolved",
-      count: 45,
+      count: incidents.filter(i => i.status === "Resolved").length,
       dotClass: "resolved",
-      cards: [
-        {
-          id: "#ST-9588",
+      cards: incidents
+        .filter(i => i.status === "Resolved")
+        .map(i => ({
+          id: `#ST-${i.id.substring(0, 4).toUpperCase()}`,
           isResolved: true,
-          title: "AI Flag: False Positive",
+          title: `${i.category} Secured`,
           priority: "Closed",
           priorityClass: "standard",
-          user: "Resolved by Dr. Sarah"
-        }
-      ]
+          user: `Resolved by ${i.assignedTo || "Admin"}`,
+          dbId: i.id
+        }))
     }
   ];
 
@@ -201,7 +196,13 @@ function Cases({ user, role }) {
                     </span>
                   </div>
                   {card.action ? (
-                    <span className="claim-link">{card.action}</span>
+                    <span 
+                      className="claim-link" 
+                      onClick={() => updateStatus(card.dbId, "In Progress")}
+                      style={{cursor: 'pointer'}}
+                    >
+                      {card.action}
+                    </span>
                   ) : card.hasChat ? (
                     <MessageSquare size={16} className="active-chat-icon" />
                   ) : null}

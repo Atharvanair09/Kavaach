@@ -322,7 +322,7 @@ function App() {
         <Route path="/patrol/communication" element={<ProtectedRoute allowedRole="patrol"><Communication incidents={incidents} user={currentUser} role={role}/></ProtectedRoute>} />
         <Route path="/patrol/stats" element={<ProtectedRoute allowedRole="patrol"><MyStats incidents={incidents} user={currentUser} /></ProtectedRoute>} />
         
-        <Route path="/cases" element={<ProtectedRoute><Cases user={currentUser} role={role} /></ProtectedRoute>} />
+        <Route path="/cases" element={<ProtectedRoute><Cases incidents={incidents} updateStatus={updateStatus} user={currentUser} role={role} /></ProtectedRoute>} />
 
 
 
