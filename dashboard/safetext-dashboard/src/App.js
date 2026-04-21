@@ -299,7 +299,7 @@ function App() {
         />
 
         <Route path="/analytics" element={<ProtectedRoute allowedRole="admin"><Analytics /></ProtectedRoute>} />
-        <Route path="/chat" element={<ProtectedRoute allowedRole="admin"><ChatMonitor /></ProtectedRoute>} />
+        <Route path="/chat" element={<ProtectedRoute allowedRole="admin"><ChatMonitor user={currentUser} role={role} /></ProtectedRoute>} />
         <Route path="/responders" element={
           <ProtectedRoute>
             <Responders 
