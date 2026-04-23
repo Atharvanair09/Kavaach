@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Lock, Mail, User, ShieldCheck, Briefcase } from "lucide-react";
 import { db, auth, googleProvider } from "../services/firebase";
-import { collection, addDoc, serverTimestamp, getDocs, query, where } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, getDocs, query, where, setDoc, doc } from "firebase/firestore";
 import { signInWithPopup, signOut } from "firebase/auth";
 
 function Auth({ onLogin }) {
@@ -44,6 +44,21 @@ function Auth({ onLogin }) {
         timestamp: serverTimestamp(),
         userId: user.id
       });
+
+      if (role === "patrol") {
+        await setDoc(doc(db, "responders", user.id), {
+          ...user,
+          role: "Patrol Officer",
+          status: "Available",
+          lastLogin: serverTimestamp()
+        }, { merge: true });
+        
+        // Also ensure they have a status entry
+        await setDoc(doc(db, "unit_status", user.id), {
+          status: "active",
+          timestamp: serverTimestamp()
+        }, { merge: true });
+      }
 
       onLogin(user, role);
       navigate(role === "admin" ? "/" : "/dashboard");

@@ -2,59 +2,52 @@ import React, { useState } from "react";
 import { Filter, Download, ArrowRightLeft, Mail, TriangleAlert, CheckCircle, Search, Bell, Settings, UserPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import "./Responders.css";
 
-function Responders({ user, role }) {
+function Responders({ user, role, patrolUnits = [], incidents = [] }) {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const respondersData = [
-    { 
-      id: 1, 
-      name: "Sarah Chen", 
-      role: "Crisis Specialist", 
-      avatar: "/sarah_avatar.png", 
-      status: "Available", 
-      statusColor: "green",
-      loadNum: 2, 
-      loadMax: 5, 
-      loadPct: 40, 
-      avgResp: "3.2m" 
-    },
-    { 
-      id: 2, 
-      name: "Marcus Thorne", 
-      role: "Senior Responder", 
-      avatar: "/sarah_avatar.png", 
-      status: "Busy", 
-      statusColor: "yellow",
-      loadNum: 5, 
-      loadMax: 5, 
-      loadPct: 100, 
-      avgResp: "5.8m" 
-    },
-    { 
-      id: 3, 
-      name: "Elena Rodriguez", 
-      role: "Legal Advocate", 
-      avatar: "/sarah_avatar.png", 
-      status: "Available", 
-      statusColor: "green",
-      loadNum: 1, 
-      loadMax: 5, 
-      loadPct: 20, 
-      avgResp: "2.4m" 
-    },
-    { 
-      id: 4, 
-      name: "Jordan Smith", 
-      role: "Support Staff", 
-      avatar: "/sarah_avatar.png", 
-      status: "Offline", 
-      statusColor: "gray",
-      loadNum: 0, 
-      loadMax: 5, 
-      loadPct: 0, 
-      avgResp: "-" 
+  const respondersData = patrolUnits.map(unit => {
+    const activeCases = incidents.filter(i => i.assignedTo === unit.id && i.status === "In Progress").length;
+    const maxLoad = 5;
+    const loadPercentage = Math.min(Math.round((activeCases / maxLoad) * 100), 100);
+    
+    let statusLabel = "Offline";
+    let statusColor = "gray";
+    
+    if (unit.availability === "active") {
+        statusLabel = "Available";
+        statusColor = "green";
+    } else if (unit.availability === "busy") {
+        statusLabel = "Busy";
+        statusColor = "yellow";
     }
-  ];
+
+    return {
+      id: unit.id,
+      name: unit.name || "Unknown Officer",
+      role: unit.role || "Patrol Officer",
+      avatar: unit.photo || "/sarah_avatar.png",
+      status: statusLabel,
+      statusColor: statusColor,
+      loadNum: activeCases,
+      loadMax: maxLoad,
+      loadPct: loadPercentage,
+      avgResp: "4.2m" // Placeholder metric for now
+    };
+  });
+
+  const activeResponders = respondersData.filter(r => r.status !== "Offline").length;
+  const totalResponders = respondersData.length;
+
+  const [activeTab, setActiveTab] = useState("All Responders");
+
+  const filteredResponders = respondersData.filter(res => {
+    const matchesSearch = res.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         res.role.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (activeTab === "Available") return matchesSearch && res.status === "Available";
+    if (activeTab === "On Duty") return matchesSearch && res.status === "Busy";
+    return matchesSearch;
+  });
 
   return (
     <div className="responders-page">
@@ -65,7 +58,7 @@ function Responders({ user, role }) {
           <input
             type="text"
             className="search-input"
-            placeholder="Search incidents, users, or tags..."
+            placeholder="Search responders by name or role..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -90,6 +83,7 @@ function Responders({ user, role }) {
               alt="User Profile" 
               className="user-avatar" 
               onError={(e) => { e.target.src = "/sarah_avatar.png" }}
+              referrerPolicy="no-referrer"
             />
           </div>
         </div>
@@ -104,11 +98,11 @@ function Responders({ user, role }) {
           <div className="header-stats">
              <div className="stat-pill">
                <label>ACTIVE NOW</label>
-               <h3>24/32</h3>
+               <h3>{activeResponders}/{totalResponders}</h3>
              </div>
              <div className="stat-pill">
-               <label>AVG RESPONSE</label>
-               <h3>4.2m</h3>
+               <label>TOTAL CASES</label>
+               <h3>{incidents.filter(i => i.status !== "Resolved").length}</h3>
              </div>
           </div>
         </div>
@@ -116,9 +110,18 @@ function Responders({ user, role }) {
         <div className="responders-table-container">
           <div className="table-controls">
             <div className="tabs-group">
-              <button className="tab-btn active">All Responders</button>
-              <button className="tab-btn">Available</button>
-              <button className="tab-btn">On Duty</button>
+              <button 
+                className={`tab-btn ${activeTab === "All Responders" ? "active" : ""}`}
+                onClick={() => setActiveTab("All Responders")}
+              >All Responders</button>
+              <button 
+                className={`tab-btn ${activeTab === "Available" ? "active" : ""}`}
+                onClick={() => setActiveTab("Available")}
+              >Available</button>
+              <button 
+                className={`tab-btn ${activeTab === "On Duty" ? "active" : ""}`}
+                onClick={() => setActiveTab("On Duty")}
+              >On Duty</button>
             </div>
             <div className="action-btns">
                <button className="btn-outline-gray"><Filter size={14}/> Filter</button>
@@ -137,7 +140,7 @@ function Responders({ user, role }) {
               </tr>
             </thead>
             <tbody>
-              {respondersData.map(res => (
+              {filteredResponders.map(res => (
                 <tr key={res.id} className={res.status === 'Offline' ? 'row-fade' : ''}>
                   <td>
                     <div className="responder-cell">
@@ -186,8 +189,8 @@ function Responders({ user, role }) {
           </table>
 
           <div className="pagination">
-            <span className="pagination-info">Showing 1 to 4 of 32 responders</span>
-            <div className="pagination-controls">
+            <span className="pagination-info">Showing {respondersData.length} of {totalResponders} responders</span>
+              <div className="pagination-controls">
                <button className="page-btn"><ChevronLeft size={16}/></button>
                <button className="page-btn active">1</button>
                <button className="page-btn">2</button>

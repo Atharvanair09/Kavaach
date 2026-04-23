@@ -38,23 +38,26 @@ function App() {
 
   const [unitStatuses, setUnitStatuses] = useState({});
 
-  const rawUnits = [
-    { id: "P1", name: "Alpha Unit", status: "Active", location: "Downtown" },
-    { id: "P2", name: "Delta Patrol", status: "Active", location: "West Side" },
-    { id: "P3", name: "Rapid Response 1", status: "Active", location: "South Hub" },
-  ];
-
-  // Merge static unit info with live Firestore status
-  const patrolUnits = rawUnits.map(unit => ({
-    ...unit,
-    availability: unitStatuses[unit.id] || "active"
-  }));
-
   const [incidents, setIncidents] = useState([]);
   const [dbIncidents, setDbIncidents] = useState([]);
   const [dbSosAlerts, setDbSosAlerts] = useState([]);
-
+  const [responders, setResponders] = useState([]);
   const [hasNewIncident, setHasNewIncident] = useState(false);
+
+  // --- Responders Synchronization ---
+  useEffect(() => {
+    const q = query(collection(db, "responders"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setResponders(data);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const patrolUnits = responders.map(res => ({
+    ...res,
+    availability: unitStatuses[res.id] || "offline"
+  }));
 
   // --- Live Status Synchronization ---
   useEffect(() => {
