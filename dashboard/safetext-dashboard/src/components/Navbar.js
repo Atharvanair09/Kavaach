@@ -13,7 +13,6 @@ function Navbar({ hasNewIncident, clearNotification, user, role, handleLogout })
     { path: "/analytics", label: "Analytics", icon: BarChart2 },
     { path: "/responders", label: "Responders", icon: Users },
     { path: "/resources", label: "Resources", icon: FileText },
-    { path: "/notifications", label: "Notifications", icon: Bell },
     { path: "/audit-log", label: "Audit Log", icon: ClipboardCheck },
   ];
 

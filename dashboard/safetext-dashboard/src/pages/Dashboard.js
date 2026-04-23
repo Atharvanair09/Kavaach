@@ -246,21 +246,37 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
                       
                       {incident.category === "Emergency" && (
                         <div style={{ marginTop: '10px' }}>
-                          <Link 
-                            to="/responders" 
-                            style={{
-                              background: '#ef4444', 
+                          {incident.assignedTo ? (
+                            <div style={{ 
+                              background: '#3b82f6', 
                               color: 'white', 
                               padding: '6px 12px', 
                               borderRadius: '4px', 
-                              textDecoration: 'none', 
-                              fontSize: '12px',
+                              fontSize: '11px',
                               fontWeight: 'bold',
-                              display: 'inline-block'
-                            }}
-                          >
-                            DISPATCH RESPONDERS
-                          </Link>
+                              textAlign: 'center'
+                            }}>
+                              ASSIGNED: {patrolUnits.find(p => p.id === incident.assignedTo)?.name || 'Processing...'}
+                            </div>
+                          ) : (
+                            <Link 
+                              to={`/responders?caseId=${incident.id}`} 
+                              style={{
+                                background: '#ef4444', 
+                                color: 'white', 
+                                padding: '6px 12px', 
+                                borderRadius: '4px', 
+                                textDecoration: 'none', 
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                display: 'inline-block',
+                                textAlign: 'center',
+                                width: '100%'
+                              }}
+                            >
+                              DISPATCH RESPONDERS
+                            </Link>
+                          )}
                         </div>
                       )}
                     </div>
