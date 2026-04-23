@@ -135,6 +135,7 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
               alt="User Profile" 
               className="user-avatar" 
               onError={(e) => { e.target.src = "/sarah_avatar.png" }}
+              referrerPolicy="no-referrer"
             />
           </div>
         </div>
@@ -220,6 +221,20 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
                 <Marker 
                   key={incident.id} 
                   position={[incident.lat, incident.lng]}
+                  icon={L.divIcon({
+                    className: 'custom-incident-marker',
+                    html: `
+                      <div style="filter: drop-shadow(0px 4px 6px rgba(239, 68, 68, 0.5));">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="#ef4444" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                          <circle cx="12" cy="10" r="3" fill="white"></circle>
+                        </svg>
+                      </div>
+                    `,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32],
+                    popupAnchor: [0, -32]
+                  })}
                 >
                   <Popup>
                     <div className="popup-content">
@@ -228,6 +243,26 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
                       </strong><br/>
                       <span>{incident.text || "No details available"}</span><br/>
                       <small>ID: {incident.id.substring(0, 8)}</small>
+                      
+                      {incident.category === "Emergency" && (
+                        <div style={{ marginTop: '10px' }}>
+                          <Link 
+                            to="/responders" 
+                            style={{
+                              background: '#ef4444', 
+                              color: 'white', 
+                              padding: '6px 12px', 
+                              borderRadius: '4px', 
+                              textDecoration: 'none', 
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              display: 'inline-block'
+                            }}
+                          >
+                            DISPATCH RESPONDERS
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   </Popup>
                 </Marker>
@@ -252,45 +287,14 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
             </MapContainer>
           )}
 
-          {/* <div className="map-controls-top">
-            <button className="map-control-pill active">
-              <span className="dot" style={{background: '#3b82f6'}}></span>
-              Users (0)
-            </button>
-            <button className="map-control-pill">
-              <span className="dot" style={{background: '#ef4444'}}></span>
-              SOS ({activeIncidentMarkers.length})
-            </button>
-            <button className="map-control-pill">
-              <span className="dot" style={{background: '#10b981'}}></span>
-              Responders ({responderMarkers.length})
-            </button>
-          </div>
-
-          <div className="metrics-box">
-             <div className="metrics-header">METRICS</div>
-             <div className="metrics-rings">
-               <div className="ring-stat">
-                 <div className="ring-progress" style={{'--p': 85}}></div>
-                 <span>85%</span>
-               </div>
-               <div className="ring-stat">
-                 <div className="ring-progress" style={{'--p': 15}}></div>
-                 <span>15%</span>
-               </div>
-               <div className="ring-stat">
-                 <div className="ring-progress" style={{'--p': 10}}></div>
-                 <span>10%</span>
-               </div>
-             </div>
-             <div className="metrics-label">MAP SYSTEM ACTIVE</div>
-          </div> */}
-
-          <div className="active-sos-label">
-            <div className="sos-label-header">ACTIVE SOS</div>
-            <div className="sos-label-id">ID: #99283-A</div>
-          </div>
-
+          {activeIncidentMarkers.some(i => i.category === "Emergency") && (
+            <div className="active-sos-label">
+              <div className="sos-label-header">ACTIVE SOS</div>
+              <div className="sos-label-id">
+                ID: #{activeIncidentMarkers.find(i => i.category === "Emergency").id.substring(0, 5).toUpperCase()}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Incident Feed */}

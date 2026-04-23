@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Shield } from "lucide-react";
 import "./App.css";
 import { db, createNotification } from "./services/firebase";
-import { collection, addDoc, updateDoc, setDoc, doc, serverTimestamp, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, updateDoc, setDoc, doc, serverTimestamp, query, orderBy, onSnapshot, where } from "firebase/firestore";
 
 import Home from "./pages/Home";
 import ResourceList from "./components/ResourceList";
@@ -51,6 +51,8 @@ function App() {
   }));
 
   const [incidents, setIncidents] = useState([]);
+  const [dbIncidents, setDbIncidents] = useState([]);
+  const [dbSosAlerts, setDbSosAlerts] = useState([]);
 
   const [hasNewIncident, setHasNewIncident] = useState(false);
 
@@ -152,11 +154,12 @@ function App() {
   // 🔄 Update Incident Status
   const updateStatus = async (incidentId, newStatus) => {
     try {
-      const incidentRef = doc(db, "incidents", incidentId);
+      const incident = incidents.find(i => i.id === incidentId);
+      const collName = incident?.collectionType || "incidents";
+      const incidentRef = doc(db, collName, incidentId);
       const updateData = { status: newStatus };
       
       // Find the unit name for the notification (lookup before potentially clearing)
-      const incident = incidents.find(i => i.id === incidentId);
       const unitName = patrolUnits.find(p => p.id === incident?.assignedTo)?.name || "A patrol unit";
 
       // If rejected, set it to explicitly 'Rejected' and preserve assignment info for records
@@ -182,7 +185,9 @@ function App() {
   // 👮 Assign Patrol
   const assignPatrol = async (incidentId, patrolId) => {
     try {
-      const incidentRef = doc(db, "incidents", incidentId);
+      const incident = incidents.find(i => i.id === incidentId);
+      const collName = incident?.collectionType || "incidents";
+      const incidentRef = doc(db, collName, incidentId);
       await updateDoc(incidentRef, {
         assignedTo: patrolId,
         status: "In Progress"
@@ -217,22 +222,70 @@ function App() {
   };
 
   useEffect(() => {
-    const q = query(collection(db, "incidents"), orderBy("timestamp", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const q1 = query(collection(db, "incidents"), orderBy("timestamp", "desc"));
+    const unsub1 = onSnapshot(q1, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
+        collectionType: "incidents",
         ...doc.data(),
         text: doc.data().message,
         intent: doc.data().category,
         priority: doc.data().threat_level?.charAt(0).toUpperCase() + doc.data().threat_level?.slice(1).toLowerCase() || "Low",
         timestamp: doc.data().timestamp?.toDate 
           ? doc.data().timestamp.toDate().toLocaleTimeString() 
-          : new Date().toLocaleTimeString()
+          : new Date().toLocaleTimeString(),
+        _rawTime: doc.data().timestamp?.toDate ? doc.data().timestamp.toDate().getTime() : 0
       }));
-      setIncidents(data);
+      setDbIncidents(data);
     });
-    return () => unsubscribe();
+
+    const oneHourAgoDate = new Date(Date.now() - 3600000); // 1 hour ago
+    const q2 = query(
+      collection(db, "sos_alerts"), 
+      where("timestamp", ">=", oneHourAgoDate),
+      orderBy("timestamp", "desc")
+    );
+    const unsub2 = onSnapshot(q2, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        collectionType: "sos_alerts",
+        ...doc.data(),
+        text: doc.data().message || "EMERGENCY SOS via App",
+        category: "Emergency",
+        intent: "Emergency",
+        threat_level: "HIGH",
+        priority: "High",
+        status: doc.data().status === "active" ? "Pending" : (doc.data().status || "Pending"),
+        lat: doc.data().location?.lat || 0,
+        lng: doc.data().location?.lng || 0,
+        timestamp: doc.data().timestamp?.toDate 
+          ? doc.data().timestamp.toDate().toLocaleTimeString() 
+          : new Date().toLocaleTimeString(),
+        _rawTime: doc.data().timestamp?.toDate ? doc.data().timestamp.toDate().getTime() : 0
+      }));
+      setDbSosAlerts(data);
+    });
+
+    return () => {
+      unsub1();
+      unsub2();
+    };
   }, []);
+
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60000); // 1 minute heartbeat
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    // Continuously drop SOS alerts older than 1 hour from the combined state
+    const oneHourAgo = now - 3600000;
+    const recentSosAlerts = dbSosAlerts.filter(sos => sos._rawTime >= oneHourAgo);
+    
+    const combined = [...dbIncidents, ...recentSosAlerts].sort((a, b) => b._rawTime - a._rawTime);
+    setIncidents(combined);
+  }, [dbIncidents, dbSosAlerts, now]);
 
   // 🔐 Auth Actions
   const handleLogin = (user, userRole) => {
