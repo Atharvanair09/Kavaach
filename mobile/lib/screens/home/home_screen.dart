@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../constants/st_style.dart';
 import '../../widgets/st_widgets.dart';
 import '../chat/chat_screen.dart';
@@ -204,26 +205,25 @@ class _HomeContentState extends State<_HomeContent> {
           backgroundColor: ST.surface.withOpacity(0.8),
           elevation: 0,
           scrolledUnderElevation: 0,
-          expandedHeight: 100,
+          expandedHeight: 80,
           flexibleSpace: FlexibleSpaceBar(
-            titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             title: Column(
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(greeting,
-                    style: TextStyle(
-                      fontSize: 11,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: ST.onSurfaceVariant.withOpacity(0.7),
                       letterSpacing: 0.5,
                     )),
                 Text(
                   _userName,
-                  style: const TextStyle(
-                    fontFamily: 'Bernard MT Condensed',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 24,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 26,
                     color: ST.onSurface,
                   ),
                 ),
@@ -235,184 +235,212 @@ class _HomeContentState extends State<_HomeContent> {
           ],
         ),
         SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           sliver: SliverList(
-            delegate: SliverChildListDelegate([      
-              // 1. Safety Score Hero Card
+            delegate: SliverChildListDelegate([
+              // 1. Security Protocol Status Card
               Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(40),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.08),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
                 child: Column(
                   children: [
-                    // const SizedBox(height: 24),
-                    // _buildThreatAlertFeed(),
-                    // const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEBF2FF),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.verified_user,
+                        color: Color(0xFF0052D3),
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'SECURITY PROTOCOL',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFF94A3B8),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Current Status:',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFF0F172A),
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Secure',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFF0F172A),
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Your connection is encrypted and\nyour circle is active.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: const Color(0xFF64748B),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        height: 1.6,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
 
-              // 2. NEW: Quick Command Power Bar
-              const Text('QUICK ACTIONS',
-                  style: TextStyle(
-                      color: ST.onSurfaceVariant,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.5)),
-              const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                clipBehavior: Clip.none,
-                child: Row(
-                  children: [
-                    _powerAction(
-                        icon: Icons.shield_outlined,
-                        label: "Check-in",
-                        color: const Color(0xFF3B82F6),
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TimedCheckInScreen()))),
-                    _powerAction(
-                        icon: Icons.phone_in_talk_outlined,
-                        label: "Fake Call",
-                        color: const Color(0xFFF97316),
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FakeCallScreen()))),
-                    _powerAction(
-                        icon: Icons.electric_bolt_outlined,
-                        label: "Shake SOS",
-                        color: const Color(0xFF10B981),
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ShakeToSosScreen()))),
-                    _powerAction(
-                        icon: Icons.map_outlined,
-                        label: "Havens",
-                        color: const Color(0xFF6366F1),
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LocationScreen()))),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              // 3. SOS Critical Action
+              // 2. Start Check-in Card (Blue)
               GestureDetector(
-                onLongPressStart: (_) => _startSOSTimer(),
-                onLongPressEnd: (_) => _stopSOSTimer(),
-                child: AnimatedScale(
-                  scale: _isSosActive ? 0.96 : 1.0,
-                  duration: const Duration(milliseconds: 100),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const TimedCheckInScreen())),
+                child: Container(
+                  width: double.infinity,
+                  height: 170,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0052D3),
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0052D3).withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
                   child: Stack(
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: _isSosActive 
-                                ? [const Color(0xFFDC2626), const Color(0xFF991B1B)] 
-                                : [ST.primary, ST.primaryContainer],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (_isSosActive ? const Color(0xFFDC2626) : ST.primary).withOpacity(0.4),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
+                      Positioned(
+                        right: -20,
+                        bottom: -20,
+                        child: Icon(
+                          Icons.location_on,
+                          size: 160,
+                          color: Colors.white.withOpacity(0.1),
                         ),
-                        padding: const EdgeInsets.all(20),
-                        child: Row(
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(28),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.2),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(
-                                _isSosActive ? Icons.priority_high : Icons.emergency_share, 
-                                color: Colors.white, 
-                                size: 28
+                              child: const Icon(Icons.near_me, color: Colors.white, size: 22),
+                            ),
+                            const Spacer(),
+                            Text(
+                              'Start Check-in',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'SOS EMERGENCY',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 18,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                  Text(
-                                    _isSosActive ? 'Keep holding for 5 seconds...' : 'Hold for 5 seconds to alert circle',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
+                            const SizedBox(height: 6),
+                            Text(
+                              'Automated safety verification',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: Colors.white.withOpacity(0.85),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
                           ],
                         ),
                       ),
-                      if (_isSosActive)
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.only(
-                              bottomLeft: Radius.circular(24),
-                              bottomRight: Radius.circular(24),
-                            ),
-                            child: LinearProgressIndicator(
-                              value: _sosProgress,
-                              minHeight: 6,
-                              backgroundColor: Colors.transparent,
-                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white38),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 20),
 
-  
-              // 4. Journey Mode
-              ListenableBuilder(
-                listenable: JourneyStateNotifier(),
-                builder: (context, _) {
-                  return JourneyStateNotifier().isActive 
-                      ? const _JourneyCard() 
-                      : const SizedBox.shrink();
-                },
+              // 3. Grid Row (Emergency Circle & Safe Routes)
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildActionCard(
+                      icon: Icons.group_add,
+                      label: 'Emergency\nCircle',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MyCircleScreen())),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: _buildActionCard(
+                      icon: Icons.map,
+                      label: 'Safe Routes',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LocationScreen())),
+                    ),
+                  ),
+                ],
               ),
-              ListenableBuilder(
-                listenable: JourneyStateNotifier(),
-                builder: (context, _) => SizedBox(height: JourneyStateNotifier().isActive ? 28 : 0),
-              ),
-
-              // 5. Smart Tip (AI Insight)
-              // 5. Threat Alert Component
-              const Text('NOTIFICATIONS',
-                  style: TextStyle(
-                      color: ST.onSurfaceVariant,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.5)),
-              const SizedBox(height: 12),
-              _buildThreatAlertFeed(),
-              const SizedBox(height: 120), // Bottom padding for floating nav
+              const SizedBox(height: 120),
             ]),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildActionCard({required IconData icon, required String label, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 150,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Icon(icon, color: const Color(0xFFB91C1C), size: 26),
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                color: const Color(0xFF0F172A),
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                height: 1.2,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

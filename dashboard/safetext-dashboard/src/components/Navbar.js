@@ -13,7 +13,7 @@ function Navbar({ hasNewIncident, clearNotification, user, role, handleLogout })
     { path: "/analytics", label: "Analytics", icon: BarChart2 },
     { path: "/responders", label: "Responders", icon: Users },
     { path: "/resources", label: "Resources", icon: FileText },
-    { path: "/audit-log", label: "Audit Log", icon: ClipboardCheck },
+
   ];
 
   const patrolNavLinks = [
@@ -68,10 +68,6 @@ function Navbar({ hasNewIncident, clearNotification, user, role, handleLogout })
             <span>Sign In</span>
           </Link>
         )}
-        <Link to="/emergency" className="emergency-alert-btn">
-          <Zap size={18} fill="white" />
-          <span>Emergency Alert</span>
-        </Link>
       </div>
     </aside>
   );

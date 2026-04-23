@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../constants/st_style.dart';
 import '../auth_service.dart';
 import '../auth_gate.dart';
@@ -283,73 +284,76 @@ class STBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      (Icons.shield_outlined, Icons.shield, 'Status'),
-      (Icons.chat_bubble_outline, Icons.chat_bubble, 'Chat'),
-      (Icons.map_outlined, Icons.map, 'Havens'),
-      (Icons.settings_outlined, Icons.settings, 'Settings'),
+      Icons.home_filled,
+      Icons.chat_bubble,
+      Icons.map,
+      Icons.settings,
     ];
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(28, 0, 28, MediaQuery.of(context).padding.bottom + 10),
-      child: Container(
-        height: 72,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.8),
-          borderRadius: BorderRadius.circular(36),
-          border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: ST.primary.withOpacity(0.1),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(36),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+    final activeColor = ST.primary; // Blue color as requested
+    const inactiveColor = Color(0xFF94A3B8); // Slate grey
+
+    return Container(
+      height: 75 + MediaQuery.of(context).padding.bottom,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        child: Column(
+          children: [
+            // Indicator Bar Row - Each segment fills full width to allow edge curving
+            Row(
               children: List.generate(items.length, (i) {
                 final active = i == selected;
-                return GestureDetector(
-                  onTap: () => onTap(i),
-                  behavior: HitTestBehavior.opaque,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutCubic,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: active ? ST.primary.withOpacity(0.08) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          active ? items[i].$2 : items[i].$1,
-                          color: active ? ST.primary : Colors.grey.shade400,
-                          size: 24,
-                        ),
-                        if (active) ...[
-                          const SizedBox(height: 5),
-                          Container(
-                            width: 5,
-                            height: 5,
-                            decoration: const BoxDecoration(
-                              color: ST.primary,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                return Container(
+                  width: MediaQuery.of(context).size.width / items.length,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: active ? activeColor : Colors.transparent,
+                    boxShadow: active ? [
+                      BoxShadow(
+                        color: activeColor.withOpacity(0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ] : null,
                   ),
                 );
               }),
             ),
-          ),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: List.generate(items.length, (i) {
+                  final active = i == selected;
+                  return GestureDetector(
+                    onTap: () => onTap(i),
+                    behavior: HitTestBehavior.opaque,
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width / items.length,
+                      child: Center(
+                        child: Icon(
+                          items[i],
+                          color: active ? activeColor : inactiveColor,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+            SizedBox(height: MediaQuery.of(context).padding.bottom),
+          ],
         ),
       ),
     );
