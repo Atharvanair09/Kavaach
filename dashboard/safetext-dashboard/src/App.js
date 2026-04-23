@@ -15,7 +15,7 @@ import Auth from "./pages/Auth";
 import Analytics from "./pages/Analytics";
 import ChatMonitor from "./pages/ChatMonitor";
 import Responders from "./pages/Responders";
-import Notifications from "./pages/Notifications";
+
 import AuditLog from "./pages/AuditLog";
 
 import StatusSafety from "./pages/patrol/StatusSafety";
@@ -370,7 +370,7 @@ function App() {
             />
           </ProtectedRoute>
         } />
-        <Route path="/notifications" element={<ProtectedRoute allowedRole="admin"><Notifications user={currentUser} role={role} /></ProtectedRoute>} />
+
         <Route path="/audit-log" element={<ProtectedRoute allowedRole="admin"><AuditLog user={currentUser} role={role} /></ProtectedRoute>} />
 
         <Route path="/patrol/status" element={<ProtectedRoute allowedRole="patrol"><StatusSafety incidents={incidents} patrolUnits={patrolUnits} /></ProtectedRoute>} />
