@@ -129,9 +129,6 @@ function Home({ user, role, incidents, patrolUnits }) {
     );
   }
 
-  // ----------------------------------------------------
-  // LOGGED OUT VIEW - PUBLIC LANDING PAGE (REDESIGNED)
-  // ----------------------------------------------------
   return (
     <div className="landing-page-v2">
       <div className="landing-layout">
@@ -158,7 +155,7 @@ function Home({ user, role, incidents, patrolUnits }) {
               </div>
               <h3>Official Admin Portal</h3>
               <p>Monitor live dashboards, classify risks, and manage global emergency response.</p>
-              <button className="p-btn p-btn-primary" onClick={() => navigate("/auth")}>
+              <button className="p-btn p-btn-primary" onClick={() => navigate("/auth?role=admin")}>
                  Admin Access <ArrowRight size={16} />
               </button>
             </div>
@@ -168,10 +165,10 @@ function Home({ user, role, incidents, patrolUnits }) {
               <div className="p-card-icon">
                 <Crosshair size={24} strokeWidth={2} />
               </div>
-              <h3>Crime Patrol Center</h3>
+              <h3>Official Responders Portal</h3>
               <p>Receive assigned patrol tasks, track incident progress, and report completions.</p>
-              <button className="p-btn p-btn-outline" onClick={() => navigate("/auth")}>
-                 Admin Patrol <ArrowRight size={16} />
+              <button className="p-btn p-btn-outline" onClick={() => navigate("/auth?role=patrol")}>
+                 Responders Patrol <ArrowRight size={16} />
               </button>
             </div>
           </div>

@@ -1,12 +1,13 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Lock, Mail, User, ShieldCheck, Briefcase } from "lucide-react";
 import { db, auth, googleProvider } from "../services/firebase";
 import { collection, addDoc, serverTimestamp, getDocs, query, where } from "firebase/firestore";
 import { signInWithPopup, signOut } from "firebase/auth";
 
 function Auth({ onLogin }) {
-  const [role, setRole] = useState("admin");
+  const [searchParams] = useSearchParams();
+  const role = searchParams.get("role") || "admin";
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
@@ -59,9 +60,9 @@ function Auth({ onLogin }) {
           <div className="auth-icon-badge">
             <Lock size={24} />
           </div>
-          <h2>Sign In to SafeText</h2>
+          <h2>Sign In as {role === "patrol" ? "Responder" : "Admin"}</h2>
           <p className="subtitle">
-            Access the secure environmental & public safety portal
+            Access the secure {role === "patrol" ? "patrol operations" : "administrative"} portal
           </p>
         </div>
 
@@ -71,27 +72,7 @@ function Auth({ onLogin }) {
           </div>
         )}
 
-        <div className="role-selector">
-          <label className="role-label-main">Select Your Role</label>
-          <div className="role-options">
-            <button 
-              type="button" 
-              className={`role-btn ${role === "admin" ? "active" : ""}`}
-              onClick={() => setRole("admin")}
-            >
-              <ShieldCheck size={20} />
-              <span>Admin</span>
-            </button>
-            <button 
-              type="button" 
-              className={`role-btn ${role === "patrol" ? "active" : ""}`}
-              onClick={() => setRole("patrol")}
-            >
-              <Briefcase size={20} />
-              <span>Crime Patrol</span>
-            </button>
-          </div>
-        </div>
+
 
         <button 
           onClick={handleGoogleLogin} 
