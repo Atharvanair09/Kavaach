@@ -22,6 +22,8 @@ class _SOSFloatingButtonState extends State<SOSFloatingButton> with TickerProvid
   Timer? _pressTimer;
   Timer? _sosTimer;
   int _secondsElapsed = 0;
+  int _lastInteractionTime = 0;
+  bool _isMinimized = false;
   
   late AnimationController _pulseController;
 
@@ -87,7 +89,9 @@ class _SOSFloatingButtonState extends State<SOSFloatingButton> with TickerProvid
     setState(() {
       _isPressing = false;
       _isSOSActive = true;
+      _isMinimized = false;
       _secondsElapsed = 0;
+      _lastInteractionTime = 0;
     });
 
     _startSOSTimer();
@@ -114,6 +118,9 @@ class _SOSFloatingButtonState extends State<SOSFloatingButton> with TickerProvid
       if (!mounted) return;
       setState(() {
         _secondsElapsed++;
+        if (_isSOSActive && !_isMinimized && (_secondsElapsed - _lastInteractionTime) >= 5) {
+          _isMinimized = true;
+        }
       });
     });
   }
@@ -122,7 +129,9 @@ class _SOSFloatingButtonState extends State<SOSFloatingButton> with TickerProvid
     _sosTimer?.cancel();
     setState(() {
       _isSOSActive = false;
+      _isMinimized = false;
       _secondsElapsed = 0;
+      _lastInteractionTime = 0;
     });
   }
 
@@ -168,21 +177,46 @@ class _SOSFloatingButtonState extends State<SOSFloatingButton> with TickerProvid
     const double size = 76.0;
     const double outerSize = 88.0;
 
-    return GestureDetector(
-      onLongPressStart: _onLongPressStart,
+    // Failsafe for Flutter Hot-Reload: actively running timers keep old closures in memory
+    // This ensures that even if you're running on an old timer, the new minimization logic fires.
+    if (_isSOSActive && !_isMinimized && (_secondsElapsed - _lastInteractionTime) >= 5) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _isSOSActive && !_isMinimized) {
+          setState(() {
+            _isMinimized = true;
+          });
+        }
+      });
+    }
+
+    return Transform.translate(
+      offset: Offset(_isMinimized ? 10 : 0, 0),
+      child: GestureDetector(
+        onLongPressStart: _onLongPressStart,
       onLongPressEnd: _onLongPressEnd,
       onTap: () {
         if (_isSOSActive) {
-          _showStopSOSConfirmation();
+          _lastInteractionTime = _secondsElapsed; // Register interaction
+          if (_isMinimized) {
+            setState(() {
+              _isMinimized = false;
+            });
+            HapticFeedback.lightImpact();
+          } else {
+            _showStopSOSConfirmation();
+          }
         } else {
           HapticFeedback.lightImpact();
         }
       },
-      child: Container(
-        width: outerSize,
-        height: outerSize,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        width: _isMinimized ? 60.0 : outerSize,
+        height: _isMinimized ? 80.0 : outerSize,
+        color: Colors.transparent, // Ensure the entire 60px width is tappable
         child: Stack(
-          alignment: Alignment.center,
+          alignment: _isMinimized ? Alignment.centerRight : Alignment.center,
           children: [
             // Rounded Rectangle Progress Ring
             if (_isPressing)
@@ -197,52 +231,50 @@ class _SOSFloatingButtonState extends State<SOSFloatingButton> with TickerProvid
               ),
             
             // Button Body
-            ScaleTransition(
-              scale: _isPressing 
-                ? const AlwaysStoppedAnimation(0.95)
-                : Tween<double>(begin: 1.0, end: 1.05).animate(
-                    CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: _isMinimized ? 12.0 : size,
+              height: _isMinimized ? 80.0 : size,
+              decoration: BoxDecoration(
+                color: _isSOSActive ? const Color(0xFFEF4444) : const Color(0xFF0052D3),
+                borderRadius: BorderRadius.circular(_isMinimized ? 6 : 24),
+                boxShadow: [
+                  BoxShadow(
+                    color: (_isSOSActive ? const Color(0xFFEF4444) : const Color(0xFF0052D3)).withOpacity(0.4),
+                    blurRadius: _isMinimized ? 10 : 20,
+                    offset: const Offset(0, 8),
                   ),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  color: _isSOSActive ? const Color(0xFFEF4444) : const Color(0xFF0052D3),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (_isSOSActive ? const Color(0xFFEF4444) : const Color(0xFF0052D3)).withOpacity(0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Center(
+                ],
+              ),
+              child: Center(
+                child: SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      if (_isSOSActive) ...[
-                        const Icon(Icons.emergency_share, color: Colors.white, size: 20),
-                        const SizedBox(height: 2),
-                        Text(
-                          _formatTime(_secondsElapsed),
-                          style: GoogleFonts.plusJakartaSans(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
+                      if (!_isMinimized) ...[
+                        if (_isSOSActive) ...[
+                          const Icon(Icons.emergency_share, color: Colors.white, size: 20),
+                          const SizedBox(height: 2),
+                          Text(
+                            _formatTime(_secondsElapsed),
+                            style: GoogleFonts.plusJakartaSans(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
-                        ),
-                      ] else ...[
-                        Text(
-                          'SOS',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.0,
+                        ] else ...[
+                          Text(
+                            'SOS',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.0,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ],
                   ),
@@ -252,8 +284,9 @@ class _SOSFloatingButtonState extends State<SOSFloatingButton> with TickerProvid
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   String _formatTime(int seconds) {
     int mins = seconds ~/ 60;

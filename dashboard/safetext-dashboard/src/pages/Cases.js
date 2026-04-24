@@ -19,6 +19,14 @@ const MAP_IMAGE = "/case_map.png";
 
 function Cases({ user, role, incidents, updateStatus }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedStates, setExpandedStates] = useState({});
+
+  const toggleExpand = (columnId) => {
+    setExpandedStates(prev => ({
+      ...prev,
+      [columnId]: !prev[columnId]
+    }));
+  };
 
   // Dynamic Kanban Mapping
   const kanbanData = [
@@ -163,52 +171,63 @@ function Cases({ user, role, incidents, updateStatus }) {
               <MoreHorizontal size={18} className="more-btn" />
             </div>
 
-            {column.cards.map((card, idx) => (
-              <div key={idx} className="case-card">
-                <div className="card-top">
-                  <span className="case-id">{card.id}</span>
-                  {card.time && <span className="case-time">{card.time}</span>}
-                  {card.status && <span className="active-chat">{card.status}</span>}
-                  {card.isResolved && <span className="status-badge">✓</span>}
-                  {card.isCritical && <span className="case-time" style={{color: '#ef4444'}}>•</span>}
-                </div>
-                
-                <h3 className="case-title">{card.title}</h3>
-                <span className={`priority-tag ${card.priorityClass}`}>{card.priority}</span>
+            {column.cards
+              .slice(0, expandedStates[column.id] ? undefined : 5)
+              .map((card, idx) => (
+                <div key={idx} className="case-card">
+                  <div className="card-top">
+                    <span className="case-id">{card.id}</span>
+                    {card.time && <span className="case-time">{card.time}</span>}
+                    {card.status && <span className="active-chat">{card.status}</span>}
+                    {card.isResolved && <span className="status-badge">✓</span>}
+                    {card.isCritical && <span className="case-time" style={{color: '#ef4444'}}>•</span>}
+                  </div>
+                  
+                  <h3 className="case-title">{card.title}</h3>
+                  <span className={`priority-tag ${card.priorityClass}`}>{card.priority}</span>
 
-                {card.hasImage && (
-                  <div className="card-image">
-                    <img src={MAP_IMAGE} alt="Location Map" />
-                    <div className="location-overlay">
-                      <MapPin size={10} /> {card.location}
+                  {card.hasImage && (
+                    <div className="card-image">
+                      <img src={MAP_IMAGE} alt="Location Map" />
+                      <div className="location-overlay">
+                        <MapPin size={10} /> {card.location}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {card.msg && <p className="msg-bubble">{card.msg}</p>}
+                  {card.msg && <p className="msg-bubble">{card.msg}</p>}
 
-                <div className="card-footer">
-                  <div className="assignee">
-                    <div className="avatar"></div>
-                    <span className="assignee-name">
-                      {card.assignee ? `Assigned: ${card.assignee}` : card.user ? card.user : "UN"}
-                      {card.isTyping && <span style={{fontSize: '10px', marginLeft: '4px', color: '#10b981'}}>Typing...</span>}
-                    </span>
+                  <div className="card-footer">
+                    <div className="assignee">
+                      <div className="avatar"></div>
+                      <span className="assignee-name">
+                        {card.assignee ? `Assigned: ${card.assignee}` : card.user ? card.user : "UN"}
+                        {card.isTyping && <span style={{fontSize: '10px', marginLeft: '4px', color: '#10b981'}}>Typing...</span>}
+                      </span>
+                    </div>
+                    {card.action ? (
+                      <span 
+                        className="claim-link" 
+                        onClick={() => updateStatus(card.dbId, "In Progress")}
+                        style={{cursor: 'pointer'}}
+                      >
+                        {card.action}
+                      </span>
+                    ) : card.hasChat ? (
+                      <MessageSquare size={16} className="active-chat-icon" />
+                    ) : null}
                   </div>
-                  {card.action ? (
-                    <span 
-                      className="claim-link" 
-                      onClick={() => updateStatus(card.dbId, "In Progress")}
-                      style={{cursor: 'pointer'}}
-                    >
-                      {card.action}
-                    </span>
-                  ) : card.hasChat ? (
-                    <MessageSquare size={16} className="active-chat-icon" />
-                  ) : null}
                 </div>
-              </div>
-            ))}
+              ))}
+
+            {column.cards.length > 5 && (
+              <button 
+                className="see-more-btn" 
+                onClick={() => toggleExpand(column.id)}
+              >
+                {expandedStates[column.id] ? "Show Less" : `+${column.cards.length - 5} More Cases`}
+              </button>
+            )}
           </div>
         ))}
       </div>

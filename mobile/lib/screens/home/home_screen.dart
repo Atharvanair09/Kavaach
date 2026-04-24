@@ -54,10 +54,12 @@ class _HomeScreenState extends State<HomeScreen> {
             selected: journey.navIndex,
             onTap: (i) => journey.setNavIndex(i),
           ),
-          floatingActionButton: const Padding(
-            padding: EdgeInsets.only(bottom: 0),
-            child: SOSFloatingButton(),
-          ),
+          floatingActionButton: journey.navIndex == 0 
+            ? const Padding(
+                padding: EdgeInsets.only(bottom: 0),
+                child: SOSFloatingButton(),
+              )
+            : null,
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         );
 
