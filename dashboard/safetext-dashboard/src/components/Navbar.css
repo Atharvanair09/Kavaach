@@ -123,8 +123,7 @@
 .user-section {
   display: flex;
   flex-direction: column;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 0;
 }
 
 .btn-logout-sidebar, .btn-login-sidebar {
@@ -143,7 +142,12 @@
   text-decoration: none;
 }
 
-.btn-logout-sidebar:hover, .btn-login-sidebar:hover {
+.btn-logout-sidebar:hover {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.15);
+}
+
+.btn-login-sidebar:hover {
   color: white;
   background-color: rgba(255, 255, 255, 0.05);
 }

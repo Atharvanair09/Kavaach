@@ -54,14 +54,14 @@ function Responders({ user, role, patrolUnits = [], incidents = [], assignPatrol
   const activeResponders = respondersData.filter(r => r.status !== "Offline").length;
   const totalResponders = respondersData.length;
 
-  const [activeTab, setActiveTab] = useState("All Responders");
+  const [activeTab, setActiveTab] = useState("Available");
 
   const filteredResponders = respondersData.filter(res => {
     const matchesSearch = res.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          res.role.toLowerCase().includes(searchQuery.toLowerCase());
     
-    if (activeTab === "Available") return matchesSearch && res.status === "Available";
-    if (activeTab === "On Duty") return matchesSearch && res.status === "Busy";
+    if (activeTab === "Available") return matchesSearch && (res.status === "Available" || res.status === "Busy");
+    if (activeTab === "Off Duty") return matchesSearch && res.status === "Offline";
     return matchesSearch;
   });
 
@@ -127,17 +127,13 @@ function Responders({ user, role, patrolUnits = [], incidents = [], assignPatrol
           <div className="table-controls">
             <div className="tabs-group">
               <button 
-                className={`tab-btn ${activeTab === "All Responders" ? "active" : ""}`}
-                onClick={() => setActiveTab("All Responders")}
-              >All Responders</button>
-              <button 
                 className={`tab-btn ${activeTab === "Available" ? "active" : ""}`}
                 onClick={() => setActiveTab("Available")}
               >Available</button>
               <button 
-                className={`tab-btn ${activeTab === "On Duty" ? "active" : ""}`}
-                onClick={() => setActiveTab("On Duty")}
-              >On Duty</button>
+                className={`tab-btn ${activeTab === "Off Duty" ? "active" : ""}`}
+                onClick={() => setActiveTab("Off Duty")}
+              >Off Duty</button>
             </div>
             <div className="action-btns">
                <button className="btn-outline-gray"><Filter size={14}/> Filter</button>
@@ -344,9 +340,6 @@ function Responders({ user, role, patrolUnits = [], incidents = [], assignPatrol
               </div>
            </div>
 
-           <div className="fab-btn">
-              <UserPlus size={24} strokeWidth={2.5} />
-           </div>
         </div>
       </div>
     </div>

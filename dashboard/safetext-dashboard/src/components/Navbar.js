@@ -34,7 +34,6 @@ function Navbar({ hasNewIncident, clearNotification, user, role, handleLogout })
           </div>
           <div className="brand-text">
             <h2>SafeText</h2>
-            <span>NGO DASHBOARD</span>
           </div>
         </Link>
       </div>
