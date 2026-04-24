@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageSquare, AlertCircle, Home, Search, Bell, Settings, Video } from "lucide-react";
+import { MessageSquare, AlertCircle, Home, Search, Bell, Settings, Video, Camera, Mic } from "lucide-react";
 import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../services/firebase";
 import "./ChatMonitor.css";
@@ -8,47 +8,75 @@ function ChatMonitor({ user, role }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [liveChats, setLiveChats] = useState([]);
   const [activeIncidents, setActiveIncidents] = useState([]);
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
   const chatContainerRef = useRef(null);
 
-  // 1. Fetch Real-time messages for the main chat
+  // 1. Fetch Real-time messages for the selected session
   useEffect(() => {
-    const q = query(collection(db, "messages"), orderBy("timestamp", "desc"), limit(50));
+    if (!selectedSessionId) {
+      setLiveChats([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, "chats"), 
+      orderBy("time", "asc"),
+      limit(100)
+    );
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetched = snapshot.docs.map((doc) => {
-        const d = doc.data();
-        return {
-          id: doc.id,
-          ...d,
-          time: d.timestamp?.toDate ? d.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now",
-        };
-      });
-      // Sort messages ascending for the chat view
-      setLiveChats(fetched.sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0)));
+      const fetched = snapshot.docs
+        .map((doc) => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            ...d,
+            timestamp: d.time,
+            timeLabel: d.time?.toDate ? d.time.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now",
+            dateLabel: d.time?.toDate ? d.time.toDate().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' }) : ""
+          };
+        })
+        .filter(msg => msg.sessionId === selectedSessionId);
+      
+      setLiveChats(fetched);
     }, (error) => console.error("Messages Error:", error));
     
     return () => unsubscribe();
-  }, []);
+  }, [selectedSessionId]);
 
-  // 2. Fetch Real-time chats for the sidebar
+  // 2. Fetch Real-time chats for the sidebar and group by session
   useEffect(() => {
-    // Note: Field name is 'time' in the chats collection
-    const q = query(collection(db, "chats"), orderBy("time", "desc"), limit(20));
+    const q = query(collection(db, "chats"), orderBy("time", "desc"), limit(100));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetched = snapshot.docs.map((doc) => {
+      const grouped = {};
+      
+      snapshot.docs.forEach((doc) => {
         const d = doc.data();
-        return {
-          id: doc.id,
-          ...d,
-          // Use 'time' field which is a Firestore Timestamp
-          displayTime: d.time?.toDate ? d.time.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently",
-          priority: d.risk === 'high' ? 'High' : 'Normal'
-        };
+        const sid = d.sessionId || "unknown";
+        
+        // Only keep the most recent message for each session
+        if (!grouped[sid] || (d.time?.seconds > (grouped[sid].time?.seconds || 0))) {
+          grouped[sid] = {
+            id: doc.id,
+            sessionId: sid,
+            ...d,
+            displayTime: d.time?.toDate ? d.time.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently",
+            priority: d.risk === 'high' ? 'High' : (d.risk === 'critical' ? 'Urgent' : 'Normal')
+          };
+        }
       });
-      setActiveIncidents(fetched);
+
+      const sorted = Object.values(grouped).sort((a, b) => (b.time?.seconds || 0) - (a.time?.seconds || 0));
+      setActiveIncidents(sorted);
+
+      // Initialize selected session if none
+      if (!selectedSessionId && sorted.length > 0) {
+        setSelectedSessionId(sorted[0].sessionId);
+      }
     }, (error) => console.error("Chats Error:", error));
     
     return () => unsubscribe();
-  }, []);
+  }, [selectedSessionId]);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
@@ -117,15 +145,19 @@ function ChatMonitor({ user, role }) {
             {activeIncidents.length === 0 ? (
               <div className="ios-empty-sidebar">No active flags</div>
             ) : (
-              activeIncidents.map((incident, idx) => (
-                <div key={incident.id} className={`flagged-item ios-item ${idx === 0 ? 'active' : ''}`}>
-                  {incident.priority === 'High' && <span className="unread-dot"></span>}
-                  <div className={`ios-avatar ${incident.priority !== 'High' ? 'gray' : ''}`}>
-                    {(incident.user || "U").substring(0,2).toUpperCase()}
+              activeIncidents.map((incident) => (
+                <div 
+                  key={incident.sessionId} 
+                  className={`flagged-item ios-item ${selectedSessionId === incident.sessionId ? 'active' : ''}`}
+                  onClick={() => setSelectedSessionId(incident.sessionId)}
+                >
+                  {(incident.priority === 'High' || incident.priority === 'Urgent') && <span className="unread-dot"></span>}
+                  <div className={`ios-avatar ${incident.priority === 'Normal' ? 'gray' : ''}`}>
+                    {(incident.userId || incident.user || "U").substring(0,2).toUpperCase()}
                   </div>
                   <div className="ios-item-content">
                     <div className="ios-item-top">
-                      <span className="ios-username">{incident.user || (incident.sessionId !== 'unknown_session' ? `Session ${incident.sessionId.substring(0,4)}` : `User #${incident.id.substring(0,4)}`)}</span>
+                      <span className="ios-username">{incident.userId || incident.user || `Session ${incident.sessionId.substring(0,4)}`}</span>
                       <span className="ios-time">{incident.displayTime}</span>
                       <span className="ios-chevron"></span>
                     </div>
@@ -155,29 +187,45 @@ function ChatMonitor({ user, role }) {
               </div>
 
               <div className="ios-chat-content" ref={chatContainerRef}>
-                <div className="ios-date-stamp">Live Monitoring Enabled</div>
+                {liveChats.length > 0 && liveChats[0].dateLabel && (
+                  <div className="ios-date-stamp">{liveChats[0].dateLabel}</div>
+                )}
                 {liveChats.length === 0 ? (
                   <div className="ios-empty">Establishing encrypted bridge...</div>
                 ) : (
-                  liveChats.map((c) => {
-                    const isBot = c.user?.toLowerCase().includes("ai") || c.user?.toLowerCase().includes("bot") || c.sender?.toLowerCase().includes("bot");
-                    return (
-                      <div key={c.id} className={`ios-msg-wrapper ${isBot ? 'bot' : 'human'}`}>
-                        <div className={`ios-bubble ${c.isDanger || c.intent === 'danger' ? 'danger' : ''}`}>
-                          {c.message || c.text}
+                  liveChats.map((c, idx) => (
+                    <React.Fragment key={c.id}>
+                      <div className="ios-msg-wrapper human">
+                        <div className={`ios-bubble ${c.risk === 'high' || c.risk === 'critical' ? 'danger' : ''}`}>
+                          {c.message}
                         </div>
+                        <span className="ios-msg-time">{c.timeLabel}</span>
                       </div>
-                    );
-                  })
+                      {c.reply && (
+                        <div className="ios-msg-wrapper bot">
+                          <div className="ios-bubble">
+                            {c.reply}
+                          </div>
+                          <div className="ios-bot-footer">
+                            <span className="ios-msg-time">{c.timeLabel}</span>
+                            {idx === liveChats.length - 1 && <span className="ios-delivered">Delivered</span>}
+                          </div>
+                        </div>
+                      )}
+                    </React.Fragment>
+                  ))
                 )}
               </div>
 
               <div className="ios-input-bar">
+                <Camera size={24} color="#8e8e93" />
                 <div className="ios-plus-icon">+</div>
                 <div className="ios-input-pill">
                   <span className="ios-placeholder">iMessage</span>
+                  <Mic size={18} color="#8e8e93" />
                 </div>
               </div>
+              <div className="ios-home-indicator"></div>
             </div>
           </div>
         </div>

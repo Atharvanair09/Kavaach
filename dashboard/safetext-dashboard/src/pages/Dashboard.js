@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { db } from "../services/firebase";
+import { collection, onSnapshot } from "firebase/firestore";
 import {
   Search,
   Bell,
@@ -14,7 +16,8 @@ import {
   Minus,
   Target,
   PhoneCall,
-  Filter
+  Filter,
+  Home
 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -31,26 +34,32 @@ L.Icon.Default.mergeOptions({
 
 function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [mapCenter, setMapCenter] = useState([40.7128, -74.0060]); // Default NY
+  const [mapCenter, setMapCenter] = useState([19.0760, 72.8777]); // Mumbai
   const [userLocationLoaded, setUserLocationLoaded] = useState(false);
+  const [safeHavenCount, setSafeHavenCount] = useState(0);
 
   // 📍 Get User's Current Location
+  // 📍 Group fetching and location
   useEffect(() => {
+    // 1. Get location
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setMapCenter([position.coords.latitude, position.coords.longitude]);
           setUserLocationLoaded(true);
         },
-        (error) => {
-          console.error("Error getting location:", error);
-          // Fallback to a default if user denies
-          setUserLocationLoaded(true); 
-        }
+        () => setUserLocationLoaded(true)
       );
     } else {
       setUserLocationLoaded(true);
     }
+
+    // 2. Fetch Safe Haven Count
+    const unsub = onSnapshot(collection(db, "safe_havens"), (snapshot) => {
+      setSafeHavenCount(snapshot.docs.length);
+    });
+
+    return () => unsub();
   }, []);
 
   // Filter Active SOS and Missed Check-ins
@@ -82,9 +91,9 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
       type: "emergency" 
     },
     { 
-      label: "Sharing Location", 
-      value: incidents.filter(i => i.category === "General").length + 102, // Mocking extra active users
-      icon: Navigation, 
+      label: "Safe Havens", 
+      value: safeHavenCount,
+      icon: Home, 
       type: "sharing" 
     },
     { 
