@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Mic, Send, Radio as RadioIcon, Volume2, Shield, ChevronDown, Bell, AlertTriangle } from "lucide-react";
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, where } from "firebase/firestore";
 import { db } from "../../services/firebase";
+import TopNavbar from "../../components/TopNavbar";
 import "./Communication.css";
 
 function Communication({ incidents, user, role }) {
@@ -115,7 +116,11 @@ function Communication({ incidents, user, role }) {
   const rejectedIncidents = incidents?.filter(i => i.status === "Rejected") || [];
 
   return (
-    <div className="patrol-page-container tactical">
+    <div className="patrol-page-container tactical" style={{ padding: 0 }}>
+      {/* Top Navigation */}
+      <TopNavbar user={user} role={role} />
+
+      <div style={{ padding: '0 2rem 2rem 2rem' }}>
       
       {/* 2. Tactical Content Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: '2rem', maxWidth: '1600px', margin: '0 auto', width: '100%', height: 'calc(100vh - 120px)' }}>
@@ -217,6 +222,7 @@ function Communication({ incidents, user, role }) {
           </div>
         </div>
 
+      </div>
       </div>
     </div>
   );

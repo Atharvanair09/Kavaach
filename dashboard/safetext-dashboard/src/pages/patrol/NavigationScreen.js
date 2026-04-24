@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db } from "../../services/firebase";
+import TopNavbar from "../../components/TopNavbar";
 import "./NavigationScreen.css";
 
 // Fix for default Leaflet marker icons
@@ -30,7 +31,7 @@ function MapAutoRecenter({ position }) {
   return null;
 }
 
-function NavigationScreen() {
+function NavigationScreen({ user, role }) {
   const [alerts, setAlerts] = useState([]);
   const [mapCenter, setMapCenter] = useState([19.2534, 72.8557]); // Default Mumbai coords
 
@@ -79,11 +80,14 @@ function NavigationScreen() {
   }, []);
 
   return (
-    <div className="navigation-page">
-      <header className="navigation-header">
-        <h2>Navigation & Map</h2>
-        <p>Live incident tracking and responder dispatch zone.</p>
-      </header>
+    <div className="navigation-page" style={{ padding: 0 }}>
+      <TopNavbar user={user} role={role} />
+
+      <div style={{ padding: '0 2rem 2rem 2rem' }}>
+        <header className="navigation-header">
+          <h2>Navigation & Map</h2>
+          <p>Live incident tracking and responder dispatch zone.</p>
+        </header>
 
       <main className="navigation-content">
         {/* Map Section */}
@@ -164,6 +168,7 @@ function NavigationScreen() {
           </div>
         </div>
       </main>
+      </div>
     </div>
   );
 }

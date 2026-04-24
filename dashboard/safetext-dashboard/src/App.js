@@ -337,7 +337,7 @@ function App() {
           path="/"
           element={
             currentUser ? (
-              <Navigate to="/dashboard" />
+              <Navigate to={role === "admin" ? "/dashboard" : "/patrol/status"} />
             ) : (
               <Home user={currentUser} role={role} handleLogout={handleLogout} incidents={incidents} patrolUnits={patrolUnits} />
             )
@@ -374,11 +374,11 @@ function App() {
 
 
 
-        <Route path="/patrol/status" element={<ProtectedRoute allowedRole="patrol"><StatusSafety incidents={incidents} patrolUnits={patrolUnits} /></ProtectedRoute>} />
-        <Route path="/patrol/incidents" element={<ProtectedRoute allowedRole="patrol"><PatrolIncidents incidents={incidents} updateStatus={updateStatus} patrolUnits={patrolUnits} user={currentUser}/></ProtectedRoute>} />
-        <Route path="/patrol/navigation" element={<ProtectedRoute allowedRole="patrol"><NavigationScreen /></ProtectedRoute>} />
+        <Route path="/patrol/status" element={<ProtectedRoute allowedRole="patrol"><StatusSafety incidents={incidents} patrolUnits={patrolUnits} user={currentUser} role={role} /></ProtectedRoute>} />
+        <Route path="/patrol/incidents" element={<ProtectedRoute allowedRole="patrol"><PatrolIncidents incidents={incidents} updateStatus={updateStatus} patrolUnits={patrolUnits} user={currentUser} role={role} /></ProtectedRoute>} />
+        <Route path="/patrol/navigation" element={<ProtectedRoute allowedRole="patrol"><NavigationScreen user={currentUser} role={role} /></ProtectedRoute>} />
         <Route path="/patrol/communication" element={<ProtectedRoute allowedRole="patrol"><Communication incidents={incidents} user={currentUser} role={role}/></ProtectedRoute>} />
-        <Route path="/patrol/stats" element={<ProtectedRoute allowedRole="patrol"><MyStats incidents={incidents} user={currentUser} /></ProtectedRoute>} />
+        <Route path="/patrol/stats" element={<ProtectedRoute allowedRole="patrol"><MyStats incidents={incidents} user={currentUser} role={role} /></ProtectedRoute>} />
         
         <Route path="/cases" element={<ProtectedRoute><Cases incidents={incidents} updateStatus={updateStatus} user={currentUser} role={role} /></ProtectedRoute>} />
 

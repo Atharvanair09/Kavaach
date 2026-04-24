@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Shield, LayoutDashboard, Folder, MessageSquare, BarChart2, Users, FileText, Bell, ClipboardList, Zap, LogOut, Home, ClipboardCheck, Crosshair, Map, MessageCircle, AlertOctagon, RefreshCw, Clock, AlertTriangle } from "lucide-react";
+import { Shield, LayoutDashboard, Folder, MessageSquare, BarChart2, Users, FileText, Bell, ClipboardList, Zap, LogOut, Home, ClipboardCheck, Crosshair, Map, MessageCircle, AlertOctagon, RefreshCw, Clock, AlertTriangle, Compass, LayoutGrid, Asterisk } from "lucide-react";
 import "./Navbar.css";
 
 function Navbar({ hasNewIncident, clearNotification, user, role, handleLogout }) {
@@ -17,10 +17,11 @@ function Navbar({ hasNewIncident, clearNotification, user, role, handleLogout })
   ];
 
   const patrolNavLinks = [
-    { path: "/patrol/incidents", label: "Incident Handling", icon: Folder, notify: hasNewIncident },
-    { path: "/patrol/status", label: "My Hub", icon: LayoutDashboard },
-    { path: "/patrol/navigation", label: "Navigation", icon: Map },
-    { path: "/patrol/communication", label: "Communications", icon: MessageSquare },
+    { path: "/patrol/status", label: "Mission Control", icon: LayoutGrid },
+    { path: "/patrol/navigation", label: "Map", icon: Compass },
+    { path: "/patrol/incidents", label: "Incident Feed", icon: Asterisk, notify: hasNewIncident },
+    { path: "/patrol/communication", label: "Team Comms", icon: MessageSquare },
+    { path: "/patrol/reports", label: "Reports", icon: BarChart2 },
   ];
 
   const navLinks = role === "patrol" ? patrolNavLinks : adminNavLinks;

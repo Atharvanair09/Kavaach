@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import { db } from "../../services/firebase";
+import TopNavbar from "../../components/TopNavbar";
 
-function MyStats({ incidents, user }) {
+function MyStats({ incidents, user, role }) {
   const [radioMessages, setRadioMessages] = useState([]);
   const unitId = user?.id || "P1";
 
@@ -62,12 +63,16 @@ function MyStats({ incidents, user }) {
   const shiftLog = [...incidentEvents, ...messageEvents].sort((a, b) => b.time.localeCompare(a.time)).slice(0, 8);
 
   return (
-    <div className="patrol-page-container">
-      <div className="patrol-header">
-        <h2>My Performance Stats</h2>
-        <p>Real-time summary for <strong>UNIT {unitId}</strong> — cases handled and shift activity.</p>
-        <button className="btn-export">Export report</button>
-      </div>
+    <div className="patrol-page-container" style={{ padding: 0 }}>
+      {/* Top Navigation */}
+      <TopNavbar user={user} role={role} />
+
+      <div style={{ padding: '0 2rem 2rem 2rem' }}>
+        <div className="patrol-header">
+          <h2>My Performance Stats</h2>
+          <p>Real-time summary for <strong>UNIT {unitId}</strong> — cases handled and shift activity.</p>
+          <button className="btn-export">Export report</button>
+        </div>
 
       <div className="stats-top-grid">
         <div className="stat-card minimal">
@@ -143,6 +148,7 @@ function MyStats({ incidents, user }) {
              )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

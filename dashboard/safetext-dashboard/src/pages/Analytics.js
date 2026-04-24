@@ -3,6 +3,7 @@ import {
   Calendar, Download, Clock, AlarmClock, CheckCircle, 
   TrendingUp, Eye, Search, Bell, Settings 
 } from "lucide-react";
+import TopNavbar from "../components/TopNavbar";
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid } from "recharts";
 import "./Analytics.css";
 
@@ -31,42 +32,12 @@ function Analytics({ user, role }) {
 
   return (
     <div className="analytics-page">
-      {/* Top Nav (Persistent across pages) */}
-      <nav className="top-nav">
-          <div className="search-container">
-            <Search className="search-icon" size={18} />
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Search incidents, users, or tags..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="nav-right">
-            <div className="nav-icons">
-              <button className="icon-btn">
-                <Bell size={20} />
-                <span className="notification-dot"></span>
-              </button>
-              <button className="icon-btn">
-                <Settings size={20} />
-              </button>
-            </div>
-            <div className="user-profile">
-              <div className="user-info">
-                <span className="user-name">{user?.name || "Dashboard User"}</span>
-                <span className="user-role">{role === "admin" ? "Senior Admin" : "Crime Patrol"}</span>
-              </div>
-              <img 
-                src={user?.photo || "/sarah_avatar.png"} 
-                alt="User Profile" 
-                className="user-avatar" 
-                onError={(e) => { e.target.src = "/sarah_avatar.png" }}
-              />
-            </div>
-          </div>
-        </nav>
+      <TopNavbar 
+        user={user} 
+        role={role} 
+        searchQuery={searchQuery} 
+        setSearchQuery={setSearchQuery} 
+      />
 
       <div className="analytics-content">
         <header className="page-heading">

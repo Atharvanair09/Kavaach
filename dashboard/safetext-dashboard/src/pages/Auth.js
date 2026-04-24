@@ -61,7 +61,7 @@ function Auth({ onLogin }) {
       }
 
       onLogin(user, role);
-      navigate(role === "admin" ? "/" : "/dashboard");
+      navigate(role === "admin" ? "/dashboard" : "/patrol/status");
     } catch (error) {
       console.error("Error during Google Login:", error);
       setError("An error occurred during authentication. Please try again.");

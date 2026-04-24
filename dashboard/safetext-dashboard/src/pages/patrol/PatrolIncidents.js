@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Users, MapPin, Home, Clock } from "lucide-react";
+import TopNavbar from "../../components/TopNavbar";
 import "./PatrolIncidents.css";
 
-function PatrolIncidents({ incidents, updateStatus, patrolUnits }) {
+function PatrolIncidents({ incidents, updateStatus, patrolUnits, user, role }) {
   // Mock unit statuses and locations to match the image exactly
   const [unitStatuses, setUnitStatuses] = useState({
     "P1": "ON-BREAK",
@@ -93,25 +94,25 @@ function PatrolIncidents({ incidents, updateStatus, patrolUnits }) {
   };
 
   return (
-    <div className="incident-handling-container">
-      <header className="incident-handling-header">
-        <div className="header-left">
-          <div className="handling-icon">
-            <Users size={28} />
+    <div className="incident-handling-container" style={{ padding: 0 }}>
+      <TopNavbar user={user} role={role} />
+
+      <div style={{ padding: '2rem' }}>
+        <header className="incident-handling-header">
+          <div className="header-left">
+            <div className="handling-icon">
+              <Users size={28} />
+            </div>
+            <div>
+              <h2>Incident Handling</h2>
+              <p>View all the assigned/incoming cases for your unit</p>
+            </div>
           </div>
-          <div>
-            <h2>Incident Handling</h2>
-            <p>View all the assigned/incoming cases for your unit</p>
-          </div>
-        </div>
-        <Link to="/" className="back-home-btn">
-          <Home size={18} />
-          <span>Back to Home</span>
-        </Link>
-      </header>
+        </header>
 
       <div className="unit-cards-grid">
         {patrolUnits.map(unit => renderUnitCard(unit))}
+      </div>
       </div>
     </div>
   );

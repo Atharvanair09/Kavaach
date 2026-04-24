@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { MessageSquare, AlertCircle, Home, Search, Bell, Settings, Video, Camera, Mic } from "lucide-react";
+import TopNavbar from "../components/TopNavbar";
 import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../services/firebase";
 import "./ChatMonitor.css";
@@ -87,42 +88,12 @@ function ChatMonitor({ user, role }) {
 
   return (
     <div className="page-container">
-      {/* Top Navigation */}
-      <nav className="top-nav">
-        <div className="search-container">
-          <Search className="search-icon" size={18} />
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search incidents, users, or tags..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="nav-right">
-          <div className="nav-icons">
-            <button className="icon-btn">
-              <Bell size={20} />
-              <span className="notification-dot"></span>
-            </button>
-            <button className="icon-btn">
-              <Settings size={20} />
-            </button>
-          </div>
-          <div className="user-profile">
-            <div className="user-info">
-              <span className="user-name">{user?.name || "Dashboard User"}</span>
-              <span className="user-role">{role === "admin" ? "Senior Admin" : "Crime Patrol"}</span>
-            </div>
-            <img 
-              src={user?.photo || "/sarah_avatar.png"} 
-              alt="User Profile" 
-              className="user-avatar" 
-              onError={(e) => { e.target.src = "/sarah_avatar.png" }}
-            />
-          </div>
-        </div>
-      </nav>
+      <TopNavbar 
+        user={user} 
+        role={role} 
+        searchQuery={searchQuery} 
+        setSearchQuery={setSearchQuery} 
+      />
 
       <div className="card-header flex-header" style={{display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center'}}>
         <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
