@@ -137,4 +137,22 @@ class EmergencyContactService {
       throw Exception('SOS failed: ${res.body}');
     }
   }
+
+  /// Stops an active SOS for the current user.
+  static Future<void> stopSOS() async {
+    final user = await AuthService.getUser();
+    final userId = user?['email'];
+    if (userId == null) return;
+
+    final baseUrl = APIConstants.baseServerUrl;
+    final res = await http.post(
+      Uri.parse('$baseUrl/sos/stop'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'userId': userId}),
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Failed to stop SOS: ${res.body}');
+    }
+  }
 }

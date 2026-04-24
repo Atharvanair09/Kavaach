@@ -16,6 +16,8 @@ import '../../fake_call.dart';
 import '../../shake_to_sos.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../services/journey_service.dart';
+import '../../widgets/sos_floating_button.dart';
+
 
 
 class HomeScreen extends StatefulWidget {
@@ -52,7 +54,13 @@ class _HomeScreenState extends State<HomeScreen> {
             selected: journey.navIndex,
             onTap: (i) => journey.setNavIndex(i),
           ),
+          floatingActionButton: const Padding(
+            padding: EdgeInsets.only(bottom: 0),
+            child: SOSFloatingButton(),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         );
+
       }
     );
   }

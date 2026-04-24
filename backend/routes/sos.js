@@ -199,4 +199,53 @@ router.delete("/contacts", async (req, res) => {
   }
 });
 
+/**
+ * POST /sos/stop
+ * Body: { userId: string }
+ *
+ * Marks the latest 'active' SOS alert for a user as 'Resolved'.
+ */
+router.post("/stop", async (req, res) => {
+  const { userId } = req.body;
+  console.log("🛑 STOP SOS REQUEST RECEIVED for", userId);
+
+  if (!userId) {
+    return res.status(400).json({ success: false, error: "userId is required." });
+  }
+
+  if (!db) {
+    return res.status(500).json({ success: false, error: "Firestore not initialized." });
+  }
+
+  try {
+    console.log("Searching for active SOS alerts for user...");
+    const alertQuery = await db.collection("sos_alerts")
+      .where("senderEmail", "==", userId)
+      .where("status", "==", "active")
+      .get();
+
+    console.log("Query finished. Count:", alertQuery.size);
+
+    if (alertQuery.empty) {
+      return res.status(404).json({ success: false, error: "No active SOS alert found for this user." });
+    }
+
+    const batch = db.batch();
+    alertQuery.docs.forEach(doc => {
+      batch.update(doc.ref, {
+        status: "Resolved",
+        resolvedAt: new Date()
+      });
+    });
+
+    await batch.commit();
+
+    console.log(`✅ ${alertQuery.size} SOS alert(s) resolved for user ${userId}`);
+    return res.json({ success: true, message: "SOS alert(s) marked as resolved." });
+  } catch (err) {
+    console.error("❌ SOS resolve error:", err);
+    return res.status(500).json({ success: false, error: "Failed to resolve SOS alert. Check backend logs for index requirements." });
+  }
+});
+
 module.exports = router;

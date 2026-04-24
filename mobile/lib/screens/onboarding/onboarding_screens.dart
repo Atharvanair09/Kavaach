@@ -20,7 +20,7 @@ class OnboardingScreen1 extends StatelessWidget {
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => Container(
               decoration: const BoxDecoration(
-                gradient: LinearGradient(
+                gradient: LinearGradient( 
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [Color(0xFF1A2B4A), Color(0xFF0F1B33)],

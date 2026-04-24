@@ -287,6 +287,7 @@ function App() {
     const recentSosAlerts = dbSosAlerts.filter(sos => sos._rawTime >= oneHourAgo);
     
     const combined = [...dbIncidents, ...recentSosAlerts].sort((a, b) => b._rawTime - a._rawTime);
+    console.log("📊 DASHBOARD INCIDENTS UPDATED:", combined.map(i => ({ id: i.id, status: i.status, cat: i.category })));
     setIncidents(combined);
   }, [dbIncidents, dbSosAlerts, now]);
 

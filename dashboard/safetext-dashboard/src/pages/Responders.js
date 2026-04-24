@@ -254,7 +254,16 @@ function Responders({ user, role, patrolUnits = [], incidents = [], assignPatrol
                                         <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#475569' }}>{incident.text || "Emergency SOS Alert"}</p>
                                       </div>
                                       <div style={{ textAlign: 'right' }}>
-                                        <span style={{ fontSize: '10px', color: '#94a3b8' }}>{incident.status}</span>
+                                        <span style={{ 
+                                          fontSize: '10px', 
+                                          color: incident.status === 'Resolved' ? '#10b981' : '#94a3b8',
+                                          fontWeight: incident.status === 'Resolved' ? 'bold' : 'normal',
+                                          background: incident.status === 'Resolved' ? '#ecfdf5' : 'transparent',
+                                          padding: incident.status === 'Resolved' ? '2px 6px' : '0',
+                                          borderRadius: '4px'
+                                        }}>
+                                          {incident.status === 'Resolved' ? 'COMPLETED' : incident.status}
+                                        </span>
                                       </div>
                                     </div>
                                   ))}
