@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' show cos, sqrt, atan2, sin, pi;
 import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 class JourneyStateNotifier extends ChangeNotifier {
   static final JourneyStateNotifier _instance = JourneyStateNotifier._internal();
@@ -22,6 +23,7 @@ class JourneyStateNotifier extends ChangeNotifier {
   double _distanceRemaining = 0.0;
   bool _isSelf = true;
   String? _userName;
+  StreamSubscription<Position>? _positionSubscription;
 
   bool get isActive => _isActive;
   bool get isShared => _isShared;
@@ -74,11 +76,31 @@ class JourneyStateNotifier extends ChangeNotifier {
     _destinationLocation = destinationLocation;
     _currentPosition = startPosition;
     _points = points;
+    
     _calculateMetrics();
+
+    // Start background tracking for self
+    if (_isSelf) {
+      _startTracking();
+    }
+    
     notifyListeners();
   }
 
+  void _startTracking() {
+    _positionSubscription?.cancel();
+    _positionSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 5,
+      ),
+    ).listen((Position position) {
+      updatePosition(LatLng(position.latitude, position.longitude));
+    });
+  }
+
   void updatePosition(LatLng position) {
+    if (!_isActive) return;
     _currentPosition = position;
     _calculateMetrics();
     notifyListeners();
@@ -118,7 +140,16 @@ class JourneyStateNotifier extends ChangeNotifier {
     
     // Simple ETA logic (avg driving speed 40km/h -> 1.5 mins per km)
     _distanceRemaining = (totalDist - bestDistTravelled).clamp(0, totalDist);
-    _minutesRemaining = (_distanceRemaining * 1.5).ceil() + 1; 
+    _minutesRemaining = (_distanceRemaining * 1.5).ceil() + 1;
+
+    // Check if arrived (within 100 meters)
+    if (_destinationLocation != null) {
+      double distToDest = _getDistance(_currentPosition!, _destinationLocation!);
+      if (distToDest < 0.1) { // 100 meters
+        debugPrint("Destination Reached! Stopping journey automatically.");
+        stopJourney();
+      }
+    }
   }
 
   double _getDistance(LatLng p1, LatLng p2) {
@@ -148,6 +179,8 @@ class JourneyStateNotifier extends ChangeNotifier {
     _minutesRemaining = 0;
     _distanceRemaining = 0.0;
     _checkInRemainingSeconds = -1;
+    _positionSubscription?.cancel();
+    _positionSubscription = null;
     notifyListeners();
   }
 }

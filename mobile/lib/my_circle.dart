@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:google_fonts/google_fonts.dart';
 import 'services/emergency_contact_service.dart';
 
 class MyCircleScreen extends StatefulWidget {
@@ -9,13 +10,18 @@ class MyCircleScreen extends StatefulWidget {
   State<MyCircleScreen> createState() => _MyCircleScreenState();
 }
 
-class _MyCircleScreenState extends State<MyCircleScreen> {
+class _MyCircleScreenState extends State<MyCircleScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _radarController;
   List<EmergencyContact> _contacts = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _radarController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
     _loadCircle();
   }
 
@@ -32,290 +38,347 @@ class _MyCircleScreenState extends State<MyCircleScreen> {
   }
 
   @override
+  void dispose() {
+    _radarController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FA), // Soft blue-grey background
-      appBar: AppBar(
-        title: const Text('My Circle', style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: const BackButton(color: Color(0xFF1E293B)),
-      ),
-      body: SafeArea(
-        child: _isLoading 
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 10),
-                const Text(
-                  'CIRCLE AWARENESS',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 48),
-
-                // Radar Map Area
-                SizedBox(
-                  width: 260,
-                  height: 260,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Outer Dashed Orbit
-                      CustomPaint(
-                        size: const Size(220, 220),
-                        painter: DashedCirclePainter(
-                          color: const Color(0xFFBFDBFE),
-                          strokeWidth: 1.5,
-                          dashWidth: 6,
-                          dashSpace: 4,
-                        ),
-                      ),
-                      // Inner Dashed Orbit
-                      CustomPaint(
-                        size: const Size(140, 140),
-                        painter: DashedCirclePainter(
-                          color: const Color(0xFFBFDBFE),
-                          strokeWidth: 1.5,
-                          dashWidth: 6,
-                          dashSpace: 4,
-                        ),
-                      ),
-
-                      // Center Shield Profile
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF2563EB),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.shield, color: Colors.white, size: 32),
-                      ),
-
-                      // Build nodes from actual contacts
-                      ..._buildContactNodes(),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 56),
-
-                // Status Text
-                Text(
-                  _contacts.isNotEmpty 
-                      ? '${_contacts[0].name} is active' 
-                      : 'No contacts in circle',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Your circle is watching',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Distance Pills Row
-                if (_contacts.isNotEmpty)
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: _contacts.map((c) {
-                      // Simulated distance for UI polish
-                      final dist = (math.Random().nextDouble() * 15).toStringAsFixed(1);
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: _buildDistancePill('${c.name} · ${dist}km', const Color(0xFF166534), const Color(0xFFDCFCE7)),
-                      );
-                    }).toList(),
-                  ),
-                ),
-
-                const SizedBox(height: 48),
-
-                // Action Buttons
-                ElevatedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Live location broadcast started!')),
-                    );
-                  },
-                  icon: const Icon(Icons.location_on, color: Colors.white),
-                  label: const Text(
-                    'Share Live Location', 
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B82F6),
-                    padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
-                    minimumSize: const Size(double.infinity, 56),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
-                ),
-                
-                const SizedBox(height: 16),
-                
-                OutlinedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Safe ping sent to your circle!')),
-                    );
-                  },
-                  icon: const Icon(Icons.notifications_active, color: Color(0xFF3B82F6)),
-                  label: const Text(
-                    "Ping: I'm on my way", 
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6))
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
-                    minimumSize: const Size(double.infinity, 56),
-                    side: const BorderSide(color: Color(0xFFBFDBFE), width: 2),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                ),
-                
-                const SizedBox(height: 40),
-              ],
+      backgroundColor: const Color(0xFF020617), // Deepest midnight blue
+      body: Stack(
+        children: [
+          // 1. Radar Background (Centered)
+          Center(
+            child: AnimatedBuilder(
+              animation: _radarController,
+              builder: (context, child) {
+                return CustomPaint(
+                  size: const Size(double.infinity, double.infinity),
+                  painter: TacticalRadarPainter(_radarController.value),
+                );
+              },
             ),
           ),
-        ),
+
+          // 2. Contact Nodes (Live data from circle)
+          if (!_isLoading) ..._buildContactNodes(),
+
+          // 3. Main Content
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  // Header Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A).withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white.withOpacity(0.05)),
+                    ),
+                    child: Row(
+                      children: [
+                        // Left Accent Bar
+                        Container(
+                          width: 3,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF3B82F6),
+                            borderRadius: BorderRadius.circular(2),
+                            boxShadow: [
+                              BoxShadow(color: const Color(0xFF3B82F6).withOpacity(0.5), blurRadius: 8),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'CIRCLE AWARENESS',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: const Color(0xFF3B82F6),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _contacts.isEmpty ? 'Scanning Circle' : 'Circle Active',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                _contacts.isEmpty 
+                                  ? 'Searching for trusted contacts...' 
+                                  : '${_contacts.length} members are watching over you.',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white.withOpacity(0.4),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const Spacer(),
+
+                  // Bottom Action Grid
+                  Row(
+                    children: [
+                      // Silent Alert Button
+                      Expanded(
+                        child: _buildActionBtn(
+                          icon: Icons.cell_tower_rounded,
+                          label: 'SILENT ALERT',
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Emergency Contact Button
+                      Expanded(
+                        child: _buildActionBtn(
+                          icon: Icons.person_add_disabled_rounded,
+                          label: 'NOTIFY CIRCLE',
+                          color: const Color(0xFFEF4444),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+
+                  // Route to Closest FAB-style button
+                  Container(
+                    width: double.infinity,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1D4ED8),
+                      borderRadius: BorderRadius.circular(32),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF1D4ED8).withOpacity(0.4),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {},
+                        borderRadius: BorderRadius.circular(32),
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.shield_rounded, color: Colors.white, size: 24),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Secure My Perimeter',
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
+          
+          // Center User Node
+          Center(
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: const Color(0xFF3B82F6),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(color: const Color(0xFF3B82F6).withOpacity(0.8), blurRadius: 15, spreadRadius: 5),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionBtn({required IconData icon, required String label, required Color color}) {
+    return Container(
+      height: 100,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withOpacity(0.8),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 12),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   List<Widget> _buildContactNodes() {
-    if (_contacts.isEmpty) return [];
+    return [
+      // Trusted Circle Contacts (Blue Nodes)
+      ..._contacts.asMap().entries.map((entry) {
+        int idx = entry.key;
+        final offsets = [
+          {'r': 140.0, 'a': 3.5},   // Ring 2, Mid Leftish
+          {'r': 220.0, 'a': 1.5},   // Ring 3, Bottomish
+        ];
+        final pos = offsets[idx % offsets.length];
+        return _positionedContactNode(pos['r']!, pos['a']!, entry.value);
+      }),
 
-    // Pre-defined positions for radar nodes
-    final positions = [
-       {'top': 40.0, 'left': null, 'right': null}, // Center Top
-       {'bottom': 30.0, 'left': 10.0, 'right': null}, // Bottom Left
-       {'bottom': 30.0, 'right': 15.0, 'left': null}, // Bottom Right
-       {'top': 45.0, 'right': 10.0, 'left': null}, // Top Right
+      // Safe Havens (Color coded as requested)
+      _positionedHavenNode(80.0, -0.5, const Color(0xFF22C55E), 'Police'),   // Green
+      _positionedHavenNode(160.0, 0.8, const Color(0xFFA855F7), 'Hospital'), // Purple
+      _positionedHavenNode(210.0, 4.8, const Color(0xFFF97316), 'Shelter'),  // Orange
     ];
-
-    return _contacts.asMap().entries.map((entry) {
-      int idx = entry.key;
-      if (idx >= positions.length) return const SizedBox.shrink();
-      
-      final contact = entry.value;
-      final pos = positions[idx];
-      
-      return Positioned(
-        top: pos['top'] as double?,
-        bottom: pos['bottom'] as double?,
-        left: pos['left'] as double?,
-        right: pos['right'] as double?,
-        child: _buildAvatarNode(
-          contact.name[0], 
-          const Color(0xFF1D4ED8), 
-          const Color(0xFFE0E7FF)
-        ),
-      );
-    }).toList();
   }
 
-  Widget _buildAvatarNode(String letter, Color textColor, Color bgColor, {double size = 36}) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: bgColor,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.white,
-            spreadRadius: 4,
-          )
-        ]
-      ),
-      child: Center(
-        child: Text(
-          letter,
-          style: TextStyle(
-            color: textColor,
-            fontSize: size * 0.45,
-            fontWeight: FontWeight.w900,
-          ),
+  Widget _positionedContactNode(double radius, double angle, EmergencyContact contact) {
+    return Center(
+      child: Transform.translate(
+        offset: Offset(radius * math.cos(angle), radius * math.sin(angle)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF3B82F6),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: const Color(0xFF3B82F6).withOpacity(0.5), blurRadius: 10, spreadRadius: 2),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 12,
+                backgroundColor: const Color(0xFF1E293B),
+                child: Text(
+                  contact.name[0].toUpperCase(),
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              contact.name.split(' ')[0],
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 8,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDistancePill(String text, Color textColor, Color bgColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
+  Widget _positionedHavenNode(double radius, double angle, Color color, String label) {
+    return Center(
+      child: Transform.translate(
+        offset: Offset(radius * math.cos(angle), radius * math.sin(angle)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: color.withOpacity(0.6), blurRadius: 8, spreadRadius: 2),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                color: Colors.white.withOpacity(0.4),
+                fontSize: 7,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class DashedCirclePainter extends CustomPainter {
-  final Color color;
-  final double strokeWidth;
-  final double dashWidth;
-  final double dashSpace;
-
-  DashedCirclePainter({
-    required this.color,
-    this.strokeWidth = 1.0,
-    this.dashWidth = 5.0,
-    this.dashSpace = 5.0,
-  });
+class TacticalRadarPainter extends CustomPainter {
+  final double animationValue;
+  TacticalRadarPainter(this.animationValue);
 
   @override
   void paint(Canvas canvas, Size size) {
-    var paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
+    final center = Offset(size.width / 2, size.height / 2);
+    final paint = Paint()
+      ..color = const Color(0xFF3B82F6).withOpacity(0.1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
 
-    var rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    
-    // Draw dashed path logic drawing arc segments
-    double circumference = size.width * math.pi;
-    int dashCount = (circumference / (dashWidth + dashSpace)).floor();
-    double sweepAngle = (dashWidth / circumference) * 2 * math.pi;
-    double spaceAngle = (dashSpace / circumference) * 2 * math.pi;
-
-    for (int i = 0; i < dashCount; i++) {
-      double startAngle = i * (sweepAngle + spaceAngle);
-      canvas.drawArc(rect, startAngle, sweepAngle, false, paint);
+    // Draw Static Concentric Circles
+    final radii = [80.0, 140.0, 220.0];
+    for (var r in radii) {
+      canvas.drawCircle(center, r, paint);
     }
+
+    // Draw animated pulse
+    final pulsePaint = Paint()
+      ..color = const Color(0xFF3B82F6).withOpacity(1.0 - animationValue)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    
+    canvas.drawCircle(center, 220.0 * animationValue, pulsePaint);
   }
 
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
+  bool shouldRepaint(TacticalRadarPainter oldDelegate) => true;
 }

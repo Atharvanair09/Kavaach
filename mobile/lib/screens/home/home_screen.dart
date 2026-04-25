@@ -894,18 +894,18 @@ class _HomeContentState extends State<_HomeContent> {
           
           _activityItem(
             icon: Icons.check_circle_outline,
-            iconColor: const Color(0xFF10B981),
-            bgColor: const Color(0xFFECFDF5),
+            iconColor: const Color(0xFF0052D3),
+            bgColor: const Color(0xFFEBF2FF),
             title: 'You checked-in successfully',
             subtitle: '12:30 PM • Home Office',
           ),
-          _activityDivider(),
+          const SizedBox(height: 1),
           _activityItem(
             avatarUrl: 'https://i.pravatar.cc/150?u=sarah',
             title: 'Sarah arrived at destination',
             subtitle: '11:55 AM • Downtown Campus',
           ),
-          _activityDivider(),
+          const SizedBox(height: 1),
           _activityItem(
             icon: Icons.location_on_outlined,
             iconColor: const Color(0xFF3B82F6),
@@ -914,7 +914,7 @@ class _HomeContentState extends State<_HomeContent> {
             subtitle: '10:15 AM • Commute Started',
           ),
           
-          const SizedBox(height: 28),
+          const SizedBox(height: 12),
           
           Container(
             width: double.infinity,
@@ -927,7 +927,7 @@ class _HomeContentState extends State<_HomeContent> {
               child: Text(
                 'View All Activity',
                 style: GoogleFonts.plusJakartaSans(
-                  color: const Color(0xFF0052D3),
+                color: const Color(0xFF002766),
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -992,50 +992,64 @@ class _HomeContentState extends State<_HomeContent> {
     required String title, 
     required String subtitle
   }) {
-    return Row(
-      children: [
-        if (avatarUrl != null)
-           CircleAvatar(
-             radius: 18,
-             backgroundColor: const Color(0xFFE2E8F0),
-             backgroundImage: NetworkImage(avatarUrl),
-           )
-        else
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: bgColor,
-              shape: BoxShape.circle,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0052D3), // Deep Blue Background
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0052D3).withOpacity(0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          if (avatarUrl != null)
+             CircleAvatar(
+               radius: 18,
+               backgroundColor: Colors.white.withOpacity(0.2),
+               backgroundImage: NetworkImage(avatarUrl),
+             )
+          else
+            Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: const Color(0xFF0052D3), size: 18),
             ),
-            child: Icon(icon, color: iconColor, size: 18),
-          ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF0F172A),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF64748B),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.7),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
