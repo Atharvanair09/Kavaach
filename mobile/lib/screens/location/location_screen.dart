@@ -1124,65 +1124,6 @@ class _LocationScreenState extends State<LocationScreen> {
             _mapController?.showMarkerInfoWindow(closest!.markerId);
           });
 
-          double kmDist = minDistance / 1000;
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              duration: const Duration(hours: 24),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              margin: EdgeInsets.only(
-                bottom: MediaQuery.of(context).size.height - 220,
-                left: 16,
-                right: 16,
-              ),
-              padding: EdgeInsets.zero,
-              content: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                       const Icon(Icons.info_outline, color: ST.primary, size: 18),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          'Closest $category is ${kmDist.toStringAsFixed(1)} km away',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ST.onSurface),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      GestureDetector(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                          _drawRouteOnMap(
-                            closest!.position,
-                            closest.infoWindow.title ?? 'Destination',
-                          );
-                        },
-                        child: const Text(
-                          'SHOW ROUTE',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: ST.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
         }
       }
     } catch (e) {

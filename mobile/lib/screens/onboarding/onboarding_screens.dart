@@ -40,7 +40,7 @@ class OnboardingScreen extends StatelessWidget {
               width: 320,
               height: 320,
               decoration: BoxDecoration(
-                color: ST.primary.withOpacity(0.05),
+                color: ST.primary.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
             ),
@@ -52,7 +52,7 @@ class OnboardingScreen extends StatelessWidget {
               width: 280,
               height: 280,
               decoration: BoxDecoration(
-                color: ST.secondaryFixed.withOpacity(0.2),
+                color: ST.primary.withOpacity(0.12),
                 shape: BoxShape.circle,
               ),
             ),

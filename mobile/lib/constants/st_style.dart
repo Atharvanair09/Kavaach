@@ -21,8 +21,8 @@ class ST {
   static const onTertiaryContainer = Color(0xFFFFFEFF);
   static const onTertiaryFixedVariant = Color(0xFF91002D);
 
-  static const surface = Color(0xFFF6FAFE);
-  static const surfaceBright = Color(0xFFF6FAFE);
+  static const surface = Color(0xFFE3EDFF);
+  static const surfaceBright = Color(0xFFE3EDFF);
   static const surfaceContainer = Color(0xFFEAEEF2);
   static const surfaceContainerLow = Color(0xFFF0F4F8);
   static const surfaceContainerHigh = Color(0xFFE4E9ED);
@@ -33,7 +33,7 @@ class ST {
   static const onSurface = Color(0xFF171C1F);
   static const onSurfaceVariant = Color(0xFF424655);
   static const onBackground = Color(0xFF171C1F);
-  static const background = Color(0xFFF6FAFE);
+  static const background = Color(0xFFE3EDFF);
   static const outline = Color(0xFF727687);
   static const outlineVariant = Color(0xFFC2C6D8);
 

@@ -11,6 +11,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'services/emergency_contact_service.dart';
 import 'auth_service.dart';
+import 'constants/st_style.dart';
 
 // ─── Notification plugin (top-level singleton) ────────────────────────────────
 final FlutterLocalNotificationsPlugin _notificationsPlugin =
@@ -714,18 +715,36 @@ class _TimedCheckInScreenState extends State<TimedCheckInScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFEFF6FF), Colors.white],
-            stops: [0.0, 0.4],
+      backgroundColor: ST.surface,
+      body: Stack(
+        children: [
+          // Background decorations for brand consistency
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                color: ST.primary.withOpacity(0.05),
+                shape: BoxShape.circle,
+              ),
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
+          Positioned(
+            bottom: -50,
+            left: -50,
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                color: ST.primary.withOpacity(0.03),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Column(
@@ -837,8 +856,9 @@ class _TimedCheckInScreenState extends State<TimedCheckInScreen>
             ),
           ),
         ),
-      ),
-    );
+      ],
+    ),
+  );
   }
 
   Widget _buildHeader() {

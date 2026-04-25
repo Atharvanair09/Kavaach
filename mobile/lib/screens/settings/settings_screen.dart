@@ -380,92 +380,106 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               children: [
                 _buildProfileCard(),
-                _buildDivider(),
-                _buildSectionHeader('Safety'),
-                _buildNavRow(
-                  icon: Icons.shield_outlined,
-                  iconBg: const Color(0xFFDAE1FF),
-                  iconColor: ST.primary,
-                  label: 'Trusted Circle',
-                  subtitle: '${_trustedContacts.length} contacts added',
-                  onTap: () {}, 
-                ),
-                _buildNavRow(
-                  icon: Icons.timer_outlined,
-                  iconBg: const Color(0xFFEAF3DE),
-                  iconColor: const Color(0xFF3B6D11),
-                  label: 'Check-in Timer',
-                  subtitle: 'Cycle: $_checkinDurationMinutes min',
-                  onTap: () => _showCheckinTimerSheet(context),
-                ),
-                _buildNavRow(
-                  icon: Icons.lock_outline,
-                  iconBg: const Color(0xFFFAEEDA),
-                  iconColor: const Color(0xFF854F0B),
-                  label: _enterPin ? 'Update PIN' : 'Enter PIN',
-                  subtitle: _enterPin ? 'PIN is securely active' : 'Secure your app using PIN',
-                  onTap: () {
-                    _showPinScreen(context);
-                    Future.delayed(const Duration(seconds: 10), () => _loadPinStatus());
-                  },
-                ),
-                _buildToggleRow(
-                  icon: Icons.lock_outline,
-                  iconBg: const Color(0xFFFAEEDA),
-                  iconColor: const Color(0xFF854F0B),
-                  label: 'Decoy PIN',
-                  subtitle: 'Triggers fake app screen',
-                  value: _decoyPin,
-                  onChanged: (v) {
-                    if (v) {
-                      _showDecoyPinSetup(context);
-                    } else {
-                      AuthService.clearDecoyPin();
-                      setState(() => _decoyPin = false);
-                    }
-                  },
-                ),
-                _buildToggleRow(
-                  icon: Icons.sensors,
-                  iconBg: const Color(0xFFFBEAF0),
-                  iconColor: const Color(0xFF993556),
-                  label: 'Shake-to-Alert',
-                  subtitle: 'Shake phone to send SOS',
-                  value: _shakeToAlert,
-                  onChanged: (v) => setState(() => _shakeToAlert = v),
-                ),
-                _buildToggleRow(
-                  icon: Icons.fingerprint,
-                  iconBg: const Color(0xFFFBEAF0),
-                  iconColor: const Color(0xFF993556),
-                  label: 'Biometric Encryption',
-                  subtitle: 'Encrypt your data using biometrics',
-                  value: _biometricEnabled,
-                  onChanged: (v) {
-                    AuthService.saveBiometricEnabled(v);
-                    setState(() => _biometricEnabled = v);
-                  },
-                ),
-                _buildDivider(),
-                _buildSectionHeader('Account'),
-                _buildNavRow(
-                  icon: Icons.cloud_upload_outlined,
-                  iconBg: const Color(0xFFF1EFE8),
-                  iconColor: const Color(0xFF5F5E5A),
-                  label: 'Backup & Restore',
-                  subtitle: 'Encrypted cloud backup',
-                  onTap: () => _showComingSoon(context),
-                ),
-                _buildNavRow(
-                  icon: Icons.info_outline,
-                  iconBg: const Color(0xFFF1EFE8),
-                  iconColor: const Color(0xFF5F5E5A),
-                  label: 'About & Legal',
-                  subtitle: 'Version 1.0.0',
-                  onTap: () => _showAboutSheet(context),
-                ),
-                _buildDivider(),
-                _buildDeleteRow(context),
+                
+                _buildSectionLabel('Safety'),
+                _buildGroupedCard([
+                  _buildNavRow(
+                    icon: Icons.shield_outlined,
+                    iconBg: const Color(0xFFDAE1FF),
+                    iconColor: ST.primary,
+                    label: 'Trusted Circle',
+                    subtitle: '${_trustedContacts.length} contacts added',
+                    onTap: () {}, 
+                  ),
+                  _buildInternalDivider(),
+                  _buildNavRow(
+                    icon: Icons.timer_outlined,
+                    iconBg: const Color(0xFFEAF3DE),
+                    iconColor: const Color(0xFF3B6D11),
+                    label: 'Check-in Timer',
+                    subtitle: 'Cycle: $_checkinDurationMinutes min',
+                    onTap: () => _showCheckinTimerSheet(context),
+                  ),
+                  _buildInternalDivider(),
+                  _buildNavRow(
+                    icon: Icons.lock_outline,
+                    iconBg: const Color(0xFFFAEEDA),
+                    iconColor: const Color(0xFF854F0B),
+                    label: _enterPin ? 'Update PIN' : 'Enter PIN',
+                    subtitle: _enterPin ? 'PIN is securely active' : 'Secure your app using PIN',
+                    onTap: () {
+                      _showPinScreen(context);
+                      Future.delayed(const Duration(seconds: 10), () => _loadPinStatus());
+                    },
+                  ),
+                  _buildInternalDivider(),
+                  _buildToggleRow(
+                    icon: Icons.lock_outline,
+                    iconBg: const Color(0xFFFAEEDA),
+                    iconColor: const Color(0xFF854F0B),
+                    label: 'Decoy PIN',
+                    subtitle: 'Triggers fake app screen',
+                    value: _decoyPin,
+                    onChanged: (v) {
+                      if (v) {
+                        _showDecoyPinSetup(context);
+                      } else {
+                        AuthService.clearDecoyPin();
+                        setState(() => _decoyPin = false);
+                      }
+                    },
+                  ),
+                  _buildInternalDivider(),
+                  _buildToggleRow(
+                    icon: Icons.sensors,
+                    iconBg: const Color(0xFFFBEAF0),
+                    iconColor: const Color(0xFF993556),
+                    label: 'Shake-to-Alert',
+                    subtitle: 'Shake phone to send SOS',
+                    value: _shakeToAlert,
+                    onChanged: (v) => setState(() => _shakeToAlert = v),
+                  ),
+                  _buildInternalDivider(),
+                  _buildToggleRow(
+                    icon: Icons.fingerprint,
+                    iconBg: const Color(0xFFFBEAF0),
+                    iconColor: const Color(0xFF993556),
+                    label: 'Biometric Encryption',
+                    subtitle: 'Encrypt your data using biometrics',
+                    value: _biometricEnabled,
+                    onChanged: (v) {
+                      AuthService.saveBiometricEnabled(v);
+                      setState(() => _biometricEnabled = v);
+                    },
+                  ),
+                ]),
+
+                _buildSectionLabel('Account'),
+                _buildGroupedCard([
+                  _buildNavRow(
+                    icon: Icons.cloud_upload_outlined,
+                    iconBg: const Color(0xFFF1EFE8),
+                    iconColor: const Color(0xFF5F5E5A),
+                    label: 'Backup & Restore',
+                    subtitle: 'Encrypted cloud backup',
+                    onTap: () => _showComingSoon(context),
+                  ),
+                  _buildInternalDivider(),
+                  _buildNavRow(
+                    icon: Icons.info_outline,
+                    iconBg: const Color(0xFFF1EFE8),
+                    iconColor: const Color(0xFF5F5E5A),
+                    label: 'About & Legal',
+                    subtitle: 'Version 1.0.0',
+                    onTap: () => _showAboutSheet(context),
+                  ),
+                ]),
+
+                _buildSectionLabel('Session'),
+                _buildGroupedCard([
+                  _buildDeleteRow(context),
+                ]),
+                
                 const SizedBox(height: 120),
               ],
             ),
@@ -617,26 +631,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildDivider() {
-    return Container(
-      height: 8,
-      color: ST.surfaceContainer,
+  Widget _buildSectionLabel(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
+      child: Align(
+        alignment: Alignment.center,
+        child: Text(
+          title.toUpperCase(),
+          style: const TextStyle(
+            fontFamily: 'Bernard MT Condensed',
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.0,
+            color: ST.onSurfaceVariant,
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
-      child: Text(
-        title.toUpperCase(),
-        style: const TextStyle(
-          fontFamily: 'Haettenschweiler',
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.2,
-          color: ST.onSurfaceVariant,
-        ),
+  Widget _buildGroupedCard(List<Widget> children) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: ST.surfaceContainerLowest,
+        borderRadius: ST.radiusSm,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: children),
+    );
+  }
+
+  Widget _buildInternalDivider() {
+    return Divider(
+      height: 1,
+      thickness: 1,
+      indent: 64,
+      endIndent: 20,
+      color: Colors.grey.shade100,
     );
   }
 
@@ -650,9 +689,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      child: Container(
-        color: ST.surfaceContainerLowest,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
           children: [
             Container(
@@ -709,7 +747,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required ValueChanged<bool> onChanged,
   }) {
     return Container(
-      color: ST.surfaceContainerLowest,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       child: Row(
         children: [
@@ -783,7 +820,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }
       },
       child: Container(
-        color: ST.surfaceContainerLowest,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
           children: [

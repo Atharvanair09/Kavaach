@@ -240,242 +240,255 @@ class _PinScreenState extends State<PinScreen> {
               width: 320,
               height: 320,
               decoration: BoxDecoration(
-                color: ST.primaryFixed.withOpacity(0.4),
+                color: ST.primary.withOpacity(0.9),
                 shape: BoxShape.circle,
               ),
             ),
           ),
           Positioned(
-            bottom: -24,
-            right: -48,
+            bottom: -39,
+            right: -58,
             child: Container(
               width: 400,
               height: 400,
               decoration: BoxDecoration(
-                color: ST.secondaryFixed.withOpacity(0.4),
+                color: ST.primary.withOpacity(0.9),
                 shape: BoxShape.circle,
               ),
             ),
           ),
           SafeArea(
-            child: Column(
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Image.asset(
-                        'assets/safetext_logo.png',
-                        height: 70,
-                        fit: BoxFit.contain,
-                      ),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text(
-                          'Quick Exit',
-                          style: TextStyle(
-                            color: ST.secondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: MediaQuery.of(context).size.height -
+                      MediaQuery.of(context).padding.top -
+                      MediaQuery.of(context).padding.bottom,
                 ),
-                const Spacer(),
-                // Title
-                const Text(
-                  'Welcome Back',
-                  style: TextStyle(
-                    fontFamily: 'Rockwell',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 26,
-                    color: ST.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Enter secure PIN to continue',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: ST.onSurfaceVariant.withOpacity(0.7),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                // PIN card
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: ST.surfaceContainerLowest.withOpacity(0.7),
-                      borderRadius: ST.radiusMd,
-                      border: Border.all(
-                          color: Colors.white.withOpacity(0.2), width: 1),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
-                          blurRadius: 32,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 24),
-                    child: Column(
-                      children: [
-                        // Dots
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(4, (i) {
-                            final filled = i < pin.length;
-                            return AnimatedContainer(
-                              duration: const Duration(milliseconds: 250),
-                              curve: Curves.easeOutBack,
-                              margin: const EdgeInsets.symmetric(horizontal: 10),
-                              width: filled ? 16 : 12,
-                              height: filled ? 16 : 12,
-                              decoration: BoxDecoration(
-                                color: filled ? ST.primary : ST.outlineVariant.withOpacity(0.5),
-                                shape: BoxShape.circle,
-                                boxShadow: filled ? [
-                                  BoxShadow(
-                                    color: ST.primary.withOpacity(0.3),
-                                    blurRadius: 8,
-                                    spreadRadius: 2,
-                                  )
-                                ] : [],
-                              ),
-                            );
-                          }),
-                        ),
-                        const SizedBox(height: 24),
-                        // Numpad
-                        ...List.generate(3, (row) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              mainAxisAlignment:
-                              MainAxisAlignment.spaceEvenly,
-                              children: List.generate(3, (col) {
-                                final n =
-                                (row * 3 + col + 1).toString();
-                                return _NumKey(
-                                  label: n,
-                                  onTap: () => _onDigit(n),
-                                );
-                              }),
-                            ),
-                          );
-                        }),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            const SizedBox(width: 64),
-                            _NumKey(
-                                label: '0',
-                                onTap: () => _onDigit('0')),
-                            _NumKey(
-                                onTap: _onDelete,
-                                child: const Icon(
-                                  Icons.backspace_outlined,
-                                  color: ST.primary,
-                                  size: 28,
-                                )),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 48),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      SosButton(onConfirmedSOS: () => _triggerSOS(context)),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                // Privacy tip
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
+                child: IntrinsicHeight(
                   child: Column(
                     children: [
-                      Container(
+                      // Header
+                      Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: ST.surfaceContainerLow,
-                          borderRadius: ST.radiusFull,
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
+                            horizontal: 20, vertical: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Icon(Icons.info_outline,
-                                size: 12, color: ST.secondary),
-                            SizedBox(width: 6),
-                            Text(
-                              'PRIVACY PROTOCOL',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.5,
-                                color: ST.secondary,
+                            Image.asset(
+                              'assets/safetext_logo.png',
+                              height: 70,
+                              fit: BoxFit.contain,
+                            ),
+                            TextButton(
+                              onPressed: () {},
+                              child: const Text(
+                                'Quick Exit',
+                                style: TextStyle(
+                                  color: ST.secondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                      const Spacer(),
+                      // Title
+                      const Text(
+                        'Welcome Back',
+                        style: TextStyle(
+                          fontFamily: 'Rockwell',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 32,
+                          color: ST.onSurface,
                         ),
                       ),
                       const SizedBox(height: 8),
+                      Text(
+                        'Enter secure PIN to continue',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: ST.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      // PIN card
                       Padding(
-                        padding:
-                        const EdgeInsets.symmetric(horizontal: 48),
-                        child: Text(
-                          'Long-press Quick Exit or flip phone to swap to Notes instantly.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: ST.secondary.withOpacity(0.6),
-                            height: 1.5,
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: ST.surfaceContainerLowest.withOpacity(0.7),
+                            borderRadius: ST.radiusMd,
+                            border: Border.all(
+                                color: Colors.white.withOpacity(0.2), width: 1),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.06),
+                                blurRadius: 32,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 24),
+                          child: Column(
+                            children: [
+                              // Dots
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: List.generate(4, (i) {
+                                  final filled = i < pin.length;
+                                  return AnimatedContainer(
+                                    duration: const Duration(milliseconds: 250),
+                                    curve: Curves.easeOutBack,
+                                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                                    width: filled ? 16 : 12,
+                                    height: filled ? 16 : 12,
+                                    decoration: BoxDecoration(
+                                      color: filled ? ST.primary : ST.outlineVariant.withOpacity(0.5),
+                                      shape: BoxShape.circle,
+                                      boxShadow: filled ? [
+                                        BoxShadow(
+                                          color: ST.primary.withOpacity(0.3),
+                                          blurRadius: 8,
+                                          spreadRadius: 2,
+                                        )
+                                      ] : [],
+                                    ),
+                                  );
+                                }),
+                              ),
+                              const SizedBox(height: 24),
+                              // Numpad
+                              ...List.generate(3, (row) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                    children: List.generate(3, (col) {
+                                      final n =
+                                      (row * 3 + col + 1).toString();
+                                      return _NumKey(
+                                        label: n,
+                                        onTap: () => _onDigit(n),
+                                      );
+                                    }),
+                                  ),
+                                );
+                              }),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  const SizedBox(width: 64),
+                                  _NumKey(
+                                      label: '0',
+                                      onTap: () => _onDigit('0')),
+                                  _NumKey(
+                                      onTap: _onDelete,
+                                      child: const Icon(
+                                        Icons.backspace_outlined,
+                                        color: ST.primary,
+                                        size: 28,
+                                      )),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: () async {
-                          showDialog(
-                            context: context,
-                            barrierDismissible: false,
-                            builder: (_) => const Center(child: CircularProgressIndicator()),
-                          );
-                          await AuthService.signOut();
-                          if (context.mounted) {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(builder: (_) => const LoginScreen()),
-                              (route) => false,
-                            );
-                          }
-                        },
-                        child: const Text(
-                          'Forgot PIN? Sign out',
-                          style: TextStyle(
-                            color: ST.secondary,
-                            fontWeight: FontWeight.w600,
-                            decoration: TextDecoration.underline,
-                          ),
+                      const SizedBox(height: 20),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 48),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SosButton(onConfirmedSOS: () => _triggerSOS(context)),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      // Privacy tip
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: ST.surfaceContainerLow,
+                                borderRadius: ST.radiusFull,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.info_outline,
+                                      size: 12, color: ST.secondary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'PRIVACY PROTOCOL',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 1.5,
+                                      color: ST.secondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding:
+                              const EdgeInsets.symmetric(horizontal: 48),
+                              child: Text(
+                                'Long-press Quick Exit or flip phone to swap to Notes instantly.',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.white70,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            TextButton(
+                              onPressed: () async {
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (_) => const Center(child: CircularProgressIndicator()),
+                                );
+                                await AuthService.signOut();
+                                if (context.mounted) {
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                    (route) => false,
+                                  );
+                                }
+                              },
+                              child: const Text(
+                                'Forgot PIN? Sign out',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -688,7 +701,7 @@ class _SosButtonState extends State<SosButton>
             fontSize: 10,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
-            color: _holding ? ST.tertiary : ST.onSurfaceVariant.withOpacity(0.5),
+            color: _holding ? ST.tertiary : Colors.white60,
           ),
         ),
 
