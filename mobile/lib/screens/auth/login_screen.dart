@@ -35,31 +35,11 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             children: [
               const SizedBox(height: 48),
-              // Centered Logo
-              Center(
-                child: Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F0FF),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(Icons.shield_outlined,
-                      color: Color(0xFF0052CC), size: 36),
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Brand
-              const Text(
-                'SafeText',
-                style: TextStyle(
-                  fontFamily: 'Rockwell',
-                  fontStyle: FontStyle.italic,
-                  fontSize: 48,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF0052CC),
-                  letterSpacing: -1.0,
-                ),
+              // Logo
+              Image.asset(
+                'assets/safetext_logo.png',
+                height: 120,
+                fit: BoxFit.contain,
               ),
               const SizedBox(height: 12),
               const Text(

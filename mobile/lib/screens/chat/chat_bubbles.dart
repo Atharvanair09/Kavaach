@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 import '../../constants/st_style.dart';
 import '../../widgets/st_widgets.dart';
 
+import 'package:intl/intl.dart';
+
 class SupportBubble extends StatelessWidget {
   final String text;
   final String? translation;
-  const SupportBubble({super.key, required this.text, this.translation});
+  final DateTime? time;
+  const SupportBubble({super.key, required this.text, this.translation, this.time});
 
   @override
   Widget build(BuildContext context) {
+    String timestamp = time != null ? DateFormat('dd MMM, HH:mm').format(time!) : '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       child: Row(
@@ -17,11 +22,23 @@ class SupportBubble extends StatelessWidget {
           Container(
             width: 32,
             height: 32,
-            decoration: const BoxDecoration(
-              color: ST.primary,
+            decoration: BoxDecoration(
+              color: Colors.white,
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: const Icon(Icons.shield, color: Colors.white, size: 18),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/safetext_icon.png',
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -80,6 +97,20 @@ class SupportBubble extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (timestamp.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(
+                      timestamp,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade400,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -93,10 +124,13 @@ class SupportBubble extends StatelessWidget {
 class UserBubble extends StatelessWidget {
   final String text;
   final String? translation;
-  const UserBubble({super.key, required this.text, this.translation});
+  final DateTime? time;
+  const UserBubble({super.key, required this.text, this.translation, this.time});
 
   @override
   Widget build(BuildContext context) {
+    String timestamp = time != null ? DateFormat('dd MMM, HH:mm').format(time!) : '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       child: Row(
@@ -155,12 +189,27 @@ class UserBubble extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'Delivered',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey.shade400,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (timestamp.isNotEmpty)
+                      Text(
+                        timestamp,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade400,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    if (timestamp.isNotEmpty) const SizedBox(width: 6),
+                    Text(
+                      'Delivered',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade400,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

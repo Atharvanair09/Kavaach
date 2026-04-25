@@ -587,27 +587,38 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
                     children: [
-                      const Text(
-                        'JARVIS',
-                        style: TextStyle(
-                          fontFamily: 'Rockwell',
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          color: ST.onSurface,
-                          letterSpacing: -0.5,
-                        ),
+                      Image.asset(
+                        'assets/safetext_icon.png',
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.contain,
                       ),
-                      Text(
-                        'SECURE SAFETY ASSISTANT',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.grey.shade500,
-                          letterSpacing: 1.2,
-                        ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'JARVIS',
+                            style: TextStyle(
+                              fontFamily: 'Rockwell',
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                              color: ST.onSurface,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          Text(
+                            'SECURE SAFETY ASSISTANT',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.grey.shade500,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -636,20 +647,21 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemCount: _messages.length + (_isTyping ? 1 : 0) + 1,
                   itemBuilder: (context, index) {
                     if (index == 0) {
-                      return const SupportBubble(
+                      return SupportBubble(
                         text: "I'm Jarvis, your personal safety assistant. I'm here with you. How are you feeling about your current surroundings?",
+                        time: DateTime.now(),
                       );
                     }
                     
                     final msgIndex = index - 1;
                     if (msgIndex < _messages.length) {
                       final m = _messages[msgIndex];
-                      if (m.isUser) return UserBubble(text: m.text, translation: m.translation);
+                      if (m.isUser) return UserBubble(text: m.text, translation: m.translation, time: m.time);
                       
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SupportBubble(text: m.text, translation: m.translation),
+                          SupportBubble(text: m.text, translation: m.translation, time: m.time),
                           if (m.action == 'trigger_sos')
                             const _SosSuggestionCard(),
                           if ((m.action == 'show_safe_places' || m.action == 'trigger_sos') && _nearbySafePlacesList.isNotEmpty)

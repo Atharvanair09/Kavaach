@@ -490,6 +490,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     }
 
+    final photoUrl = _user!['picture']?.toString() ?? _user!['photoUrl']?.toString();
+
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 20, 20, 4),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
@@ -512,18 +514,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: BoxDecoration(
               color: ST.primaryFixed,
               shape: BoxShape.circle,
+              image: photoUrl != null && photoUrl.isNotEmpty
+                  ? DecorationImage(
+                      image: NetworkImage(photoUrl),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
             ),
-            child: Center(
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  fontFamily: 'Bernard MT Condensed',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                  color: ST.primary,
-                ),
-              ),
-            ),
+            child: photoUrl == null || photoUrl.isEmpty
+                ? Center(
+                    child: Text(
+                      initials,
+                      style: const TextStyle(
+                        fontFamily: 'Bernard MT Condensed',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        color: ST.primary,
+                      ),
+                    ),
+                  )
+                : null,
           ),
           const SizedBox(width: 14),
           Expanded(

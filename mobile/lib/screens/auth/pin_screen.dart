@@ -267,22 +267,10 @@ class _PinScreenState extends State<PinScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on_outlined,
-                              color: ST.primary, size: 22),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'SafeText',
-                            style: TextStyle(
-                              fontFamily: 'Times New Roman',
-                              fontWeight: FontWeight.w700,
-                              fontSize: 18,
-                              color: ST.primary,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                        ],
+                      Image.asset(
+                        'assets/safetext_logo.png',
+                        height: 70,
+                        fit: BoxFit.contain,
                       ),
                       TextButton(
                         onPressed: () {},
