@@ -11,8 +11,19 @@ import {
 } from "lucide-react";
 import TopNavbar from "../components/TopNavbar";
 import "./Cases.css";
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 
-// Import the generated map image
+// Fix for default Leaflet icon issue
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+  iconUrl: require('leaflet/dist/images/marker-icon.png'),
+  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+});
+
+// Import the generated map image (unused now, kept for reference if needed)
 const MAP_IMAGE = "/case_map.png"; 
 
 function Cases({ user, role, incidents, updateStatus }) {
@@ -78,6 +89,8 @@ function Cases({ user, role, incidents, updateStatus }) {
           user: i.assignedTo || "Awaiting Dispatch",
           hasImage: i.category === "Emergency",
           location: i.lat ? `${i.lat.toFixed(4)}° N, ${i.lng.toFixed(4)}° E` : "Location Unknown",
+          lat: i.lat,
+          lng: i.lng,
           dbId: i.id
         }))
     },
@@ -154,9 +167,22 @@ function Cases({ user, role, incidents, updateStatus }) {
                   <h3 className="case-title">{card.title}</h3>
                   <span className={`priority-tag ${card.priorityClass}`}>{card.priority}</span>
 
-                  {card.hasImage && (
-                    <div className="card-image">
-                      <img src={MAP_IMAGE} alt="Location Map" />
+                  {card.hasImage && card.lat && card.lng && (
+                    <div className="card-image" style={{ height: '160px', position: 'relative' }}>
+                      <MapContainer 
+                        center={[card.lat, card.lng]} 
+                        zoom={15} 
+                        scrollWheelZoom={false}
+                        zoomControl={false}
+                        dragging={false}
+                        doubleClickZoom={false}
+                        style={{ height: '100%', width: '100%' }}
+                      >
+                        <TileLayer
+                          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png"
+                        />
+                        <Marker position={[card.lat, card.lng]} />
+                      </MapContainer>
                       <div className="location-overlay">
                         <MapPin size={10} /> {card.location}
                       </div>

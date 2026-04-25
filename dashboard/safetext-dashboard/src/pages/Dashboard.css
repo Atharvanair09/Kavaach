@@ -350,6 +350,7 @@
 
 .feed-item.sos::before { background: #ef4444; }
 .feed-item.miss::before { background: #f59e0b; }
+.feed-item.checkin-miss::before { background: #10b981; }
 .feed-item.safezone::before { background: #3b82f6; }
 .feed-item.resolved::before { background: #10b981; }
 
@@ -401,6 +402,17 @@
   padding: 0.4rem 0.8rem;
   border-radius: 6px;
   border: none;
+}
+
+.btn-resolve {
+  background: #10b981;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
 }
 
 .btn-details {

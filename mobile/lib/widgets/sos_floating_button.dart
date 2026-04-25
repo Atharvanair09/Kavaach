@@ -215,6 +215,14 @@ class _SOSFloatingButtonState extends State<SOSFloatingButton> with TickerProvid
           child: Stack(
             alignment: _isMinimized ? Alignment.centerRight : Alignment.center,
             children: [
+              // 🔴 New Red Border Progress (Goes around the button)
+              if (_isPressing && !_isMinimized)
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: ProgressBorderPainter(_progress),
+                  ),
+                ),
+
               // Button body with left-to-right fill animation
               AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
@@ -305,4 +313,41 @@ class _SOSFloatingButtonState extends State<SOSFloatingButton> with TickerProvid
     int secs = seconds % 60;
     return "${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}";
   }
+}
+
+class ProgressBorderPainter extends CustomPainter {
+  final double progress;
+  ProgressBorderPainter(this.progress);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFEF4444)
+      ..strokeWidth = 8.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // Use the same padding/size as the outerSize but aligned to the button (size)
+    const double buttonSize = 76.0;
+    final double margin = (size.width - buttonSize) / 2;
+    
+    final rect = Rect.fromLTWH(
+      margin, 
+      margin, 
+      buttonSize, 
+      buttonSize
+    );
+    
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(24));
+    final path = Path()..addRRect(rrect);
+    
+    final pathMetrics = path.computeMetrics();
+    for (final metric in pathMetrics) {
+      final extractPath = metric.extractPath(0, metric.length * progress.clamp(0.0, 1.0));
+      canvas.drawPath(extractPath, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(ProgressBorderPainter oldDelegate) => oldDelegate.progress != progress;
 }

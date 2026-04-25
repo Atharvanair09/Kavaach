@@ -80,14 +80,14 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
   const stats = [
     { 
       label: "Active SOS Alerts", 
-      value: incidents.filter(i => i.status === "Pending" && i.category === "Emergency").length, 
+      value: incidents.filter(i => i.status === "Pending" && i.category === "Emergency" && i.type !== 'missed_checkin').length, 
       icon: Asterisk, 
       type: "sos", 
-      badge: incidents.filter(i => i.status === "Pending" && i.category === "Emergency").length > 0 ? "CRITICAL" : null 
+      badge: incidents.filter(i => i.status === "Pending" && i.category === "Emergency" && i.type !== 'missed_checkin').length > 0 ? "CRITICAL" : null 
     },
     { 
       label: "Ongoing Emergencies", 
-      value: incidents.filter(i => i.status === "In Progress").length, 
+      value: incidents.filter(i => i.status === "In Progress" && i.category === "Emergency").length, 
       icon: AlertTriangle, 
       type: "emergency" 
     },
@@ -99,7 +99,7 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
     },
     { 
       label: "Check-in Misses", 
-      value: incidents.filter(i => i.text?.toLowerCase().includes("missed")).length, 
+      value: incidents.filter(i => i.category === "Missed Check-in" || i.type === 'missed_checkin' || i.text?.toLowerCase().includes("missed")).length, 
       icon: UserMinus, 
       type: "misses" 
     },
@@ -308,23 +308,25 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
           </div>
           
           <div className="feed-list">
-            {incidents.filter(inc => inc.status !== "Resolved").slice(0, 5).map((incident) => (
-              <div key={incident.id} className={`feed-item ${incident.category?.toLowerCase() === 'emergency' ? 'sos' : incident.category?.toLowerCase() === 'medical' ? 'miss' : 'safezone'}`}>
-                <div className="feed-item-top">
-                  <span className="feed-item-title">{incident.category} {incident.category === 'Emergency' ? 'Triggered' : 'Reported'}</span>
-                  <span className="feed-item-time">{incident.timestamp}</span>
+            {incidents.filter(inc => inc.status !== "Resolved").slice(0, 5).map((incident) => {
+              const isMissed = incident.category === "Missed Check-in" || incident.type === 'missed_checkin' || incident.text?.toLowerCase().includes("missed");
+              const itemType = isMissed ? 'checkin-miss' : incident.category?.toLowerCase() === 'emergency' ? 'sos' : 'safezone';
+              
+              return (
+                <div key={incident.id} className={`feed-item ${itemType}`}>
+                  <div className="feed-item-top">
+                    <span className="feed-item-title">{incident.category} {incident.category === 'Emergency' ? 'Triggered' : 'Reported'}</span>
+                    <span className="feed-item-time">{incident.timestamp}</span>
+                  </div>
+                  <span className="feed-item-user">ID: {incident.id.substring(0, 8)}</span>
+                  <p className="feed-item-msg" style={{margin: '4px 0 8px 0'}}>{incident.text}</p>
+                  
+                  <div className="feed-actions">
+                    <button className="btn-details">DETAILS</button>
+                  </div>
                 </div>
-                <span className="feed-item-user">ID: {incident.id.substring(0, 8)}</span>
-                <p className="feed-item-msg" style={{margin: '4px 0 8px 0'}}>{incident.text}</p>
-                
-                <div className="feed-actions">
-                  {incident.status === "Pending" && (
-                    <button className="btn-dispatch" onClick={() => updateStatus(incident.id, "In Progress")}>DISPATCH</button>
-                  )}
-                  <button className="btn-details">DETAILS</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
 
             {incidents.filter(inc => inc.status !== "Resolved").length === 0 && (
               <div className="empty-feed-msg">

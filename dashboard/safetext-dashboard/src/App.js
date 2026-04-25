@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Shield } from "lucide-react";
 import "./App.css";
 import { db, createNotification } from "./services/firebase";
-import { collection, addDoc, updateDoc, setDoc, doc, serverTimestamp, query, orderBy, onSnapshot, where } from "firebase/firestore";
+import { collection, addDoc, updateDoc, setDoc, doc, serverTimestamp, query, orderBy, onSnapshot, where, limit } from "firebase/firestore";
 
 import Home from "./pages/Home";
 import ResourceList from "./components/ResourceList";
@@ -245,8 +245,8 @@ function App() {
     const oneHourAgoDate = new Date(Date.now() - 3600000); // 1 hour ago
     const q2 = query(
       collection(db, "sos_alerts"), 
-      where("timestamp", ">=", oneHourAgoDate),
-      orderBy("timestamp", "desc")
+      orderBy("timestamp", "desc"),
+      limit(50) // Fetch last 50 alerts instead of 1 hour window
     );
     const unsub2 = onSnapshot(q2, (snapshot) => {
       const data = snapshot.docs.map(doc => {
@@ -289,10 +289,7 @@ function App() {
 
   useEffect(() => {
     // Continuously drop SOS alerts older than 1 hour from the combined state
-    const oneHourAgo = now - 3600000;
-    const recentSosAlerts = dbSosAlerts.filter(sos => sos._rawTime >= oneHourAgo);
-    
-    const combined = [...dbIncidents, ...recentSosAlerts].sort((a, b) => b._rawTime - a._rawTime);
+    const combined = [...dbIncidents, ...dbSosAlerts].sort((a, b) => b._rawTime - a._rawTime);
     console.log("📊 DASHBOARD INCIDENTS UPDATED:", combined.map(i => ({ id: i.id, status: i.status, cat: i.category })));
     setIncidents(combined);
   }, [dbIncidents, dbSosAlerts, now]);
