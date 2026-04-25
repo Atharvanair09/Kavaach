@@ -18,14 +18,22 @@ class JourneyStateNotifier extends ChangeNotifier {
   int _navIndex = 0;
   Map<String, dynamic>? _pendingRoute;
   int _checkInRemainingSeconds = -1;
+  bool _isShared = false;
+  double _distanceRemaining = 0.0;
+  bool _isSelf = true;
+  String? _userName;
 
   bool get isActive => _isActive;
+  bool get isShared => _isShared;
+  bool get isSelf => _isSelf;
+  String? get userName => _userName;
   String? get destinationName => _destinationName;
   LatLng? get currentPosition => _currentPosition;
   LatLng? get destinationLocation => _destinationLocation;
   List<LatLng> get points => _points;
   double get progress => _progress;
   int get minutesRemaining => _minutesRemaining;
+  double get distanceRemaining => _distanceRemaining;
   int get navIndex => _navIndex;
   Map<String, dynamic>? get pendingRoute => _pendingRoute;
   int get checkInRemainingSeconds => _checkInRemainingSeconds;
@@ -56,8 +64,12 @@ class JourneyStateNotifier extends ChangeNotifier {
     required LatLng destinationLocation,
     required LatLng startPosition,
     List<LatLng> points = const [],
+    bool isSelf = true,
+    String? userName,
   }) {
     _isActive = true;
+    _isSelf = isSelf;
+    _userName = userName;
     _destinationName = destinationName;
     _destinationLocation = destinationLocation;
     _currentPosition = startPosition;
@@ -105,8 +117,8 @@ class JourneyStateNotifier extends ChangeNotifier {
     _progress = (bestDistTravelled / totalDist).clamp(0.01, 0.99);
     
     // Simple ETA logic (avg driving speed 40km/h -> 1.5 mins per km)
-    double remainingDist = (totalDist - bestDistTravelled).clamp(0, totalDist);
-    _minutesRemaining = (remainingDist * 1.5).ceil() + 1; 
+    _distanceRemaining = (totalDist - bestDistTravelled).clamp(0, totalDist);
+    _minutesRemaining = (_distanceRemaining * 1.5).ceil() + 1; 
   }
 
   double _getDistance(LatLng p1, LatLng p2) {
@@ -120,14 +132,21 @@ class JourneyStateNotifier extends ChangeNotifier {
     return radius * c;
   }
 
+  void setShared(bool value) {
+    _isShared = value;
+    notifyListeners();
+  }
+
   void stopJourney() {
     _isActive = false;
+    _isShared = false;
     _destinationName = null;
     _destinationLocation = null;
     _currentPosition = null;
     _points = [];
     _progress = 0.0;
     _minutesRemaining = 0;
+    _distanceRemaining = 0.0;
     _checkInRemainingSeconds = -1;
     notifyListeners();
   }

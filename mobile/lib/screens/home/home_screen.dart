@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../constants/st_style.dart';
 import '../../widgets/st_widgets.dart';
@@ -18,9 +20,9 @@ import '../../services/emergency_contact_service.dart';
 import '../../timed_check_in.dart';
 import '../../my_circle.dart';
 import '../../fake_call.dart';
-import '../../shake_to_sos.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../services/journey_service.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../shake_to_sos.dart';
 import '../../widgets/sos_floating_button.dart';
 
 
@@ -437,74 +439,83 @@ class _HomeContentState extends State<_HomeContent> {
           sliver: SliverList(
             delegate: SliverChildListDelegate([
               // 1. Security Protocol Status Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(32),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.withOpacity(0.08),
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
+               ListenableBuilder(
+                listenable: JourneyStateNotifier(),
+                builder: (context, child) {
+                  final journey = JourneyStateNotifier();
+                  if (journey.isActive && journey.isShared) {
+                    return const _JourneyCard();
+                  }
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(32),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.08),
+                          blurRadius: 30,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEBF2FF),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.verified_user,
-                        color: Color(0xFF0052D3),
-                        size: 24,
-                      ),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEBF2FF),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.verified_user,
+                            color: Color(0xFF0052D3),
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'SECURITY PROTOCOL',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFF94A3B8),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Current Status:',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFF0F172A),
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          'Secure',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFF0F172A),
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Your connection is encrypted and\nyour circle is active.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFF64748B),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'SECURITY PROTOCOL',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: const Color(0xFF94A3B8),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Current Status:',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: const Color(0xFF0F172A),
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      'Secure',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: const Color(0xFF0F172A),
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Your connection is encrypted and\nyour circle is active.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.plusJakartaSans(
-                        color: const Color(0xFF64748B),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                }
               ),
               const SizedBox(height: 20),
 
@@ -1335,181 +1346,175 @@ class _JourneyCardState extends State<_JourneyCard> {
     return AnimatedBuilder(
       animation: journey,
       builder: (context, child) {
-        return GestureDetector(
-          onTap: () => setState(() => _isExpanded = !_isExpanded),
-          child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF0FDF4),
-          border: Border.all(color: const Color(0xFFBBF7D0)),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF16A34A).withOpacity(0.05),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            )
-          ],
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        return Container(
+          width: double.infinity,
+          height: 240,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 30,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(32),
+            child: Stack(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.navigation, color: Color(0xFF16A34A), size: 16),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('ACTIVE JOURNEY',
-                          style: TextStyle(
-                              color: Color(0xFF166534),
-                              fontSize: 10,
-                              height: 1.5,
-                              letterSpacing: 1.2,
-                              fontWeight: FontWeight.w800)),
-                      Text(
-                        'To: ${journey.destinationName ?? "Active Journey"}',
-                        style: const TextStyle(
-                            color: Color(0xFF14532D),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            height: 1.2),
-                      ),
-                      if (journey.checkInRemainingSeconds >= 0)
-                        Container(
-                          margin: const EdgeInsets.only(top: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFDC2626).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFFDC2626).withOpacity(0.4)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.timer_outlined, size: 12, color: Color(0xFFDC2626)),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Check-In: ${(journey.checkInRemainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(journey.checkInRemainingSeconds % 60).toString().padLeft(2, '0')}',
-                                style: const TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold, fontSize: 10),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFBBF7D0)),
-                  ),
-                  child: Text(
-                    '${journey.minutesRemaining} MIN',
-                    style: const TextStyle(
-                        color: Color(0xFF16A34A),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-            // Map Mini-view (follows user)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                height: 160,
-                width: double.infinity,
-                decoration: const BoxDecoration(color: Color(0xFFE2E8F0)),
-                child: GoogleMap(
+                // 1. Full Bleed Map
+                GoogleMap(
                   initialCameraPosition: CameraPosition(
                     target: journey.currentPosition ?? const LatLng(28.6139, 77.2090),
                     zoom: 16,
                   ),
                   onMapCreated: (controller) => _miniMapController = controller,
+                  gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+                    Factory<OneSequenceGestureRecognizer>(
+                      () => EagerGestureRecognizer(),
+                    ),
+                  },
                   myLocationEnabled: true,
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
                   compassEnabled: false,
+                  mapToolbarEnabled: false,
                   polylines: {
                     if (journey.points.isNotEmpty)
                       Polyline(
                         polylineId: const PolylineId('mini_route'),
                         points: journey.points,
                         color: ST.primary,
-                        width: 4,
+                        width: 5,
                         startCap: Cap.roundCap,
                         endCap: Cap.roundCap,
                         jointType: JointType.round,
                       ),
                   },
                   markers: {
-                     if (journey.destinationLocation != null)
+                    if (journey.destinationLocation != null)
                       Marker(
                         markerId: const MarkerId('dest'),
                         position: journey.destinationLocation!,
                         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-                      )
+                      ),
+                    if (!journey.isSelf && journey.currentPosition != null)
+                      Marker(
+                        markerId: const MarkerId('member_pos'),
+                        position: journey.currentPosition!,
+                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                        infoWindow: InfoWindow(title: journey.userName ?? 'Circle Member'),
+                      ),
                   },
                 ),
-              ),
-            ),
-            
-            // Progress Bar
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  flex: (journey.progress * 100).toInt(),
-                  child: Container(
-                      height: 6,
+
+                // 2. Subtle Gradient Overlay for Text Readability
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
                       decoration: BoxDecoration(
-                          color: const Color(0xFF16A34A),
-                          borderRadius: BorderRadius.circular(3))),
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.1),
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.5),
+                          ],
+                          stops: const [0.0, 0.4, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                Expanded(
-                  flex: ((1.0 - journey.progress) * 100).toInt(),
-                  child: Container(
-                      height: 6,
-                      decoration: BoxDecoration(
-                          color: const Color(0xFFDCFCE7),
-                          borderRadius: BorderRadius.circular(3))),
+
+                // 3. Status Labels (Top Left)
+                Positioned(
+                  top: 20,
+                  left: 20,
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))
+                          ],
+                        ),
+                        child: Text(
+                          'ETA: ${journey.minutesRemaining} MIN',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: ST.primary,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))
+                          ],
+                        ),
+                        child: Text(
+                          'LEFT: ${journey.distanceRemaining.toStringAsFixed(1)} KM',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFF166534),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // 4. Live Tracking Text (Bottom Left)
+                Positioned(
+                  bottom: 24,
+                  left: 24,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        journey.isSelf ? 'Live Tracking' : 'Tracking ${journey.userName ?? "User"}',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        journey.destinationName ?? 'Safe Journey Active',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('ON TRACK', 
-                  style: TextStyle(color: Color(0xFF16A34A), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
-                Text('${(journey.progress * 100).toInt()}% COMPLETED', 
-                  style: const TextStyle(color: Color(0xFF15803D), fontSize: 10, fontWeight: FontWeight.w800)),
-              ],
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
-   });
   }
 
   @override
-  void didUpdateWidget(covariant _JourneyCard oldWidget) {
+  void didUpdateWidget(_JourneyCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     final pos = JourneyStateNotifier().currentPosition;
     if (pos != null) {

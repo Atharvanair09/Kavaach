@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -220,9 +221,10 @@ class _LocationScreenState extends State<LocationScreen> {
           }
         });
 
-        // Sync route to Home Screen if journey is active
-        if (_isSharingLocation) {
-          JourneyStateNotifier().startJourney(
+        // Sync route to Home Screen if journey matches
+        final journey = JourneyStateNotifier();
+        if (journey.isActive || journey.isShared) {
+          journey.startJourney(
             destinationName: _routeDestinationName ?? 'Destination',
             destinationLocation: _activeDestination!,
             startPosition: _userPosition,
@@ -264,6 +266,154 @@ class _LocationScreenState extends State<LocationScreen> {
         _markers = _buildNavigableMarkers(_allMarkers);
       }
     });
+    // Reset global journey state
+    JourneyStateNotifier().stopJourney();
+  }
+
+  void _shareTrip() async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 40),
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 30, offset: const Offset(0, 10))
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: ST.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.share_location, color: ST.primary, size: 32),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Share Live Trip?',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: ST.onSurface,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Your trusted circle will receive your route and live location updates until you arrive.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: ST.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: ST.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ST.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: const Text(
+                          'Yes, Share',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    String message;
+    if (_routeDestinationName != null && _activeDestination != null) {
+      final lat = _activeDestination!.latitude;
+      final lng = _activeDestination!.longitude;
+      final googleMapsUrl = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving';
+      message = "I am using Kavaach for my safety. I'm heading to $_routeDestinationName. Track my route here: $googleMapsUrl";
+    } else {
+      final lat = _userPosition.latitude;
+      final lng = _userPosition.longitude;
+      final googleMapsUrl = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+      message = "My current location via Kavaach is: $googleMapsUrl";
+    }
+    
+    // Activate internal sharing state for Home Screen & Circle
+    final journey = JourneyStateNotifier();
+    
+    // Ensure journey is marked as active if we have a route
+    if (!journey.isActive && _routeDestinationName != null && _activeDestination != null) {
+      journey.startJourney(
+        destinationName: _routeDestinationName!,
+        destinationLocation: _activeDestination!,
+        startPosition: _userPosition,
+        points: _polylines.isNotEmpty ? _polylines.first.points : [],
+      );
+    }
+    
+    journey.setShared(true);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 18),
+              const SizedBox(width: 10),
+              const Text('Trip shared with your trusted circle'),
+            ],
+          ),
+          backgroundColor: const Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(20),
+        ),
+      );
+    }
   }
 
   void _toggleLiveFollow() {
@@ -293,7 +443,7 @@ class _LocationScreenState extends State<LocationScreen> {
             ),
           );
           // Sync with global journey service
-          if (_isSharingLocation) {
+          if (JourneyStateNotifier().isActive) {
              JourneyStateNotifier().updatePosition(_userPosition);
           }
         }
@@ -905,7 +1055,8 @@ class _LocationScreenState extends State<LocationScreen> {
         setState(() {
           _allMarkers.clear();
           _allMarkers.addAll(fetchedMarkers);
-          _markers = _buildNavigableMarkers(_allMarkers);
+          // Merge with existing markers (e.g. results from _fetchAllSafeHavens)
+          _markers.addAll(_buildNavigableMarkers(_allMarkers));
         });
       }
     } catch (e) {
@@ -950,7 +1101,7 @@ class _LocationScreenState extends State<LocationScreen> {
         _isLoading = false; // changed to immediately show fixed markers instead of loading
       });
       _mapController?.animateCamera(CameraUpdate.newLatLng(_userPosition));
-      // _fetchAllSafeHavens(_userPosition); // disabled so it doesn't instantly wipe the static _markers array
+      _fetchAllSafeHavens(_userPosition); 
     }
   }
 
@@ -965,12 +1116,15 @@ class _LocationScreenState extends State<LocationScreen> {
 
       if (mounted) {
         setState(() {
-          _markers.clear();
-          _addPlacesToMarkers(results[0], BitmapDescriptor.hueBlue);
-          _addPlacesToMarkers(results[1], BitmapDescriptor.hueOrange);
-          _addPlacesToMarkers(results[2], BitmapDescriptor.hueGreen);
-          _addPlacesToMarkers(results[3], BitmapDescriptor.hueGreen);
-          _markers = _buildNavigableMarkers(_markers);
+          // Initialize with curated Firestore havens
+          _markers = _buildNavigableMarkers(_allMarkers); 
+          
+          // Add live Google results for key categories
+          _addPlacesToMarkers(results[0], BitmapDescriptor.hueBlue, 'POLICE');
+          _addPlacesToMarkers(results[1], BitmapDescriptor.hueOrange, 'HOSPITAL');
+          _addPlacesToMarkers(results[2], BitmapDescriptor.hueGreen, 'SHELTER');
+          _addPlacesToMarkers(results[3], BitmapDescriptor.hueGreen, 'SHELTER');
+          
           _isLoading = false;
         });
       }
@@ -984,7 +1138,7 @@ class _LocationScreenState extends State<LocationScreen> {
     }
   }
 
-  void _addPlacesToMarkers(List<Map<String, dynamic>> places, double hue) {
+  void _addPlacesToMarkers(List<Map<String, dynamic>> places, double hue, String typeLabel) {
     for (var place in places) {
       final markerId = place['name'] + place['location'].toString();
       final m = Marker(
@@ -992,7 +1146,7 @@ class _LocationScreenState extends State<LocationScreen> {
         position: place['location'],
         infoWindow: InfoWindow(
           title: place['name'],
-          snippet: place['address'],
+          snippet: 'Type: $typeLabel | Address: ${place['address']}',
         ),
         icon: BitmapDescriptor.defaultMarkerWithHue(hue),
       );
@@ -1312,6 +1466,19 @@ class _LocationScreenState extends State<LocationScreen> {
                             letterSpacing: 0.5,
                           ),
                         ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _shareTrip,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: ST.outlineVariant.withOpacity(0.3)),
+                        ),
+                        child: const Icon(Icons.share_outlined, size: 16, color: ST.primary),
                       ),
                     ),
                     const SizedBox(width: 8),
