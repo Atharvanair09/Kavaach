@@ -20,6 +20,66 @@ class LocationScreen extends StatefulWidget {
 }
 
 class _LocationScreenState extends State<LocationScreen> {
+  // Vivid Map Style JSON
+  final String _mapStyle = '''
+  [
+    {
+      "featureType": "water",
+      "elementType": "geometry",
+      "stylers": [{"color": "#a2daf2"}]
+    },
+    {
+      "featureType": "landscape.man_made",
+      "elementType": "geometry",
+      "stylers": [{"color": "#f7f1df"}]
+    },
+    {
+      "featureType": "landscape.natural",
+      "elementType": "geometry",
+      "stylers": [{"color": "#d0e3b4"}]
+    },
+    {
+      "featureType": "poi.park",
+      "elementType": "geometry",
+      "stylers": [{"color": "#bde3cb"}]
+    },
+    {
+      "featureType": "poi.medical",
+      "elementType": "geometry",
+      "stylers": [{"color": "#fbd3da"}]
+    },
+    {
+      "featureType": "poi.business",
+      "stylers": [{"visibility": "on"}]
+    },
+    {
+      "featureType": "road.highway",
+      "elementType": "geometry.fill",
+      "stylers": [{"color": "#ffe15f"}]
+    },
+    {
+      "featureType": "road.highway",
+      "elementType": "geometry.stroke",
+      "stylers": [{"color": "#efd151"}]
+    },
+    {
+      "featureType": "road.arterial",
+      "elementType": "geometry.fill",
+      "stylers": [{"color": "#ffffff"}]
+    },
+    {
+      "featureType": "road.local",
+      "elementType": "geometry.fill",
+      "stylers": [{"color": "white"}, {"visibility": "on"}]
+    },
+    {
+      "featureType": "transit.station.airport",
+      "elementType": "geometry.fill",
+      "stylers": [{"color": "#cfb2db"}]
+    }
+  ]
+  ''';
+
   GoogleMapController? _mapController;
   LatLng _userPosition = const LatLng(28.6139, 77.2090); // Default placeholder
   bool _isLoading = true;
@@ -949,6 +1009,15 @@ class _LocationScreenState extends State<LocationScreen> {
   }
 
   void _showCategoryMarkers(String category) async {
+    if (_selectedCategory == category) {
+      setState(() {
+        _selectedCategory = null;
+        _markers = _buildNavigableMarkers(_allMarkers);
+        _closestVisible = null;
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _selectedCategory = category;
@@ -1131,6 +1200,21 @@ class _LocationScreenState extends State<LocationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Filter and sort safe havens for the carousel
+    final List<Marker> carouselMarkers = _markers.toList();
+    // Sort by distance if possible
+    carouselMarkers.sort((a, b) {
+      double distA = Geolocator.distanceBetween(
+        _userPosition.latitude, _userPosition.longitude,
+        a.position.latitude, a.position.longitude,
+      );
+      double distB = Geolocator.distanceBetween(
+        _userPosition.latitude, _userPosition.longitude,
+        b.position.latitude, b.position.longitude,
+      );
+      return distA.compareTo(distB);
+    });
+
     return Scaffold(
       backgroundColor: ST.surface,
       body: Stack(
@@ -1146,16 +1230,58 @@ class _LocationScreenState extends State<LocationScreen> {
               markers: _markers,
               polylines: _polylines,
               onMapCreated: (controller) => _mapController = controller,
-              padding: EdgeInsets.only(
-                top: 130, 
-                bottom: MediaQuery.of(context).size.height * 0.44
-              ),
+              padding: const EdgeInsets.only(top: 140, bottom: 220),
               myLocationEnabled: true,
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
               mapToolbarEnabled: false,
             ),
           ),
+
+          // 2. Route to Safest Button (Top Right)
+          Positioned(
+            top: 60,
+            right: 20,
+            child: GestureDetector(
+              onTap: () {
+                if (carouselMarkers.isNotEmpty) {
+                  final best = carouselMarkers.first;
+                  _drawRouteOnMap(best.position, best.infoWindow.title ?? 'Safest Zone');
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D67FF), // Vibrant blue from image
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0D67FF).withOpacity(0.3),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.directions_run, color: Colors.white, size: 20),
+                    SizedBox(width: 10),
+                    Text(
+                      'Route to Safest',
+                      style: TextStyle(
+                        fontFamily: 'Rockwell',
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
           
           // 2. Route loading overlay (small spinner, not full-screen)
           if (_isRouteLoading)
@@ -1277,385 +1403,253 @@ class _LocationScreenState extends State<LocationScreen> {
               ),
             ),
 
-          // 4. GPS loading overlay (centered on visible map area)
-          if (_isLoading)
-            Positioned(
-              top: 0, left: 0, right: 0,
-              bottom: MediaQuery.of(context).size.height * _sheetExtent,
-              child: Container(
-                color: Colors.white60,
-                child: const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(strokeWidth: 2.5),
-                      SizedBox(height: 12),
-                      Text('SYNCHRONIZING GPS...', 
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.5, color: ST.primary)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-          // 3. Floating User Location Button
+          // 3. Bottom Category Buttons
           Positioned(
-            right: 16,
-            bottom: (MediaQuery.of(context).size.height * _sheetExtent) + 20,
-            child: GestureDetector(
-              onTap: _determinePosition,
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+            bottom: 110,
+            left: 20,
+            right: 20,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _FilterChip(
+                  label: 'Police',
+                  icon: Icons.local_police,
+                  isSelected: _selectedCategory == 'Police Station',
+                  activeColor: const Color(0xFF0D67FF),
+                  onTap: () => _showCategoryMarkers('Police Station'),
                 ),
-                child: const Icon(Icons.my_location,
-                    color: ST.primary, size: 22),
-              ),
+                _FilterChip(
+                  label: 'Hospitals',
+                  icon: Icons.local_hospital,
+                  isSelected: _selectedCategory == 'Hospital',
+                  activeColor: const Color(0xFFDC2626),
+                  onTap: () => _showCategoryMarkers('Hospital'),
+                ),
+                _FilterChip(
+                  label: 'Shelters',
+                  icon: Icons.shield,
+                  isSelected: _selectedCategory == 'Safe Shelter',
+                  activeColor: const Color(0xFF10B981),
+                  onTap: () => _showCategoryMarkers('Safe Shelter'),
+                ),
+              ],
             ),
           ),
 
-          // 4. Draggable Content Sheet
-          NotificationListener<DraggableScrollableNotification>(
-            onNotification: (notification) {
-              setState(() {
-                _sheetExtent = notification.extent;
-              });
-              return true;
-            },
-            child: DraggableScrollableSheet(
-              initialChildSize: 0.42,
-              minChildSize: 0.28,
-              maxChildSize: 0.9,
-              builder: (context, scrollController) {
-              return Container(
-                decoration: const BoxDecoration(
-                  color: ST.surfaceContainerLowest,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0x1F171C1F),
-                      blurRadius: 40,
-                      offset: Offset(0, -10),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    // Grabber Handle
-                    Center(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: ST.outlineVariant.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    
-                    // Main Scrollable Content
-                    Expanded(
-                      child: SingleChildScrollView(
-                        controller: scrollController,
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Safe Havens Nearby',
-                                      style: TextStyle(
-                                        fontFamily: 'Rockwell',
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 26,
-                                        color: ST.onSurface,
-                                        height: 1.1,
-                                      ),
-                                    ),
-                                    SizedBox(height: 6),
-                                    Text(
-                                      'Verifying secure locations\nwithin your radius',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: ST.onSurfaceVariant,
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const ActiveScanBadge(),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    _CategoryCard(
-                                      icon: Icons.local_police_outlined,
-                                      title: 'Police',
-                                      subtitle: 'STATION',
-                                      color: ST.primary,
-                                      isSelected: _selectedCategory == 'Police Station',
-                                      onTap: () {
-                                        if (_selectedCategory == 'Police Station') {
-                                          setState(() {
-                                            _selectedCategory = null;
-                                            _markers = _buildNavigableMarkers(_allMarkers);
-                                          });
-                                        } else {
-                                          _showCategoryMarkers('Police Station');
-                                        }
-                                      },
-                                    ),
-                                    const SizedBox(width: 12),
-                                    _CategoryCard(
-                                      icon: Icons.shield_outlined,
-                                      title: 'Shelter',
-                                      subtitle: 'SAFE HAVEN',
-                                      color: ST.tertiary,
-                                      isSelected: _selectedCategory == 'Safe Shelter',
-                                      onTap: () {
-                                        if (_selectedCategory == 'Safe Shelter') {
-                                          setState(() {
-                                            _selectedCategory = null;
-                                            _markers = _buildNavigableMarkers(_allMarkers);
-                                          });
-                                        } else {
-                                          _showCategoryMarkers('Safe Shelter');
-                                        }
-                                      },
-                                    ),
-                                    const SizedBox(width: 12),
-                                    _CategoryCard(
-                                      icon: Icons.local_hospital_outlined,
-                                      title: 'Hospital',
-                                      subtitle: 'MEDICAL',
-                                      color: ST.secondary,
-                                      isSelected: _selectedCategory == 'Hospital',
-                                      onTap: () {
-                                        if (_selectedCategory == 'Hospital') {
-                                          setState(() {
-                                            _selectedCategory = null;
-                                            _markers = _buildNavigableMarkers(_allMarkers);
-                                          });
-                                        } else {
-                                          _showCategoryMarkers('Hospital');
-                                        }
-                                      },
-                                    ),
-                                  ],
-                                ),
-                            
-                            // Bottom Action Area
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 20),
-                              child: Column(
-                                children: [
-                                  GestureDetector(
-                                    onTap: () {
-                                      if (_isSharingLocation) {
-                                        _stopSafeJourney();
-                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Safe Journey Stopped')));
-                                      } else {
-                                        _showCheckInConfigDialog();
-                                      }
-                                    },
-                                    child: Container(
-                                      height: 64,
-                                      decoration: BoxDecoration(
-                                        color: _isSharingLocation ? const Color(0xFFDC2626) : ST.primary,
-                                        borderRadius: ST.radiusSm,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: (_isSharingLocation ? const Color(0xFFDC2626) : ST.primary).withOpacity(0.35),
-                                            blurRadius: 40,
-                                            offset: const Offset(0, 12),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            _isSharingLocation ? Icons.stop_circle_outlined : Icons.shield_moon,
-                                            color: Colors.white, 
-                                            size: 24
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Text(
-                                            _isSharingLocation ? 'END JOURNEY' : 'START SAFE JOURNEY',
-                                            style: const TextStyle(
-                                              fontFamily: 'Bernard MT Condensed',
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 16,
-                                              color: Colors.white,
-                                              letterSpacing: 1.0,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  GestureDetector(
-                                    onTap: () {
-                                      if (_closestVisible != null) {
-                                        _drawRouteOnMap(
-                                          _closestVisible!.position,
-                                          _closestVisible!.infoWindow.title ?? 'Destination',
-                                        );
-                                      } else {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Select a category first to find the nearest safe haven.'),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    child: Container(
-                                      height: 54,
-                                      decoration: BoxDecoration(
-                                        color: _closestVisible != null
-                                            ? ST.primary.withOpacity(0.07)
-                                            : ST.surfaceContainerLowest,
-                                        borderRadius: ST.radiusSm,
-                                        border: Border.all(
-                                          color: _closestVisible != null
-                                              ? ST.primary.withOpacity(0.3)
-                                              : ST.outlineVariant.withOpacity(0.5),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.navigation_outlined,
-                                            color: _closestVisible != null ? ST.primary : ST.onSurface,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Text(
-                                            'Navigate to Closest',
-                                            style: TextStyle(
-                                              fontFamily: 'Rockwell',
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                              color: _closestVisible != null ? ST.primary : ST.onSurface,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    _isSharingLocation 
-                                        ? 'LIVE LOCATION IS CURRENTLY BROADCASTING TO TRUSTED CONTACTS'
-                                        : 'LOCATION PING IS OFF. TAP SHARE TO BROADCAST IN AN EMERGENCY.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      letterSpacing: 1,
-                                      color: _isSharingLocation ? const Color(0xFFDC2626) : ST.onSurfaceVariant.withOpacity(0.5),
-                                      fontWeight: _isSharingLocation ? FontWeight.bold : FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+          // Search Button (Floating)
+          Positioned(
+            bottom: 170,
+            right: 20,
+            child: FloatingActionButton(
+              heroTag: 'search_fab',
+              onPressed: _showCustomDestinationSearch,
+              backgroundColor: Colors.white,
+              elevation: 4,
+              child: const Icon(Icons.search, color: ST.primary),
+            ),
+          ),
+          
+          // GPS Refresh
+          Positioned(
+            bottom: 170,
+            left: 20,
+            child: FloatingActionButton(
+              heroTag: 'gps_fab',
+              mini: true,
+              onPressed: _determinePosition,
+              backgroundColor: Colors.white,
+              elevation: 4,
+              child: const Icon(Icons.my_location, color: ST.primary, size: 18),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final Color activeColor;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.activeColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected ? activeColor.withOpacity(0.3) : Colors.black.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          border: Border.all(
+            color: isSelected ? activeColor : Colors.grey.shade200,
+            width: 1,
           ),
         ),
-      ],
-    ),
-  );
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isSelected ? Colors.white : activeColor,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : const Color(0xFF1E293B),
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-  // Vivid Map Style JSON
-  final String _mapStyle = '''
-  [
-    {
-      "featureType": "water",
-      "elementType": "geometry",
-      "stylers": [{"color": "#a2daf2"}]
-    },
-    {
-      "featureType": "landscape.man_made",
-      "elementType": "geometry",
-      "stylers": [{"color": "#f7f1df"}]
-    },
-    {
-      "featureType": "landscape.natural",
-      "elementType": "geometry",
-      "stylers": [{"color": "#d0e3b4"}]
-    },
-    {
-      "featureType": "poi.park",
-      "elementType": "geometry",
-      "stylers": [{"color": "#bde3cb"}]
-    },
-    {
-      "featureType": "poi.medical",
-      "elementType": "geometry",
-      "stylers": [{"color": "#fbd3da"}]
-    },
-    {
-      "featureType": "poi.business",
-      "stylers": [{"visibility": "on"}]
-    },
-    {
-      "featureType": "road.highway",
-      "elementType": "geometry.fill",
-      "stylers": [{"color": "#ffe15f"}]
-    },
-    {
-      "featureType": "road.highway",
-      "elementType": "geometry.stroke",
-      "stylers": [{"color": "#efd151"}]
-    },
-    {
-      "featureType": "road.arterial",
-      "elementType": "geometry.fill",
-      "stylers": [{"color": "#ffffff"}]
-    },
-    {
-      "featureType": "road.local",
-      "elementType": "geometry.fill",
-      "stylers": [{"color": "white"}, {"visibility": "on"}]
-    },
-    {
-      "featureType": "transit.station.airport",
-      "elementType": "geometry.fill",
-      "stylers": [{"color": "#cfb2db"}]
-    }
-  ]
-  ''';
+class _SafeZoneCard extends StatelessWidget {
+  final String title;
+  final String distance;
+  final String description;
+  final IconData icon;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  const _SafeZoneCard({
+    required this.title,
+    required this.distance,
+    required this.description,
+    required this.icon,
+    required this.iconColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: iconColor, size: 22),
+                ),
+                Text(
+                  distance,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.grey.shade400,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Text(
+              title,
+              style: const TextStyle(
+                fontFamily: 'Rockwell',
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+                color: Color(0xFF1E293B),
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade500,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Text(
+                  'HIGHLY SECURE',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: iconColor,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '•',
+                  style: TextStyle(color: Colors.grey.shade300, fontSize: 10),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'OPEN NOW',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF10B981),
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+
 
 class ActiveScanBadge extends StatefulWidget {
   const ActiveScanBadge({super.key});
