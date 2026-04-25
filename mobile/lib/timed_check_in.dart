@@ -289,7 +289,7 @@ class _TimedCheckInScreenState extends State<TimedCheckInScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refresh();
+    if (state == AppLifecycleState.resumed) _restore();
   }
 
   @override
@@ -415,7 +415,7 @@ class _TimedCheckInScreenState extends State<TimedCheckInScreen>
   Future<void> _clearAll() async {
     final prefs = await _prefs;
     await prefs.remove(_Keys.cycleEndMs);
-    await prefs.remove(_Keys.cycleTotalSeconds);
+    // DO NOT remove cycleTotalSeconds — we want to persist the user's preferred duration
     await prefs.setBool(_Keys.isLooping, false);
     await prefs.remove(_Keys.confirmedThisCycle);
     await prefs.remove(_Keys.notif5m);
@@ -501,7 +501,7 @@ class _TimedCheckInScreenState extends State<TimedCheckInScreen>
 
   void _startLoop(int durationSeconds) async {
     // Safety check for duration
-    if (durationSeconds < 60) durationSeconds = 1800; // Default to 30m if invalid
+    if (durationSeconds < 30) durationSeconds = 1800; // Default to 30m if invalid (too small)
 
     try {
       final endTime = DateTime.now().add(Duration(seconds: durationSeconds));
