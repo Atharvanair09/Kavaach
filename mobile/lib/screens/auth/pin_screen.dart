@@ -8,7 +8,7 @@ import '../fake_app/fake_app_screen.dart';
 import 'login_screen.dart';
 import '../../services/emergency_contact_service.dart';
 import '../../services/location_service.dart';
-
+import 'package:local_auth/local_auth.dart';
 
 class PinScreen extends StatefulWidget {
   const PinScreen({super.key});
@@ -20,6 +20,8 @@ class PinScreen extends StatefulWidget {
 class _PinScreenState extends State<PinScreen> {
   List<String> pin = [];
   bool _biometricEnabled = false;
+  final LocalAuthentication _auth = LocalAuthentication();
+  bool _isAuthenticating = false;
 
   @override
   void initState() {
@@ -30,6 +32,45 @@ class _PinScreenState extends State<PinScreen> {
   Future<void> _loadBiometricStatus() async {
     final enabled = await AuthService.isBiometricEnabled();
     if (mounted) setState(() => _biometricEnabled = enabled);
+
+    if (enabled) {
+      // Allow Activity complete initialization and avoid rendering stall
+      Future.delayed(const Duration(milliseconds: 350), () {
+        if (mounted) _promptBiometric();
+      });
+    }
+  }
+
+  Future<void> _promptBiometric() async {
+    if (_isAuthenticating) return;
+    
+    try {
+      _isAuthenticating = true;
+      final canAuthenticateWithBiometrics = await _auth.canCheckBiometrics;
+      final canAuthenticate = canAuthenticateWithBiometrics || await _auth.isDeviceSupported();
+
+      if (!canAuthenticate) {
+        _isAuthenticating = false;
+        return;
+      }
+
+      final didAuthenticate = await _auth.authenticate(
+        localizedReason: 'Please authenticate to unlock SafeText',
+        biometricOnly: true,
+      );
+
+      if (didAuthenticate && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      } else {
+        _isAuthenticating = false;
+      }
+    } catch (e) {
+      debugPrint("Biometric error: $e");
+      _isAuthenticating = false;
+    }
   }
 
   void _onDigit(String d) {
@@ -369,50 +410,6 @@ class _PinScreenState extends State<PinScreen> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       SosButton(onConfirmedSOS: () => _triggerSOS(context)),
-                      if (_biometricEnabled) ...[
-                        const SizedBox(width: 44),
-                        // Biometric
-                        Column(
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                // Simulate successful biometric unlock for now
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const HomeScreen()),
-                                );
-                              },
-                              child: Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  color: ST.primary,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: ST.primary.withOpacity(0.4),
-                                      blurRadius: 16,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(Icons.face,
-                                    color: Colors.white, size: 28),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Tap for Biometric\nEntry',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: ST.secondary,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
                     ],
                   ),
                 ),

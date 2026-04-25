@@ -411,36 +411,10 @@ class OnboardingScreen3 extends StatelessWidget {
               child: Column(
                 children: [
                   // Logo
-                  Column(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: ST.surfaceContainerLowest,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
-                              blurRadius: 16,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.shield_outlined,
-                            color: ST.primary, size: 24),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'SAFETEXT',
-                        style: TextStyle(
-                          fontFamily: 'Haettenschweiler',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 10,
-                          letterSpacing: 2.5,
-                          color: ST.primary,
-                        ),
-                      ),
-                    ],
+                  Image.asset(
+                    'assets/safetext_logo.png',
+                    height: 90,
+                    fit: BoxFit.contain,
                   ),
                   const SizedBox(height: 24),
                   // Feature card
@@ -504,17 +478,6 @@ class OnboardingScreen3 extends StatelessWidget {
                   // Footer
                   Column(
                     children: [
-                      const Text(
-                        'Your Safe Place',
-                        style: TextStyle(
-                          fontFamily: 'Rockwell',
-                          fontStyle: FontStyle.italic,
-                          fontSize: 40,
-                          color: ST.primary,
-                          height: 1.1,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                       GestureDetector(
                         onTap: () => Navigator.push(
                           context,
@@ -562,12 +525,19 @@ class OnboardingScreen3 extends StatelessWidget {
                           MaterialPageRoute(
                               builder: (_) => const LoginScreen()),
                         ),
+                        style: TextButton.styleFrom(
+                          backgroundColor: ST.primaryFixed,
+                          minimumSize: const Size(double.infinity, 52),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: ST.radiusFull,
+                          ),
+                        ),
                         child: const Text(
                           'Restore existing account',
                           style: TextStyle(
-                            color: ST.onSurfaceVariant,
+                            color: ST.primary,
                             fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
