@@ -439,10 +439,10 @@ class _HomeContentState extends State<_HomeContent> {
               // 1. Security Protocol Status Card
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(40),
+                  borderRadius: BorderRadius.circular(32),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.blue.withOpacity(0.08),
@@ -454,7 +454,7 @@ class _HomeContentState extends State<_HomeContent> {
                 child: Column(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFEBF2FF),
                         shape: BoxShape.circle,
@@ -462,20 +462,20 @@ class _HomeContentState extends State<_HomeContent> {
                       child: const Icon(
                         Icons.verified_user,
                         color: Color(0xFF0052D3),
-                        size: 32,
+                        size: 24,
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     Text(
                       'SECURITY PROTOCOL',
                       style: GoogleFonts.plusJakartaSans(
                         color: const Color(0xFF94A3B8),
-                        fontSize: 13,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Text(
                       'Current Status:',
                       style: GoogleFonts.plusJakartaSans(
@@ -492,15 +492,15 @@ class _HomeContentState extends State<_HomeContent> {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     Text(
                       'Your connection is encrypted and\nyour circle is active.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.plusJakartaSans(
                         color: const Color(0xFF64748B),
-                        fontSize: 15,
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        height: 1.6,
+                        height: 1.5,
                       ),
                     ),
                   ],

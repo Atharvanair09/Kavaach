@@ -66,7 +66,7 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
   // Filter Active SOS and Missed Check-ins
   const activeIncidentMarkers = incidents.filter(i => 
     (i.status === "Pending" || i.status === "In Progress") && 
-    (i.category === "Emergency" || i.text?.toLowerCase().includes("missed check-in")) &&
+    (i.category === "Emergency" || i.category === "Missed Check-in" || i.type === "missed_checkin") &&
     i.lat && i.lng
   );
 
@@ -196,72 +196,80 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
               </Marker>
               
               {/* Dynamic Incident Markers (SOS / Missed Check-ins) */}
-              {activeIncidentMarkers.map(incident => (
-                <Marker 
-                  key={incident.id} 
-                  position={[incident.lat, incident.lng]}
-                  icon={L.divIcon({
-                    className: 'custom-incident-marker',
-                    html: `
-                      <div style="filter: drop-shadow(0px 4px 6px rgba(239, 68, 68, 0.5));">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="#ef4444" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                          <circle cx="12" cy="10" r="3" fill="white"></circle>
-                        </svg>
-                      </div>
-                    `,
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 32],
-                    popupAnchor: [0, -32]
-                  })}
-                >
-                  <Popup>
-                    <div className="popup-content">
-                      <strong style={{color: '#ef4444'}}>
-                        {incident.category === "Emergency" ? "🚨 SOS ALERT" : "⚠️ MISSED CHECK-IN"}
-                      </strong><br/>
-                      <span>{incident.text || "No details available"}</span><br/>
-                      <small>ID: {incident.id.substring(0, 8)}</small>
-                      
-                      {incident.category === "Emergency" && (
-                        <div style={{ marginTop: '10px' }}>
-                          {incident.assignedTo ? (
-                            <div style={{ 
-                              background: '#3b82f6', 
-                              color: 'white', 
-                              padding: '6px 12px', 
-                              borderRadius: '4px', 
-                              fontSize: '11px',
-                              fontWeight: 'bold',
-                              textAlign: 'center'
-                            }}>
-                              ASSIGNED: {patrolUnits.find(p => p.id === incident.assignedTo)?.name || 'Processing...'}
-                            </div>
-                          ) : (
-                            <Link 
-                              to={`/responders?caseId=${incident.id}`} 
-                              style={{
-                                background: '#ef4444', 
+              {activeIncidentMarkers.map(incident => {
+                const isMissed = incident.type === 'missed_checkin' || 
+                                 incident.category === 'Missed Check-in' || 
+                                 incident.text?.toLowerCase().includes("missed");
+                const markerColor = isMissed ? '#10b981' : '#ef4444';
+                const shadowColor = isMissed ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)';
+                
+                return (
+                  <Marker 
+                    key={incident.id} 
+                    position={[incident.lat, incident.lng]}
+                    icon={L.divIcon({
+                      className: 'custom-incident-marker',
+                      html: `
+                        <div style="filter: drop-shadow(0px 4px 6px ${shadowColor});">
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="${markerColor}" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3" fill="white"></circle>
+                          </svg>
+                        </div>
+                      `,
+                      iconSize: [32, 32],
+                      iconAnchor: [16, 32],
+                      popupAnchor: [0, -32]
+                    })}
+                  >
+                    <Popup>
+                      <div className="popup-content">
+                        <strong style={{color: markerColor}}>
+                          {isMissed ? "✅ CHECK-IN MISSED" : "🚨 SOS ALERT"}
+                        </strong><br/>
+                        <span>{incident.text || "No details available"}</span><br/>
+                        <small>ID: {incident.id.substring(0, 8)}</small>
+                        
+                        {!isMissed && (
+                          <div style={{ marginTop: '10px' }}>
+                            {incident.assignedTo ? (
+                              <div style={{ 
+                                background: '#3b82f6', 
                                 color: 'white', 
                                 padding: '6px 12px', 
                                 borderRadius: '4px', 
-                                textDecoration: 'none', 
-                                fontSize: '12px',
+                                fontSize: '11px',
                                 fontWeight: 'bold',
-                                display: 'inline-block',
-                                textAlign: 'center',
-                                width: '100%'
-                              }}
-                            >
-                              DISPATCH RESPONDERS
-                            </Link>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
+                                textAlign: 'center'
+                              }}>
+                                ASSIGNED: {patrolUnits.find(p => p.id === incident.assignedTo)?.name || 'Processing...'}
+                              </div>
+                            ) : (
+                              <Link 
+                                to={`/responders?caseId=${incident.id}`} 
+                                style={{
+                                  background: '#ef4444', 
+                                  color: 'white', 
+                                  padding: '6px 12px', 
+                                  borderRadius: '4px', 
+                                  textDecoration: 'none', 
+                                  fontSize: '12px',
+                                  fontWeight: 'bold',
+                                  display: 'inline-block',
+                                  textAlign: 'center',
+                                  width: '100%'
+                                }}
+                              >
+                                DISPATCH RESPONDERS
+                              </Link>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
 
               {/* Dynamic Responder Markers */}
               {responderMarkers.map(responder => (

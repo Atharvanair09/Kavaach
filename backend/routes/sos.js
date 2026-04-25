@@ -10,14 +10,15 @@ const sendSMS = require("../utils/sendSMS");
  * Fetches emergency contacts from Firestore and sends SMS to each.
  */
 router.post("/", async (req, res) => {
-  const { userId, location, lat: topLat, lng: topLng, message } = req.body;
-
+  const { userId, location, lat: topLat, lng: topLng, message, type } = req.body;
+  
   // Support both { location: {lat, lng} } and legacy { lat, lng }
   const lat = location?.lat ?? topLat;
   const lng = location?.lng ?? topLng;
 
   console.log("🚨 SOS REQUEST RECEIVED");
   console.log("User ID:", userId);
+  console.log("Type:", type || "emergency");
   console.log("Location:", { lat, lng });
 
   // ── 0. Log SOS to Firestore Alerts Collection ──────────────────────────────
@@ -28,10 +29,11 @@ router.post("/", async (req, res) => {
         senderName: "Kavaach User", 
         location: { lat, lng },
         message: message || "Emergency! I need help.",
+        type: type || "emergency",
         timestamp: new Date(),
         status: "active",
       });
-      console.log("✅ SOS persistent log created in Firestore collection 'sos_alerts'.");
+      console.log(`✅ ${type || 'emergency'} persistent log created in Firestore collection 'sos_alerts'.`);
     } catch (err) {
       console.error("❌ Firestore SOS logging failed:", err.message);
     }

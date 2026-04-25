@@ -111,6 +111,7 @@ class EmergencyContactService {
     required double lng,
     String? userId,
     String message = 'Emergency! I need help.',
+    String type = 'emergency',
   }) async {
 
     final contacts = await fetchContacts();
@@ -126,6 +127,7 @@ class EmergencyContactService {
         if (userId != null || user?['email'] != null) 'userId': userId ?? user?['email'],
         'location': {'lat': lat, 'lng': lng},
         'message': message,
+        'type': type,
         'contacts': contacts.map((c) => c.toMap()).toList(),
       }),
     );

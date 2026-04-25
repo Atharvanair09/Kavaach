@@ -32,6 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Map<String, dynamic>? _user;
   bool _isLoading = true;
+  int _checkinDurationMinutes = 30;
 
   @override
   void initState() {
@@ -40,6 +41,95 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadDecoyPinStatus();
     _loadPinStatus();
     _loadBiometricStatus();
+    _loadCheckinDuration();
+  }
+
+  Future<void> _loadCheckinDuration() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getInt('ci_cycle_total_seconds');
+    if (stored != null && mounted) {
+      setState(() => _checkinDurationMinutes = stored ~/ 60);
+    }
+  }
+
+  void _showCheckinTimerSheet(BuildContext context) {
+    int selected = _checkinDurationMinutes;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding: const EdgeInsets.fromLTRB(28, 16, 28, 36),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(height: 24),
+              const Text('Check-in Cycle Duration',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A))),
+              const SizedBox(height: 8),
+              const Text(
+                'The check-in timer loops continuously.\nYou confirm safety in the last 2 minutes.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+              const SizedBox(height: 24),
+              Wrap(
+                spacing: 12, runSpacing: 12,
+                alignment: WrapAlignment.center,
+                children: [1, 15, 30, 60, 90, 120].map((mins) {
+                  final isSel = selected == mins;
+                  return GestureDetector(
+                    onTap: () => setModal(() => selected = mins),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: isSel ? ST.primary : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(16)),
+                      child: Text('$mins min',
+                        style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700,
+                          color: isSel ? Colors.white : const Color(0xFF475569))),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ST.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24))),
+                  onPressed: () async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setInt('ci_cycle_total_seconds', selected * 60);
+                    if (mounted) {
+                      setState(() => _checkinDurationMinutes = selected);
+                    }
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  },
+                  child: const Text('Save Duration',
+                    style: TextStyle(color: Colors.white, fontSize: 16,
+                        fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadBiometricStatus() async {
@@ -298,15 +388,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   iconColor: ST.primary,
                   label: 'Trusted Circle',
                   subtitle: '${_trustedContacts.length} contacts added',
-                  onTap: () {}, // Removed popup entirely
+                  onTap: () {}, 
                 ),
-
                 _buildNavRow(
                   icon: Icons.timer_outlined,
                   iconBg: const Color(0xFFEAF3DE),
                   iconColor: const Color(0xFF3B6D11),
                   label: 'Check-in Timer',
-                  subtitle: 'Default: 30 min',
+                  subtitle: 'Cycle: $_checkinDurationMinutes min',
                   onTap: () => _showCheckinTimerSheet(context),
                 ),
                 _buildNavRow(
@@ -920,115 +1009,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showCheckinTimerSheet(BuildContext context) {
-    final options = ['15 min', '30 min', '1 hour', '2 hours', '4 hours'];
-    String selected = '30 min';
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: ST.surfaceContainerLowest,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setS) => Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: ST.outlineVariant,
-                    borderRadius: ST.radiusFull,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Check-in Timer',
-                style: TextStyle(
-                  fontFamily: 'Rockwell',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 22,
-                  color: ST.onSurface,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Alert contacts if you don\'t check in within this time.',
-                style: TextStyle(fontSize: 13, color: ST.onSurfaceVariant),
-              ),
-              const SizedBox(height: 20),
-              ...options.map((opt) => InkWell(
-                onTap: () => setS(() => selected = opt),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: selected == opt
-                        ? ST.primaryFixed
-                        : ST.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: selected == opt
-                          ? ST.primary
-                          : Colors.transparent,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        opt,
-                        style: TextStyle(
-                          fontFamily: 'Bernard MT Condensed',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          color: selected == opt
-                              ? ST.primary
-                              : ST.onSurface,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (selected == opt)
-                        const Icon(Icons.check_circle,
-                            color: ST.primary, size: 18),
-                    ],
-                  ),
-                ),
-              )),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ST.primary,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: ST.radiusFull),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'Save',
-                    style: TextStyle(
-                      fontFamily: 'Bernard MT Condensed',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   void _showAutoDeleteSheet(BuildContext context) {
     final options = ['Off', 'After 1 hour', 'After 24 hours', 'After 7 days'];

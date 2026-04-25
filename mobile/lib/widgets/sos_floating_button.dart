@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -193,153 +192,117 @@ class _SOSFloatingButtonState extends State<SOSFloatingButton> with TickerProvid
       offset: Offset(_isMinimized ? 10 : 0, 0),
       child: GestureDetector(
         onLongPressStart: _onLongPressStart,
-      onLongPressEnd: _onLongPressEnd,
-      onTap: () {
-        if (_isSOSActive) {
-          _lastInteractionTime = _secondsElapsed; // Register interaction
-          if (_isMinimized) {
-            setState(() {
-              _isMinimized = false;
-            });
-            HapticFeedback.lightImpact();
+        onLongPressEnd: _onLongPressEnd,
+        onTap: () {
+          if (_isSOSActive) {
+            _lastInteractionTime = _secondsElapsed;
+            if (_isMinimized) {
+              setState(() => _isMinimized = false);
+              HapticFeedback.lightImpact();
+            } else {
+              _showStopSOSConfirmation();
+            }
           } else {
-            _showStopSOSConfirmation();
+            HapticFeedback.lightImpact();
           }
-        } else {
-          HapticFeedback.lightImpact();
-        }
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        width: _isMinimized ? 60.0 : outerSize,
-        height: _isMinimized ? 80.0 : outerSize,
-        color: Colors.transparent, // Ensure the entire 60px width is tappable
-        child: Stack(
-          alignment: _isMinimized ? Alignment.centerRight : Alignment.center,
-          children: [
-            // Rounded Rectangle Progress Ring
-            if (_isPressing)
-              CustomPaint(
-                size: const Size(size + 12, size + 12),
-                painter: RoundedRectProgressPainter(
-                  progress: _progress,
-                  color: const Color(0xFFEF4444),
-                  strokeWidth: 6,
-                  borderRadius: 28,
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          width: _isMinimized ? 60.0 : outerSize,
+          height: _isMinimized ? 80.0 : outerSize,
+          color: Colors.transparent,
+          child: Stack(
+            alignment: _isMinimized ? Alignment.centerRight : Alignment.center,
+            children: [
+              // Button body with left-to-right fill animation
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width: _isMinimized ? 12.0 : size,
+                height: _isMinimized ? 80.0 : size,
+                decoration: BoxDecoration(
+                  color: _isSOSActive
+                      ? const Color(0xFFEF4444)
+                      : const Color(0xFF0052D3),
+                  borderRadius: BorderRadius.circular(_isMinimized ? 6 : 24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (_isSOSActive
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF0052D3))
+                          .withOpacity(0.4),
+                      blurRadius: _isMinimized ? 10 : 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-              ),
-            
-            // Button Body
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: _isMinimized ? 12.0 : size,
-              height: _isMinimized ? 80.0 : size,
-              decoration: BoxDecoration(
-                color: _isSOSActive ? const Color(0xFFEF4444) : const Color(0xFF0052D3),
-                borderRadius: BorderRadius.circular(_isMinimized ? 6 : 24),
-                boxShadow: [
-                  BoxShadow(
-                    color: (_isSOSActive ? const Color(0xFFEF4444) : const Color(0xFF0052D3)).withOpacity(0.4),
-                    blurRadius: _isMinimized ? 10 : 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(_isMinimized ? 6 : 24),
+                  child: Stack(
                     children: [
-                      if (!_isMinimized) ...[
-                        if (_isSOSActive) ...[
-                          const Icon(Icons.emergency_share, color: Colors.white, size: 20),
-                          const SizedBox(height: 2),
-                          Text(
-                            _formatTime(_secondsElapsed),
-                            style: GoogleFonts.plusJakartaSans(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
+                      // Red fill sweeping left → right while pressing
+                      if (_isPressing && !_isMinimized)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: FractionallySizedBox(
+                            widthFactor: _progress.clamp(0.0, 1.0),
+                            heightFactor: 1.0,
+                            child: Container(
+                              color: const Color(0xFF991B1B).withOpacity(0.3),
                             ),
                           ),
-                        ] else ...[
-                          Text(
-                            'SOS',
-                            style: GoogleFonts.plusJakartaSans(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.0,
-                            ),
+                        ),
+
+                      // Icon / label on top
+                      Center(
+                        child: SingleChildScrollView(
+                          physics: const NeverScrollableScrollPhysics(),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (!_isMinimized) ...[
+                                if (_isSOSActive) ...[
+                                  const Icon(Icons.emergency_share,
+                                      color: Colors.white, size: 20),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _formatTime(_secondsElapsed),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ] else ...[
+                                  Text(
+                                    'SOS',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.0,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ],
                           ),
-                        ],
-                      ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   String _formatTime(int seconds) {
     int mins = seconds ~/ 60;
     int secs = seconds % 60;
     return "${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}";
-  }
-}
-
-class RoundedRectProgressPainter extends CustomPainter {
-  final double progress;
-  final Color color;
-  final double strokeWidth;
-  final double borderRadius;
-
-  RoundedRectProgressPainter({
-    required this.progress,
-    required this.color,
-    required this.strokeWidth,
-    required this.borderRadius,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color.withOpacity(0.1)
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final rect = Rect.fromLTWH(strokeWidth / 2, strokeWidth / 2, size.width - strokeWidth, size.height - strokeWidth);
-    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(borderRadius));
-
-    // Draw background path
-    canvas.drawRRect(rrect, paint);
-
-    // Draw progress path
-    final progressPaint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final path = Path()
-      ..addRRect(rrect);
-
-    final pathMetrics = path.computeMetrics().first;
-    final extractPath = pathMetrics.extractPath(0.0, pathMetrics.length * progress);
-    
-    canvas.drawPath(extractPath, progressPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant RoundedRectProgressPainter oldDelegate) {
-    return oldDelegate.progress != progress;
   }
 }

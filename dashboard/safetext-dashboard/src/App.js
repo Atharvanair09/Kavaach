@@ -249,23 +249,29 @@ function App() {
       orderBy("timestamp", "desc")
     );
     const unsub2 = onSnapshot(q2, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        collectionType: "sos_alerts",
-        ...doc.data(),
-        text: doc.data().message || "EMERGENCY SOS via App",
-        category: "Emergency",
-        intent: "Emergency",
-        threat_level: "HIGH",
-        priority: "High",
-        status: doc.data().status === "active" ? "Pending" : (doc.data().status || "Pending"),
-        lat: doc.data().location?.lat || 0,
-        lng: doc.data().location?.lng || 0,
-        timestamp: doc.data().timestamp?.toDate 
-          ? doc.data().timestamp.toDate().toLocaleTimeString() 
-          : new Date().toLocaleTimeString(),
-        _rawTime: doc.data().timestamp?.toDate ? doc.data().timestamp.toDate().getTime() : 0
-      }));
+      const data = snapshot.docs.map(doc => {
+        const type = doc.data().type || "emergency";
+        const isMissed = type === 'missed_checkin' || (doc.data().message || "").toLowerCase().includes("missed");
+        
+        return {
+          id: doc.id,
+          collectionType: "sos_alerts",
+          ...doc.data(),
+          text: doc.data().message || "EMERGENCY SOS via App",
+          type: type,
+          category: isMissed ? "Missed Check-in" : "Emergency",
+          intent: isMissed ? "Missed Check-in" : "Emergency",
+          threat_level: isMissed ? "LOW" : "HIGH",
+          priority: isMissed ? "Low" : "High",
+          status: doc.data().status === "active" ? "Pending" : (doc.data().status || "Pending"),
+          lat: doc.data().location?.lat || 0,
+          lng: doc.data().location?.lng || 0,
+          timestamp: doc.data().timestamp?.toDate 
+            ? doc.data().timestamp.toDate().toLocaleTimeString() 
+            : new Date().toLocaleTimeString(),
+          _rawTime: doc.data().timestamp?.toDate ? doc.data().timestamp.toDate().getTime() : 0
+        };
+      });
       setDbSosAlerts(data);
     });
 
