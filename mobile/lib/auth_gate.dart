@@ -27,7 +27,7 @@ class AuthGate extends StatelessWidget {
           return hasPin ? const PinScreen() : const HomeScreen(); 
         }
 
-        return OnboardingScreen1();
+        return const OnboardingScreen();
       },
     );
   }
