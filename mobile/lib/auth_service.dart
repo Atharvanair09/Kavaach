@@ -17,6 +17,17 @@ class AuthService {
   static const String _userKey = 'user_data';
   static const String _appPinKey = 'app_pin';
   static const String _decoyPinKey = 'decoy_pin';
+  static const String _biometricKey = 'biometric_enabled';
+
+  static Future<void> saveBiometricEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(await _scopedKey(_biometricKey), enabled);
+  }
+
+  static Future<bool> isBiometricEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(await _scopedKey(_biometricKey)) ?? false;
+  }
 
   static Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();

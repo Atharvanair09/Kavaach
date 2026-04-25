@@ -25,6 +25,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _silentAlerts = true;
   bool _checkinReminders = true;
   bool _enterPin = true;
+  bool _biometricEnabled = false;
 
   List<Map<String, String>> _trustedContacts = [
   ];
@@ -38,6 +39,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadUser();
     _loadDecoyPinStatus();
     _loadPinStatus();
+    _loadBiometricStatus();
+  }
+
+  Future<void> _loadBiometricStatus() async {
+    final enabled = await AuthService.isBiometricEnabled();
+    if (mounted) setState(() => _biometricEnabled = enabled);
   }
 
   Future<void> _loadPinStatus() async {
@@ -370,6 +377,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: 'Shake phone to send SOS',
                   value: _shakeToAlert,
                   onChanged: (v) => setState(() => _shakeToAlert = v),
+                ),
+                _buildToggleRow(
+                  icon: Icons.fingerprint,
+                  iconBg: const Color(0xFFFBEAF0),
+                  iconColor: const Color(0xFF993556),
+                  label: 'Biometric Encryption',
+                  subtitle: 'Encrypt your data using biometrics',
+                  value: _biometricEnabled,
+                  onChanged: (v) {
+                    AuthService.saveBiometricEnabled(v);
+                    setState(() => _biometricEnabled = v);
+                  },
                 ),
                 _buildDivider(),
                 _buildSectionHeader('Account'),

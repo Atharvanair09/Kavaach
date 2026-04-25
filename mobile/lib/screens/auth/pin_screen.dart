@@ -19,6 +19,18 @@ class PinScreen extends StatefulWidget {
 
 class _PinScreenState extends State<PinScreen> {
   List<String> pin = [];
+  bool _biometricEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricStatus();
+  }
+
+  Future<void> _loadBiometricStatus() async {
+    final enabled = await AuthService.isBiometricEnabled();
+    if (mounted) setState(() => _biometricEnabled = enabled);
+  }
 
   void _onDigit(String d) {
     if (pin.length < 4) {
@@ -291,16 +303,21 @@ class _PinScreenState extends State<PinScreen> {
                           children: List.generate(4, (i) {
                             final filled = i < pin.length;
                             return AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              margin:
-                              const EdgeInsets.symmetric(horizontal: 10),
-                              width: 14,
-                              height: 14,
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeOutBack,
+                              margin: const EdgeInsets.symmetric(horizontal: 10),
+                              width: filled ? 16 : 12,
+                              height: filled ? 16 : 12,
                               decoration: BoxDecoration(
-                                color: filled
-                                    ? ST.primary
-                                    : ST.outlineVariant,
+                                color: filled ? ST.primary : ST.outlineVariant.withOpacity(0.5),
                                 shape: BoxShape.circle,
+                                boxShadow: filled ? [
+                                  BoxShadow(
+                                    color: ST.primary.withOpacity(0.3),
+                                    blurRadius: 8,
+                                    spreadRadius: 2,
+                                  )
+                                ] : [],
                               ),
                             );
                           }),
@@ -331,21 +348,13 @@ class _PinScreenState extends State<PinScreen> {
                             _NumKey(
                                 label: '0',
                                 onTap: () => _onDigit('0')),
-                            GestureDetector(
-                              onTap: _onDelete,
-                              child: Container(
-                                width: 64,
-                                height: 64,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                ),
+                            _NumKey(
+                                onTap: _onDelete,
                                 child: const Icon(
                                   Icons.backspace_outlined,
                                   color: ST.primary,
                                   size: 28,
-                                ),
-                              ),
-                            ),
+                                )),
                           ],
                         ),
                       ],
@@ -353,48 +362,57 @@ class _PinScreenState extends State<PinScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Biometric + SOS side by side
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 48),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // SOS Button
                       SosButton(onConfirmedSOS: () => _triggerSOS(context)),
-                      const SizedBox(width: 44),
-                      // Biometric
-                      Column(
-                        children: [
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: ST.primary,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: ST.primary.withOpacity(0.4),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 4),
+                      if (_biometricEnabled) ...[
+                        const SizedBox(width: 44),
+                        // Biometric
+                        Column(
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                // Simulate successful biometric unlock for now
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                                );
+                              },
+                              child: Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: ST.primary,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: ST.primary.withOpacity(0.4),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                                child: const Icon(Icons.face,
+                                    color: Colors.white, size: 28),
+                              ),
                             ),
-                            child: const Icon(Icons.face,
-                                color: Colors.white, size: 28),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Tap for Biometric\nEntry',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: ST.secondary,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 12,
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Tap for Biometric\nEntry',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: ST.secondary,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -481,30 +499,55 @@ class _PinScreenState extends State<PinScreen> {
   }
 }
 
-class _NumKey extends StatelessWidget {
-  final String label;
+class _NumKey extends StatefulWidget {
+  final String? label;
+  final Widget? child;
   final VoidCallback onTap;
-  const _NumKey({required this.label, required this.onTap});
+  const _NumKey({this.label, this.child, required this.onTap});
+
+  @override
+  State<_NumKey> createState() => _NumKeyState();
+}
+
+class _NumKeyState extends State<_NumKey> {
+  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        widget.onTap();
+        HapticFeedback.lightImpact();
+      },
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
         width: 64,
         height: 64,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.transparent,
+          color: _isPressed 
+              ? ST.primary.withOpacity(0.12) 
+              : Colors.transparent,
+          border: Border.all(
+            color: _isPressed ? ST.primary.withOpacity(0.2) : Colors.transparent,
+            width: 1.5,
+          ),
         ),
         child: Center(
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontFamily: 'Bernard MT Condensed',
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              color: ST.onSurface,
+          child: AnimatedScale(
+            scale: _isPressed ? 0.9 : 1.0,
+            duration: const Duration(milliseconds: 100),
+            child: widget.child ?? Text(
+              widget.label ?? '',
+              style: const TextStyle(
+                fontFamily: 'Bernard MT Condensed',
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+                color: ST.onSurface,
+              ),
             ),
           ),
         ),
