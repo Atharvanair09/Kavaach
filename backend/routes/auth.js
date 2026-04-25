@@ -251,8 +251,8 @@ router.post("/update-profile", async (req, res) => {
   }
 });
 
-// --- Update Emergency Contacts Endpoint ---
 router.post("/update-contacts", async (req, res) => {
+  console.log("📥 [POST] /auth/update-contacts - Request Received", req.body);
   try {
     const { email, contacts } = req.body;
     
@@ -273,6 +273,20 @@ router.post("/update-contacts", async (req, res) => {
     };
     
     await storeUser(updatedUser);
+
+    // Explicitly update the "emergency_contacts" collection as well
+    if (db) {
+      try {
+        await db.collection("emergency_contacts").doc(email).set({
+          email: email,
+          userId: user.id,
+          contacts: contacts || []
+        }, { merge: true });
+        console.log(`Saved emergency_contacts for ${email} directly to 'emergency_contacts' collection.`);
+      } catch (e) {
+        console.error("Failed to save to emergency_contacts collection:", e);
+      }
+    }
 
     res.status(200).json({
       message: "Emergency contacts updated successfully",

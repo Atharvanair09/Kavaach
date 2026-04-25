@@ -7,6 +7,11 @@ import '../location/location_screen.dart';
 import '../fake_app/fake_app_screen.dart';
 import '../settings/settings_screen.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../auth_service.dart';
 import '../../services/location_service.dart';
 import '../../services/emergency_contact_service.dart';
@@ -77,6 +82,8 @@ class _HomeContent extends StatefulWidget {
 
 class _HomeContentState extends State<_HomeContent> {
   String _userName = "Member";
+  Map<String, dynamic>? _user;
+  List<Map<String, String>> _trustedContacts = [];
   Timer? _sosTimer;
   double _sosProgress = 0.0;
   bool _isSosActive = false;
@@ -92,9 +99,190 @@ class _HomeContentState extends State<_HomeContent> {
     final user = await AuthService.getUser();
     if (user != null && mounted) {
       setState(() {
+        _user = user;
         _userName = user['name']?.toString().split(" ")[0] ?? "Member";
       });
+      _loadTrustedContacts();
     }
+  }
+
+  Future<void> _loadTrustedContacts() async {
+    if (_user == null || _user!['email'] == null) return;
+    final cleanEmail = _user!['email'].toString().trim().toLowerCase();
+
+    // 1. Immediate Load from Local Storage
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localKey = 'emergency_contacts_local_$cleanEmail';
+      final cached = prefs.getString(localKey);
+      if (cached != null) {
+        final List<dynamic> decoded = jsonDecode(cached);
+        if (mounted) {
+          setState(() {
+            _trustedContacts = decoded.map((e) => Map<String, String>.from(e)).toList();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Local load error: $e');
+    }
+
+    // 2. Sync from Firestore
+    try {
+      // Check for contacts in user document first
+      DocumentSnapshot? userDoc;
+      final userId = _user!['_id']?.toString() ?? _user!['id']?.toString();
+      if (userId != null && userId.isNotEmpty && userId.length == 24) {
+        userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      }
+      if (userDoc == null || !userDoc.exists) {
+        userDoc = await FirebaseFirestore.instance.collection('users').doc(cleanEmail).get();
+      }
+
+      List<dynamic>? fetchedContacts;
+      if (userDoc.exists && userDoc.data() is Map) {
+        final data = userDoc.data() as Map<String, dynamic>;
+        fetchedContacts = data['emergencyContacts'];
+      }
+
+      // If not in user doc, check the dedicated emergency_contacts collection
+      if (fetchedContacts == null || fetchedContacts.isEmpty) {
+        final emergencyDoc = await FirebaseFirestore.instance.collection('emergency_contacts').doc(cleanEmail).get();
+        if (emergencyDoc.exists && emergencyDoc.data() is Map) {
+          final data = emergencyDoc.data() as Map<String, dynamic>;
+          fetchedContacts = data['contacts'];
+        }
+      }
+
+      if (fetchedContacts != null) {
+        final typedContacts = fetchedContacts.map((e) => Map<String, String>.from(e)).toList();
+        
+        // Update state if different from cached
+        if (mounted) {
+          setState(() {
+            _trustedContacts = typedContacts;
+          });
+        }
+
+        // Update local cache
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('emergency_contacts_local_$cleanEmail', jsonEncode(typedContacts));
+      }
+    } catch (e) {
+      debugPrint('Firestore sync error: $e');
+    }
+  }
+
+  Future<void> _saveContactsToFirebase() async {
+    if (_user == null || _user!['email'] == null) return;
+    final cleanEmail = _user!['email'].toString().trim().toLowerCase();
+    try {
+      await AuthService.updateContacts(
+        email: cleanEmail,
+        contacts: _trustedContacts,
+      );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('emergency_contacts_local_$cleanEmail', jsonEncode(_trustedContacts));
+      // Removed success snackbar per user request
+    } catch (e) {
+      debugPrint('Error saving contacts: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error updating contacts'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _addContactFromPhoneBook() async {
+    final status = await Permission.contacts.status;
+    if (status.isGranted) {
+      await _openPicker();
+    } else if (status.isDenied) {
+      final result = await Permission.contacts.request();
+      if (result.isGranted) {
+        await _openPicker();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contacts permission denied.')));
+      }
+    } else if (status.isPermanentlyDenied) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Permission Required'),
+            content: const Text('Contacts permission is disabled. Please enable it in App Settings.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () {
+                  openAppSettings();
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _openPicker() async {
+    final contact = await FlutterContacts.openExternalPick();
+    if (contact != null) {
+      final fullContact = await FlutterContacts.getContact(contact.id, withPhoto: true, withThumbnail: false);
+      if (fullContact != null && fullContact.phones.isNotEmpty) {
+        final name = fullContact.displayName;
+        final phone = fullContact.phones.first.number;
+        
+        String? photoBase64;
+        if (fullContact.photoOrThumbnail != null) {
+          photoBase64 = base64Encode(fullContact.photoOrThumbnail!);
+        }
+        
+        if (!_trustedContacts.any((c) => c['phone'] == phone)) {
+          setState(() {
+            final Map<String, String> newContact = {
+              'name': name,
+              'phone': phone,
+            };
+            if (photoBase64 != null) {
+              newContact['photo'] = photoBase64;
+            }
+            _trustedContacts.add(newContact);
+          });
+          _saveContactsToFirebase();
+        } else {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contact already exists.')));
+        }
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selected contact has no phone number.')));
+      }
+    }
+  }
+
+  void _showDeleteContactDialog(Map<String, String> contact) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Contact?'),
+        content: Text('Remove ${contact['name']} from your emergency circle?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() {
+                _trustedContacts.remove(contact);
+              });
+              _saveContactsToFirebase();
+            },
+            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _startSOSTimer() {
@@ -409,6 +597,67 @@ class _HomeContentState extends State<_HomeContent> {
                   ),
                 ],
               ),
+              const SizedBox(height: 32),
+
+              // 4. Safety Pulse Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Safety Pulse',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF0052D3),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    'Live Updates',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF0052D3),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                clipBehavior: Clip.none,
+                child: Row(
+                  children: [
+                    _buildPulseCard(
+                      badge: 'OPTIMAL ROUTE',
+                      message: 'Safe Path Found: Broadway St. currently has maximum lighting.',
+                      time: '2 mins away',
+                      color: const Color(0xFF0052D3),
+                      icon: Icons.wb_sunny_rounded,
+                    ),
+                    const SizedBox(width: 16),
+                    _buildPulsePeekCard(),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+              _buildCircleActivitySection(),
+
               const SizedBox(height: 120),
             ]),
           ),
@@ -551,6 +800,363 @@ class _HomeContentState extends State<_HomeContent> {
               color: ST.onSurfaceVariant),
         ),
       ],
+    );
+  }
+
+  Widget _buildCircleActivitySection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Circle Activity',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 24),
+          
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ..._trustedContacts.map((c) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: GestureDetector(
+                      onTap: () => _showDeleteContactDialog(c),
+                      child: _circleMemberAvatar(
+                        (c['name'] ?? '').split(' ').first,
+                        c['photo'],
+                        true,
+                      ),
+                    ),
+                  );
+                }),
+                GestureDetector(
+                  onTap: _addContactFromPhoneBook,
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: const Icon(Icons.person_add_outlined, color: Color(0xFF64748B), size: 18),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Add',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+          
+          _activityItem(
+            icon: Icons.check_circle_outline,
+            iconColor: const Color(0xFF10B981),
+            bgColor: const Color(0xFFECFDF5),
+            title: 'You checked-in successfully',
+            subtitle: '12:30 PM • Home Office',
+          ),
+          _activityDivider(),
+          _activityItem(
+            avatarUrl: 'https://i.pravatar.cc/150?u=sarah',
+            title: 'Sarah arrived at destination',
+            subtitle: '11:55 AM • Downtown Campus',
+          ),
+          _activityDivider(),
+          _activityItem(
+            icon: Icons.location_on_outlined,
+            iconColor: const Color(0xFF3B82F6),
+            bgColor: const Color(0xFFEBF2FF),
+            title: 'Location shared with Circle',
+            subtitle: '10:15 AM • Commute Started',
+          ),
+          
+          const SizedBox(height: 28),
+          
+          Container(
+            width: double.infinity,
+            height: 52,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Center(
+              child: Text(
+                'View All Activity',
+                style: GoogleFonts.plusJakartaSans(
+                  color: const Color(0xFF0052D3),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _circleMemberAvatar(String name, String? base64Photo, bool active) {
+    ImageProvider avatarImage;
+    if (base64Photo != null && base64Photo.isNotEmpty) {
+      avatarImage = MemoryImage(base64Decode(base64Photo));
+    } else {
+      avatarImage = NetworkImage('https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=E2E8F0');
+    }
+
+    return Column(
+      children: [
+        Stack(
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: const Color(0xFFE2E8F0),
+              backgroundImage: avatarImage,
+            ),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: active ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          name,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _activityItem({
+    IconData? icon, 
+    Color? iconColor, 
+    Color? bgColor, 
+    String? avatarUrl, 
+    required String title, 
+    required String subtitle
+  }) {
+    return Row(
+      children: [
+        if (avatarUrl != null)
+           CircleAvatar(
+             radius: 18,
+             backgroundColor: const Color(0xFFE2E8F0),
+             backgroundImage: NetworkImage(avatarUrl),
+           )
+        else
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: bgColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _activityDivider() {
+    return Container(
+      margin: const EdgeInsets.only(left: 52, top: 16, bottom: 16),
+      height: 1,
+      color: const Color(0xFFF1F5F9),
+    );
+  }
+
+  Widget _buildPulseCard({
+    required String badge,
+    required String message,
+    required String time,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Container(
+      width: 280,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: 0,
+            top: 0, // In image it's roughly top-right
+            child: Icon(
+              icon,
+              size: 40,
+              color: Colors.white.withOpacity(0.12),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  badge,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                message,
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  const Icon(Icons.near_me, color: Colors.white, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    time,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPulsePeekCard() {
+    return Container(
+      width: 140, // Increased peek width
+      height: 180, // Match main card height approx
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEBF2FF),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.group, color: Color(0xFF0052D3), size: 28),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: 40,
+            height: 3,
+            decoration: BoxDecoration(
+              color: const Color(0xFF0052D3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          )
+        ],
+      ),
     );
   }
 
