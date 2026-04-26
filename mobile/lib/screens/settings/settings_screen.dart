@@ -9,7 +9,8 @@ import '../home/home_screen.dart';
 import '../auth/login_screen.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
-
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -353,6 +354,134 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _showEvidenceVault(BuildContext context) async {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (context) {
+        return FutureBuilder<Directory>(
+          future: getApplicationDocumentsDirectory(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const SizedBox(height: 300, child: Center(child: CircularProgressIndicator()));
+            }
+
+            final directory = snapshot.data!;
+            final evidenceDir = Directory('${directory.path}/evidence');
+            List<Directory> sessionDirs = [];
+            if (evidenceDir.existsSync()) {
+              sessionDirs = evidenceDir.listSync().whereType<Directory>().toList();
+            }
+
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.7,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              builder: (context, scrollController) {
+                return Column(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 16, bottom: 24),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const Text('Local Evidence Vault',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+                    const SizedBox(height: 8),
+                    const Text('Secure files grouped by chat session',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                    const SizedBox(height: 20),
+                    Expanded(
+                      child: sessionDirs.isEmpty
+                          ? const Center(child: Text('No evidence collected yet.', style: TextStyle(color: Colors.grey)))
+                          : ListView.builder(
+                              controller: scrollController,
+                              itemCount: sessionDirs.length,
+                              itemBuilder: (context, index) {
+                                final sessionDir = sessionDirs[index];
+                                final sessionId = sessionDir.path.split('/').last;
+                                final files = sessionDir.listSync().whereType<File>().toList();
+                                
+                                if (files.isEmpty) return const SizedBox.shrink();
+                                
+                                return Theme(
+                                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                                  child: ExpansionTile(
+                                    initiallyExpanded: index == 0,
+                                    collapsedIconColor: ST.primary,
+                                    iconColor: ST.primary,
+                                    title: Text(
+                                      'Session: ${sessionId.replaceAll('session_', '')}',
+                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: ST.onSurface),
+                                    ),
+                                    subtitle: Text('${files.length} evidence file(s)', style: const TextStyle(fontSize: 12, color: ST.onSurfaceVariant)),
+                                    children: files.map((file) {
+                                      final name = file.path.split('/').last;
+                                      final isAudio = name.contains('audio') || name.endsWith('.m4a');
+                                      final sizeBytes = file.lengthSync();
+                                      final sizeKb = (sizeBytes / 1024).toStringAsFixed(1);
+                                      
+                                      DateTime? fileDate;
+                                      try {
+                                        final parts = name.split('_');
+                                        if (parts.length >= 2) {
+                                          final tsStr = parts.last.split('.').first;
+                                          final ts = int.parse(tsStr);
+                                          fileDate = DateTime.fromMillisecondsSinceEpoch(ts);
+                                        }
+                                      } catch (_) {
+                                        fileDate = file.lastModifiedSync();
+                                      }
+
+                                      return ListTile(
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
+                                        leading: Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(color: ST.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                                          child: Icon(isAudio ? Icons.audiotrack : Icons.image, color: ST.primary, size: 20),
+                                        ),
+                                        title: Text(isAudio ? 'Discreet Audio' : 'Secure Photo', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                        subtitle: Text('${fileDate?.toString().substring(0, 16) ?? "Unknown Date"} • $sizeKb KB', style: const TextStyle(fontSize: 12)),
+                                        trailing: IconButton(
+                                          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                          onPressed: () {
+                                            file.deleteSync();
+                                            // Provide feedback and refresh vault
+                                            Navigator.pop(context);
+                                            _showEvidenceVault(context);
+                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('File permanently deleted')));
+                                          },
+                                        ),
+                                        onTap: () {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Viewing raw evidence requires export or decryption.')),
+                                          );
+                                        },
+                                      );
+                                    }).toList(),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -451,6 +580,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       AuthService.saveBiometricEnabled(v);
                       setState(() => _biometricEnabled = v);
                     },
+                  ),
+                  _buildInternalDivider(),
+                  _buildNavRow(
+                    icon: Icons.folder_shared_outlined,
+                    iconBg: const Color(0xFFEAF3DE),
+                    iconColor: const Color(0xFF3B6D11),
+                    label: 'Local Evidence Vault',
+                    subtitle: 'View locally secured audio and text',
+                    onTap: () => _showEvidenceVault(context),
                   ),
                 ]),
 

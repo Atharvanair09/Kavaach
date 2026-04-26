@@ -6,5 +6,6 @@ class APIConstants {
 
   static const String chatUrl = '$baseServerUrl/chat';
   static const String authUrl = '$baseServerUrl/auth';
+  static const String sosUrl = '$baseServerUrl/sos';
 }
 

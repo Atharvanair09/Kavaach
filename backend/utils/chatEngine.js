@@ -38,6 +38,7 @@ function detectCategory(message) {
   if (/(happy|great|good|excited|fine|awesome)/.test(text)) return "positive";
   if (/(stalk|follow|someone behind|watching|police|station)/.test(text)) return "stalking";
   if (/(abuse|violence|hit|beat|hurt|assault)/.test(text)) return "abuse";
+  if (/(harass|uncomfortable|cab|driver|touching|inappropriate|creep|taxi)/.test(text)) return "harassment";
   if (/(danger|unsafe|scared|help|shelter|hospital|location|address)/.test(text)) return "danger";
   if (/(sad|depress|anxiety|lonely|stress)/.test(text)) return "mental_health";
   if (/(period|menstrual|cramp|bleeding)/.test(text)) return "period";
@@ -56,7 +57,9 @@ async function getGenerativeReply(userId, userMessage, category, risk, isOffline
 
     CORE BEHAVIOR:
     - Maintain natural, calm conversation at all times.
-    - Do not escalate unnecessarily.
+    - Do not list manual steps if an automated feature is available.
+    - If the user is being followed or feels unsafe (STALKING, HARASSMENT, DANGER), inform them that a tactical map and recording tools are appearing below your message.
+    - Specifically for uncomfortable situations (like cab rides), point them to the "START DISCREET RECORDING" and "UPLOAD PHOTOS" buttons you are providing.
     - Always let the user continue talking, even in high-risk situations.
     - Keep responses concise (2-3 sentences max), human-like, and warm.
     - NEVER repeat the same response twice.
@@ -76,10 +79,9 @@ async function getGenerativeReply(userId, userMessage, category, risk, isOffline
 
     3. HIGH RISK (clear danger signals):
 
-       A. ABUSE / HARASSMENT (category: abuse):
-          - Respond with deep empathy and validation first. (e.g., "That is not okay. You don't deserve this.")
-          - Gently ask if they are safe right now.
-          - Suggest SOS only if risk is confirmed high.
+       A. ABUSE / HARASSMENT / STALKING:
+          - Respond with empathy. Inform them that you are providing a discreet recording button and an upload option below.
+          - Tell them to use the recording button immediately if they feel unsafe.
           - Mention helplines naturally: iCall (9152987821), Women's Helpline (181).
           - Reference nearby safe places shown on screen (shelters, police, hospitals).
 
@@ -187,7 +189,7 @@ async function processChatMessage(userId, message, isOffline = false) {
   const category = detectCategory(message);
   
   // Natural escalation logic
-  if (["stalking", "abuse", "danger"].includes(category)) {
+  if (["stalking", "abuse", "danger", "harassment"].includes(category)) {
     if (msgCount === 1 && risk === "high") {
         risk = "medium"; // Soften the very first interaction
     } else {
@@ -212,7 +214,11 @@ async function processChatMessage(userId, message, isOffline = false) {
 
   if (risk === "high") {
     ui = "red";
-    action = "trigger_sos"; // Immediate escalation
+    if (category === "stalking") {
+      action = "notify_following";
+    } else {
+      action = "trigger_sos"; // Immediate escalation
+    }
   } else if (risk === "medium") {
     ui = "yellow";
     // Suggest safe places or share location based on category
@@ -224,8 +230,8 @@ async function processChatMessage(userId, message, isOffline = false) {
   } else {
     // Low risk: pure conversation, but show safe places proactively for specific threats
     ui = "green";
-    if (["stalking", "abuse", "danger"].includes(category)) {
-      action = "show_safe_places";
+    if (["stalking", "abuse", "danger", "harassment"].includes(category)) {
+      action = category === "harassment" ? "collect_evidence" : "show_safe_places";
     } else {
       action = "none";
     }

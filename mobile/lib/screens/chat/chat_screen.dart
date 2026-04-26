@@ -270,6 +270,10 @@ class _ChatScreenState extends State<ChatScreen> {
         if (action == 'trigger_sos' && !_sosAlreadyFired) {
           setState(() => _sosAlreadyFired = true);
           _triggerSilentSos();
+        } else if (action == 'notify_following') {
+          _triggerFollowingAlert();
+        } else if (action == 'collect_evidence' || botMsg.category == 'harassment') {
+          _triggerUncomfortableAlert();
         }
       } else {
         setState(() => _isTyping = false);
@@ -386,6 +390,106 @@ class _ChatScreenState extends State<ChatScreen> {
           duration: const Duration(seconds: 4),
         ),
       );
+    }
+  }
+
+  /// Special alert for "being followed" detections.
+  /// Sends a specific 'following' type to the dashboard for yellow marker rendering.
+  Future<void> _triggerFollowingAlert() async {
+    debugPrint('CRITICAL [JARVIS]: FOLLOWING DETECTED — notifying admin dashboard.');
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      await http.post(
+        Uri.parse(APIConstants.sosUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'userId': _currentUserId,
+          'type': 'following',
+          'message': 'User is being followed! High priority alert.',
+          'location': {
+            'lat': position.latitude,
+            'lng': position.longitude,
+          }
+        }),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.white, size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'Jarvis has alerted the control room',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFEAB308), // Yellow-ish
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('CRITICAL [JARVIS]: Following notification failed — ' + e.toString());
+    }
+  }
+
+  /// Special alert for "uncomfortable" / cab-harassment detections.
+  /// Sends a specific 'uncomfortable' type to the dashboard for orange marker rendering.
+  Future<void> _triggerUncomfortableAlert() async {
+    debugPrint('CRITICAL [JARVIS]: UNCOMFORTABLE SCENARIO — notifying admin dashboard.');
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      await http.post(
+        Uri.parse(APIConstants.sosUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'userId': _currentUserId,
+          'type': 'uncomfortable',
+          'message': 'User is feeling uncomfortable in a cab. Harassment scenario detected.',
+          'location': {
+            'lat': position.latitude,
+            'lng': position.longitude,
+          }
+        }),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.privacy_tip_outlined, color: Colors.white, size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'Jarvis has discreetly alerted the control room',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFF97316), // Orange
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('CRITICAL [JARVIS]: Uncomfortable notification failed — ' + e.toString());
     }
   }
 
@@ -662,11 +766,22 @@ class _ChatScreenState extends State<ChatScreen> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SupportBubble(text: m.text, translation: m.translation, time: m.time),
-                          if (m.action == 'trigger_sos')
-                            const _SosSuggestionCard(),
-                          if ((m.action == 'show_safe_places' || m.action == 'trigger_sos') && _nearbySafePlacesList.isNotEmpty)
-                            _SafePlacesCard(places: _nearbySafePlacesList),
+                          SupportBubble(
+                            text: m.text, 
+                            translation: m.translation, 
+                            time: m.time,
+                            safePlaces: (m.action == 'show_safe_places' || 
+                                         m.action == 'trigger_sos' || 
+                                         m.action == 'notify_following' || 
+                                         m.category == 'stalking' || 
+                                         m.category == 'abuse' || 
+                                         m.category == 'danger') ? _nearbySafePlacesList : null,
+                            showEvidenceActions: (m.category == 'stalking' || 
+                                                 m.category == 'abuse' || 
+                                                 m.category == 'harassment' || 
+                                                 m.action == 'collect_evidence'),
+                            sessionId: _sessionId,
+                          ),
                         ],
                       );
                     }
@@ -944,7 +1059,67 @@ class _SafePlacesCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.navigation_rounded, color: ST.primary, size: 18),
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    final loc = place['location'] as LatLng;
+                    final name = place['name'] ?? 'Safe Haven';
+                    JourneyStateNotifier().setPendingRoute(loc, name);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Navigation to $name started!'),
+                        backgroundColor: ST.primary,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: ST.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'NAVIGATE',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: ST.primary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: const [
+                            Icon(Icons.check_circle, color: Colors.white, size: 18),
+                            SizedBox(width: 10),
+                            Text('Trip shared with your trusted circle'),
+                          ],
+                        ),
+                        backgroundColor: const Color(0xFF16A34A),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.share_outlined, size: 14, color: ST.primary),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

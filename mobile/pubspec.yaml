@@ -55,6 +55,10 @@ dependencies:
   local_auth: ^3.0.1
   timezone: ^0.9.4
   intl: ^0.20.2
+  record: ^6.2.0
+  image_picker: ^1.2.1
+  firebase_storage: ^13.3.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

@@ -66,7 +66,7 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
   // Filter Active SOS and Missed Check-ins
   const activeIncidentMarkers = incidents.filter(i => 
     (i.status === "Pending" || i.status === "In Progress") && 
-    (i.category === "Emergency" || i.category === "Missed Check-in" || i.type === "missed_checkin") &&
+    (i.category === "Emergency" || i.category === "Missed Check-in" || i.type === "missed_checkin" || i.category === "Following" || i.category === "Harassment") &&
     i.lat && i.lng
   );
 
@@ -200,8 +200,12 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
                 const isMissed = incident.type === 'missed_checkin' || 
                                  incident.category === 'Missed Check-in' || 
                                  incident.text?.toLowerCase().includes("missed");
-                const markerColor = isMissed ? '#10b981' : '#ef4444';
-                const shadowColor = isMissed ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)';
+                const isFollowing = incident.type === 'following' || incident.category === 'Following';
+                const isUncomfortable = incident.type === 'uncomfortable' || incident.category === 'Harassment';
+                
+                const markerColor = isUncomfortable ? '#f97316' : (isFollowing ? '#facc15' : (isMissed ? '#10b981' : '#ef4444'));
+                const shadowColor = isUncomfortable ? 'rgba(249, 115, 22, 0.5)' : (isFollowing ? 'rgba(250, 204, 21, 0.5)' : (isMissed ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)'));
+                
                 
                 return (
                   <Marker 
@@ -225,9 +229,9 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
                     <Popup>
                       <div className="popup-content">
                         <strong style={{color: markerColor}}>
-                          {isMissed ? "✅ CHECK-IN MISSED" : "🚨 SOS ALERT"}
+                          {isUncomfortable ? "🟧 HARASSMENT DETECTED" : (isFollowing ? "⚠️ FOLLOWING DETECTED" : (isMissed ? "✅ CHECK-IN MISSED" : "🚨 SOS ALERT"))}
                         </strong><br/>
-                        <span>{incident.text || "No details available"}</span><br/>
+                        <span>{incident.text || (isFollowing ? "User is currently being followed." : (isUncomfortable ? "User feels unsafe in vehicle." : "No details available"))}</span><br/>
                         <small>ID: {incident.id.substring(0, 8)}</small>
                         
                         {!isMissed && (

@@ -252,17 +252,19 @@ function App() {
       const data = snapshot.docs.map(doc => {
         const type = doc.data().type || "emergency";
         const isMissed = type === 'missed_checkin' || (doc.data().message || "").toLowerCase().includes("missed");
+        const isFollowing = type === 'following';
+        const isUncomfortable = type === 'uncomfortable';
         
         return {
           id: doc.id,
           collectionType: "sos_alerts",
           ...doc.data(),
-          text: doc.data().message || "EMERGENCY SOS via App",
+          text: doc.data().message || (isFollowing ? "Potential stalker detected behind user" : (isUncomfortable ? "User feels unsafe in their current vehicle" : "EMERGENCY SOS via App")),
           type: type,
-          category: isMissed ? "Missed Check-in" : "Emergency",
-          intent: isMissed ? "Missed Check-in" : "Emergency",
-          threat_level: isMissed ? "LOW" : "HIGH",
-          priority: isMissed ? "Low" : "High",
+          category: isUncomfortable ? "Harassment" : (isFollowing ? "Following" : (isMissed ? "Missed Check-in" : "Emergency")),
+          intent: isUncomfortable ? "Harassment" : (isFollowing ? "Following" : (isMissed ? "Missed Check-in" : "Emergency")),
+          threat_level: (isFollowing || isUncomfortable) ? "MEDIUM" : (isMissed ? "LOW" : "HIGH"),
+          priority: (isFollowing || isUncomfortable) ? "Medium" : (isMissed ? "Low" : "High"),
           status: doc.data().status === "active" ? "Pending" : (doc.data().status || "Pending"),
           lat: doc.data().location?.lat || 0,
           lng: doc.data().location?.lng || 0,
