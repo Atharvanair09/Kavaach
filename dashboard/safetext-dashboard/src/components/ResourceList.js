@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { 
-  Phone, Globe, Shield, HeartPulse, Scale, AlertCircle, Home, 
-  Search, Bell, Settings, Filter, ArrowUpRight, Plus, CheckCircle2,
-  MapPin, Clock, Bed, ShieldCheck, DoorOpen, Users, Maximize2, ShieldAlert,
-  Send, List, Map as MapIcon
+  Phone, Shield, HeartPulse, Filter, ArrowUpRight, Plus, CheckCircle2,
+  MapPin, Bed, ShieldCheck, DoorOpen, List, Map as MapIcon, Send, ShieldAlert
 } from "lucide-react";
 import "./ResourceList.css";
 import { db } from "../services/firebase";
@@ -11,6 +9,7 @@ import { collection, onSnapshot, addDoc, serverTimestamp } from "firebase/firest
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import TopNavbar from "./TopNavbar";
 
 // Fix for default Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -43,9 +42,7 @@ function ResourceList({ user, role }) {
         const rawData = doc.data();
         const type = (rawData.type || rawData.category || "emergency").toLowerCase();
         const name = (rawData.name || "").toLowerCase();
-        console.log(`🔍 CLASSIFYING: "${rawData.name}" | Type: "${type}"`);
 
-        // Map Firestore data to the UI structure (Police: Green, Medical: Yellow, Shelters: Orange)
         const isPolice = type.includes('police') || name.includes('police') || name.includes('precinct');
         const isMedical = type.includes('medical') || type.includes('hospital') || type.includes('health') || 
                           name.includes('hospital') || name.includes('clinic') || name.includes('medical');
@@ -53,7 +50,7 @@ function ResourceList({ user, role }) {
         return {
           id: doc.id,
           ...doc.data(),
-          lat: doc.data().lat || 19.0760 + (Math.random() - 0.5) * 0.05, // Fallback for demo
+          lat: doc.data().lat || 19.0760 + (Math.random() - 0.5) * 0.05,
           lng: doc.data().lng || 72.8777 + (Math.random() - 0.5) * 0.05,
           borderClass: isPolice ? 'border-green' : (isMedical ? 'border-purple' : 'border-orange'),
           iconClass: isPolice ? 'green' : (isMedical ? 'purple' : 'orange'),
@@ -94,9 +91,9 @@ function ResourceList({ user, role }) {
   const filteredHavens = havens.filter(haven => {
     const matchesSearch = haven.name.toLowerCase().includes(searchQuery.toLowerCase());
     if (activeFilter === "all") return matchesSearch;
-    if (activeFilter === "police") return matchesSearch && (haven.type.includes('police') || haven.name.toLowerCase().includes('police') || haven.name.toLowerCase().includes('precinct'));
-    if (activeFilter === "medical") return matchesSearch && (haven.type.includes('medical') || haven.type.includes('hospital') || haven.type.includes('health') || haven.name.toLowerCase().includes('hospital') || haven.name.toLowerCase().includes('clinic'));
-    if (activeFilter === "shelter") return matchesSearch && (!haven.type.includes('police') && !haven.type.includes('medical') && !haven.type.includes('hospital'));
+    if (activeFilter === "police") return matchesSearch && (haven.type?.includes?.('police') || haven.name.toLowerCase().includes('police') || haven.name.toLowerCase().includes('precinct'));
+    if (activeFilter === "medical") return matchesSearch && (haven.type?.includes?.('medical') || haven.type?.includes?.('hospital') || haven.type?.includes?.('health') || haven.name.toLowerCase().includes('hospital') || haven.name.toLowerCase().includes('clinic'));
+    if (activeFilter === "shelter") return matchesSearch && (!haven.type?.includes?.('police') && !haven.type?.includes?.('medical') && !haven.type?.includes?.('hospital'));
     return matchesSearch;
   });
 
@@ -106,42 +103,7 @@ function ResourceList({ user, role }) {
 
   return (
     <div className="resources-page">
-      {/* Top Nav */}
-      <nav className="top-nav">
-        <div className="search-container">
-          <Search className="search-icon" size={18} />
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search incidents, users, or tags..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="nav-right">
-          <div className="nav-icons">
-            <button className="icon-btn">
-              <Bell size={20} />
-              <span className="notification-dot"></span>
-            </button>
-            <button className="icon-btn">
-              <Settings size={20} />
-            </button>
-          </div>
-          <div className="user-profile">
-            <div className="user-info">
-              <span className="user-name">{user?.name || "Dashboard User"}</span>
-              <span className="user-role">{role === "admin" ? "Senior Admin" : "Crime Patrol"}</span>
-            </div>
-            <img 
-              src={user?.photo || "/sarah_avatar.png"} 
-              alt="User Profile" 
-              className="user-avatar" 
-              onError={(e) => { e.target.src = "/sarah_avatar.png" }}
-            />
-          </div>
-        </div>
-      </nav>
+      <TopNavbar user={user} role={role} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
 
       <div className="resources-content">
         <div className="page-header-top">
@@ -222,7 +184,6 @@ function ResourceList({ user, role }) {
             {!isExpanded && activeFilter === "all" && (
               <div 
                 className="submit-card" 
-                style={{ animationDelay: '0.3s' }}
                 onClick={() => setShowSubmitModal(true)}
               >
                   <div className="plus-circle">
@@ -281,14 +242,12 @@ function ResourceList({ user, role }) {
           </div>
         )}
 
-
         <div className="bottom-grid">
-           {/* Verification Standards */}
            <div className="verification-card">
               <div className="badge-icon">
                  <CheckCircle2 size={36} color="#93c5fd" fill="rgba(255,255,255,0.1)"/>
               </div>
-              <h3>Verification<br/>Standards</h3>
+              <h3>Verification Standards</h3>
               <p>Every resource listed is manually vetted by our team to ensure it meets strict safety and privacy protocols. Updated every 30 minutes.</p>
               
               <div className="check-list">
@@ -301,7 +260,6 @@ function ResourceList({ user, role }) {
            </div>
         </div>
 
-        {/* Submission Modal */}
         {showSubmitModal && (
           <div className="modal-overlay" onClick={() => setShowSubmitModal(false)}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -387,7 +345,6 @@ function ResourceList({ user, role }) {
             </div>
           </div>
         )}
-
       </div>
     </div>
   );

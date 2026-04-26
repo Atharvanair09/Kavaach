@@ -111,11 +111,13 @@ function App() {
       return { intent: "Medical", priority: "Medium", color: "orange" };
     }
 
-    // 🟡 NORMAL PRIORITY (Harassment / Stalking)
+    // 🟡 NORMAL PRIORITY (Harassment / Stalking / Unsafe Feeling)
     if (
       lower.includes("harass") ||
       lower.includes("stalk") ||
-      lower.includes("threat")
+      lower.includes("threat") ||
+      lower.includes("uncomfortable") ||
+      lower.includes("unsafe")
     ) {
       return { intent: "Harassment", priority: "Normal", color: "gold" };
     }
@@ -360,7 +362,7 @@ function App() {
           }
         />
 
-        <Route path="/analytics" element={<ProtectedRoute allowedRole="admin"><Analytics user={currentUser} role={role} /></ProtectedRoute>} />
+        <Route path="/analytics" element={<ProtectedRoute allowedRole="admin"><Analytics user={currentUser} role={role} incidents={incidents} patrolUnits={patrolUnits} /></ProtectedRoute>} />
         <Route path="/chat" element={<ProtectedRoute allowedRole="admin"><ChatMonitor user={currentUser} role={role} /></ProtectedRoute>} />
         <Route path="/responders" element={
           <ProtectedRoute>

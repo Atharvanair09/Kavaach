@@ -53,7 +53,11 @@ function Cases({ user, role, incidents, updateStatus }) {
           priorityClass: i.priority?.toLowerCase() || "standard",
           user: i.assignedTo || "Unassigned",
           action: "Claim Case",
-          dbId: i.id
+          dbId: i.id,
+          lat: i.lat,
+          lng: i.lng,
+          location: i.lat ? `${i.lat.toFixed(4)}° N, ${i.lng.toFixed(4)}° E` : "Location Unknown",
+          hasMap: !!(i.lat && i.lng)
         }))
     },
     {
@@ -70,7 +74,11 @@ function Cases({ user, role, incidents, updateStatus }) {
           priorityClass: "follow-up",
           user: i.assignedTo || "Unit Assigned",
           hasChat: true,
-          dbId: i.id
+          dbId: i.id,
+          lat: i.lat,
+          lng: i.lng,
+          location: i.lat ? `${i.lat.toFixed(4)}° N, ${i.lng.toFixed(4)}° E` : "Location Unknown",
+          hasMap: !!(i.lat && i.lng)
         }))
     },
     {
@@ -87,7 +95,7 @@ function Cases({ user, role, incidents, updateStatus }) {
           priorityClass: "critical",
           msg: i.category === "Emergency" ? "Immediate dispatch required. Responder in route." : i.text,
           user: i.assignedTo || "Awaiting Dispatch",
-          hasImage: i.category === "Emergency",
+          hasMap: !!(i.lat && i.lng),
           location: i.lat ? `${i.lat.toFixed(4)}° N, ${i.lng.toFixed(4)}° E` : "Location Unknown",
           lat: i.lat,
           lng: i.lng,
@@ -107,7 +115,11 @@ function Cases({ user, role, incidents, updateStatus }) {
           priority: "Closed",
           priorityClass: "standard",
           user: `Resolved by ${i.assignedTo || "Admin"}`,
-          dbId: i.id
+          dbId: i.id,
+          lat: i.lat,
+          lng: i.lng,
+          location: i.lat ? `${i.lat.toFixed(4)}° N, ${i.lng.toFixed(4)}° E` : "Location Unknown",
+          hasMap: !!(i.lat && i.lng)
         }))
     }
   ];
@@ -167,7 +179,7 @@ function Cases({ user, role, incidents, updateStatus }) {
                   <h3 className="case-title">{card.title}</h3>
                   <span className={`priority-tag ${card.priorityClass}`}>{card.priority}</span>
 
-                  {card.hasImage && card.lat && card.lng && (
+                  {card.hasMap && card.lat && card.lng && (
                     <div className="card-image" style={{ height: '160px', position: 'relative' }}>
                       <MapContainer 
                         center={[card.lat, card.lng]} 

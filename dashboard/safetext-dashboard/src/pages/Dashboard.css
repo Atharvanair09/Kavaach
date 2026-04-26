@@ -1,6 +1,6 @@
 .dashboard-container {
   padding: 0;
-  background-color: #f8faff;
+  background-color: var(--background);
   min-height: 100vh;
 }
 

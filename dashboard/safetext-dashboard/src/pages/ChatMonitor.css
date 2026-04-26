@@ -187,7 +187,21 @@
 }
 
 .ios-item.active {
-  background: #e5e5ea;
+  background: #007aff;
+}
+
+.ios-item.active .ios-username,
+.ios-item.active .ios-time,
+.ios-item.active .ios-snippet {
+  color: #ffffff;
+}
+
+.ios-item.active .ios-chevron::after {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ios-item.active .unread-dot {
+  background: #ffffff;
 }
 
 .unread-dot {
@@ -197,6 +211,11 @@
   border-radius: 50%;
   position: absolute;
   left: 8px;
+}
+
+.ios-item.active .ios-avatar {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
 }
 
 .ios-avatar {
@@ -273,7 +292,7 @@
   align-items: center;
   justify-content: flex-start;
   padding: 2rem 40px 0 40px;
-  background: #f1f5f9;
+  background: var(--background);
   position: relative;
   border-right: 1px solid #e2e8f0;
 }

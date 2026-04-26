@@ -41,7 +41,7 @@ function StatusSafety({ incidents = [], patrolUnits = [], user, role }) {
 
   return (
     <div className="patrol-page-container tactical" style={{ 
-      background: '#f8fafc', 
+      background: 'var(--background, #E3EDFF)', 
       minHeight: '100vh', 
       padding: 0,
       fontFamily: "'Inter', sans-serif"

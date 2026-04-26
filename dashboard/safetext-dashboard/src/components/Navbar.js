@@ -18,10 +18,6 @@ function Navbar({ hasNewIncident, clearNotification, user, role, handleLogout })
 
   const patrolNavLinks = [
     { path: "/patrol/status", label: "Mission Control", icon: LayoutGrid },
-    { path: "/patrol/navigation", label: "Map", icon: Compass },
-    { path: "/patrol/incidents", label: "Incident Feed", icon: Asterisk, notify: hasNewIncident },
-    { path: "/patrol/communication", label: "Team Comms", icon: MessageSquare },
-    { path: "/patrol/reports", label: "Reports", icon: BarChart2 },
   ];
 
   const navLinks = role === "patrol" ? patrolNavLinks : adminNavLinks;
@@ -30,12 +26,7 @@ function Navbar({ hasNewIncident, clearNotification, user, role, handleLogout })
     <aside className="sidebar">
       <div className="sidebar-header">
         <Link to="/" className="brand-logo">
-          <div className="shield-icon">
-            <Shield size={24} color="white" fill="#3b82f6" strokeWidth={1} />
-          </div>
-          <div className="brand-text">
-            <h2>SafeText</h2>
-          </div>
+          <img src="/safetext_logo.png" alt="SafeText Logo" className="brand-logo-img" style={{ width: '100%', height: 'auto', maxHeight: '100px', objectFit: 'contain' }} />
         </Link>
       </div>
 

@@ -64,11 +64,29 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
   }, []);
 
   // Filter Active SOS and Missed Check-ins
-  const activeIncidentMarkers = incidents.filter(i => 
-    (i.status === "Pending" || i.status === "In Progress") && 
-    (i.category === "Emergency" || i.category === "Missed Check-in" || i.type === "missed_checkin" || i.category === "Following" || i.category === "Harassment") &&
-    i.lat && i.lng
-  );
+  const activeIncidentMarkers = incidents.filter(i => {
+    const status = i.status?.toLowerCase();
+    const category = i.category?.toLowerCase() || "";
+    const type = i.type?.toLowerCase() || "";
+    const text = i.text?.toLowerCase() || "";
+
+    const isActive = status === "pending" || status === "in progress" || status === "active";
+    const isIncidentType = 
+      category.includes("emergency") || 
+      category.includes("missed") || 
+      category.includes("following") || 
+      category.includes("harassment") ||
+      type.includes("emergency") || 
+      type.includes("missed") || 
+      type.includes("following") || 
+      type.includes("uncomfortable") ||
+      type.includes("harassment") ||
+      text.includes("missed") ||
+      text.includes("uncomfortable") ||
+      text.includes("unsafe");
+
+    return isActive && isIncidentType && i.lat && i.lng;
+  });
 
   // Filter Active Responders with locations
   const responderMarkers = patrolUnits.filter(p => 
@@ -195,37 +213,65 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
                 </Popup>
               </Marker>
               
-              {/* Dynamic Incident Markers (SOS / Missed Check-ins) */}
-              {activeIncidentMarkers.map(incident => {
-                const isMissed = incident.type === 'missed_checkin' || 
-                                 incident.category === 'Missed Check-in' || 
-                                 incident.text?.toLowerCase().includes("missed");
-                const isFollowing = incident.type === 'following' || incident.category === 'Following';
-                const isUncomfortable = incident.type === 'uncomfortable' || incident.category === 'Harassment';
-                
-                const markerColor = isUncomfortable ? '#f97316' : (isFollowing ? '#facc15' : (isMissed ? '#10b981' : '#ef4444'));
-                const shadowColor = isUncomfortable ? 'rgba(249, 115, 22, 0.5)' : (isFollowing ? 'rgba(250, 204, 21, 0.5)' : (isMissed ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)'));
-                
-                
-                return (
-                  <Marker 
-                    key={incident.id} 
-                    position={[incident.lat, incident.lng]}
-                    icon={L.divIcon({
-                      className: 'custom-incident-marker',
-                      html: `
-                        <div style="filter: drop-shadow(0px 4px 6px ${shadowColor});">
-                          <svg width="32" height="32" viewBox="0 0 24 24" fill="${markerColor}" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                            <circle cx="12" cy="10" r="3" fill="white"></circle>
-                          </svg>
-                        </div>
-                      `,
-                      iconSize: [32, 32],
-                      iconAnchor: [16, 32],
-                      popupAnchor: [0, -32]
-                    })}
-                  >
+              {/* Current User Marker */}
+              {/* ... (keep user marker as is) */}
+              
+              {/* Dynamic Incident Markers with Overlap Prevention */}
+              {(() => {
+                const positionRegistry = {};
+                return activeIncidentMarkers.map((incident, idx) => {
+                  const rawLat = incident.lat;
+                  const rawLng = incident.lng;
+                  const posKey = `${rawLat.toFixed(4)},${rawLng.toFixed(4)}`;
+                  
+                  // Calculate offset if position is already taken
+                  let displayLat = rawLat;
+                  let displayLng = rawLng;
+                  
+                  if (positionRegistry[posKey]) {
+                    const count = positionRegistry[posKey];
+                    const angle = count * (Math.PI / 4) * 1.5; // Spiral spread
+                    const radius = 0.0003 * Math.sqrt(count); // Gradual radius increase
+                    displayLat += Math.cos(angle) * radius;
+                    displayLng += Math.sin(angle) * radius;
+                    positionRegistry[posKey]++;
+                  } else {
+                    positionRegistry[posKey] = 1;
+                  }
+
+                  const category = incident.category?.toLowerCase() || "";
+                  const type = incident.type?.toLowerCase() || "";
+                  const text = incident.text?.toLowerCase() || "";
+
+                  const isMissed = type === 'missed_checkin' || 
+                                   category.includes('missed') || 
+                                   text.includes("missed");
+                  const isFollowing = type === 'following' || category.includes('following') || type.includes('following');
+                  const isUncomfortable = type === 'uncomfortable' || category.includes('harassment') || type.includes('harassment');
+                  
+                  const markerColor = isUncomfortable ? '#f97316' : (isFollowing ? '#facc15' : (isMissed ? '#10b981' : '#ef4444'));
+                  const shadowColor = isUncomfortable ? 'rgba(249, 115, 22, 0.5)' : (isFollowing ? 'rgba(250, 204, 21, 0.5)' : (isMissed ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)'));
+                  
+                  return (
+                    <Marker 
+                      key={incident.id} 
+                      position={[displayLat, displayLng]}
+                      icon={L.divIcon({
+                        className: 'custom-incident-marker',
+                        html: `
+                          <div style="filter: drop-shadow(0px 4px 6px ${shadowColor}); transition: all 0.3s ease;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="${markerColor}" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                              <circle cx="12" cy="10" r="3" fill="white"></circle>
+                            </svg>
+                          </div>
+                        `,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 32],
+                        popupAnchor: [0, -32]
+                      })}
+                    >
+                      {/* ... popup content remains the same */}
                     <Popup>
                       <div className="popup-content">
                         <strong style={{color: markerColor}}>
@@ -273,24 +319,48 @@ function Dashboard({ incidents, updateStatus, role, user, patrolUnits }) {
                     </Popup>
                   </Marker>
                 );
-              })}
+              })
+            })()}
 
-              {/* Dynamic Responder Markers */}
-              {responderMarkers.map(responder => (
-                <Marker 
-                  key={responder.id} 
-                  position={[responder.lat, responder.lng]}
-                  icon={L.divIcon({
-                    className: 'responder-icon',
-                    html: `<div style="background: #3b82f6; border: 2px solid white; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 10px rgba(59,130,246,0.5)"></div>`
-                  })}
-                >
-                  <Popup>
-                    <strong>👮 {responder.name}</strong><br/>
-                    Status: {responder.availability}
-                  </Popup>
-                </Marker>
-              ))}
+              {/* Dynamic Responder Markers with Overlap Prevention */}
+              {(() => {
+                const responderRegistry = {};
+                return responderMarkers.map(responder => {
+                  const rawLat = responder.lat;
+                  const rawLng = responder.lng;
+                  const posKey = `${rawLat.toFixed(4)},${rawLng.toFixed(4)}`;
+                  
+                  let displayLat = rawLat;
+                  let displayLng = rawLng;
+                  
+                  if (responderRegistry[posKey]) {
+                    const count = responderRegistry[posKey];
+                    const angle = count * (Math.PI / 3); // Different spread for responders
+                    const radius = 0.00025 * Math.sqrt(count);
+                    displayLat += Math.cos(angle) * radius;
+                    displayLng += Math.sin(angle) * radius;
+                    responderRegistry[posKey]++;
+                  } else {
+                    responderRegistry[posKey] = 1;
+                  }
+
+                  return (
+                    <Marker 
+                      key={responder.id} 
+                      position={[displayLat, displayLng]}
+                      icon={L.divIcon({
+                        className: 'responder-icon',
+                        html: `<div style="background: #3b82f6; border: 2px solid white; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 10px rgba(59,130,246,0.5); transition: all 0.3s ease;"></div>`
+                      })}
+                    >
+                      <Popup>
+                        <strong>👮 {responder.name}</strong><br/>
+                        Status: {responder.availability}
+                      </Popup>
+                    </Marker>
+                  );
+                });
+              })()}
             </MapContainer>
           )}
 

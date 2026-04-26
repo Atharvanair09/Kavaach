@@ -410,63 +410,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 final sessionId = sessionDir.path.split('/').last;
                                 final files = sessionDir.listSync().whereType<File>().toList();
                                 
-                                if (files.isEmpty) return const SizedBox.shrink();
+                                if (files.isEmpty) return const SizedBox.shrink();x``
                                 
-                                return Theme(
-                                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                                  child: ExpansionTile(
-                                    initiallyExpanded: index == 0,
-                                    collapsedIconColor: ST.primary,
-                                    iconColor: ST.primary,
-                                    title: Text(
-                                      'Session: ${sessionId.replaceAll('session_', '')}',
-                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: ST.onSurface),
-                                    ),
-                                    subtitle: Text('${files.length} evidence file(s)', style: const TextStyle(fontSize: 12, color: ST.onSurfaceVariant)),
-                                    children: files.map((file) {
-                                      final name = file.path.split('/').last;
-                                      final isAudio = name.contains('audio') || name.endsWith('.m4a');
-                                      final sizeBytes = file.lengthSync();
-                                      final sizeKb = (sizeBytes / 1024).toStringAsFixed(1);
-                                      
-                                      DateTime? fileDate;
-                                      try {
-                                        final parts = name.split('_');
-                                        if (parts.length >= 2) {
-                                          final tsStr = parts.last.split('.').first;
-                                          final ts = int.parse(tsStr);
-                                          fileDate = DateTime.fromMillisecondsSinceEpoch(ts);
+                                return Container(
+                                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: ST.primaryFixed,
+                                    borderRadius: ST.radiusSm,
+                                  ),
+                                  child: Theme(
+                                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                                    child: ExpansionTile(
+                                      initiallyExpanded: index == 0,
+                                      backgroundColor: Colors.transparent,
+                                      collapsedBackgroundColor: Colors.transparent,
+                                      collapsedIconColor: ST.primary,
+                                      iconColor: ST.primary,
+                                      title: Text(
+                                        'Session: ${sessionId.replaceAll('session_', '')}',
+                                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: ST.onSurface),
+                                      ),
+                                      subtitle: Text('${files.length} evidence file(s)', style: const TextStyle(fontSize: 12, color: ST.onSurfaceVariant)),
+                                      children: files.map((file) {
+                                        final name = file.path.split('/').last;
+                                        final isAudio = name.contains('audio') || name.endsWith('.m4a');
+                                        final sizeBytes = file.lengthSync();
+                                        final sizeKb = (sizeBytes / 1024).toStringAsFixed(1);
+                                        
+                                        DateTime? fileDate;
+                                        try {
+                                          final parts = name.split('_');
+                                          if (parts.length >= 2) {
+                                            final tsStr = parts.last.split('.').first;
+                                            final ts = int.parse(tsStr);
+                                            fileDate = DateTime.fromMillisecondsSinceEpoch(ts);
+                                          }
+                                        } catch (_) {
+                                          fileDate = file.lastModifiedSync();
                                         }
-                                      } catch (_) {
-                                        fileDate = file.lastModifiedSync();
-                                      }
 
-                                      return ListTile(
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
-                                        leading: Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(color: ST.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                                          child: Icon(isAudio ? Icons.audiotrack : Icons.image, color: ST.primary, size: 20),
-                                        ),
-                                        title: Text(isAudio ? 'Discreet Audio' : 'Secure Photo', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                                        subtitle: Text('${fileDate?.toString().substring(0, 16) ?? "Unknown Date"} • $sizeKb KB', style: const TextStyle(fontSize: 12)),
-                                        trailing: IconButton(
-                                          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                                          onPressed: () {
-                                            file.deleteSync();
-                                            // Provide feedback and refresh vault
-                                            Navigator.pop(context);
-                                            _showEvidenceVault(context);
-                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('File permanently deleted')));
+                                        return ListTile(
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
+                                          leading: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(color: ST.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                                            child: Icon(isAudio ? Icons.audiotrack : Icons.image, color: ST.primary, size: 20),
+                                          ),
+                                          title: Text(isAudio ? 'Discreet Audio' : 'Secure Photo', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                          subtitle: Text('${fileDate?.toString().substring(0, 16) ?? "Unknown Date"} • $sizeKb KB', style: const TextStyle(fontSize: 12)),
+                                          trailing: IconButton(
+                                            icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                            onPressed: () {
+                                              file.deleteSync();
+                                              // Provide feedback and refresh vault
+                                              Navigator.pop(context);
+                                              _showEvidenceVault(context);
+                                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('File permanently deleted')));
+                                            },
+                                          ),
+                                          onTap: () {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('Viewing raw evidence requires export or decryption.')),
+                                            );
                                           },
-                                        ),
-                                        onTap: () {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Viewing raw evidence requires export or decryption.')),
-                                          );
-                                        },
-                                      );
-                                    }).toList(),
+                                        );
+                                      }).toList(),
+                                    ),
                                   ),
                                 );
                               },

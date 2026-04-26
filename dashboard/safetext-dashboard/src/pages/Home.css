@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: 40px;
-  background: white;
+  background: var(--background, #E3EDFF);
   font-family: 'Inter', sans-serif;
 }
 

@@ -1075,6 +1075,7 @@ class _LocationScreenState extends State<LocationScreen> {
     _markers = _buildNavigableMarkers(_allMarkers);
     _determinePosition();
     _loadHavensFromFirestore();
+    _loadInitialNearbySafespots(); // Pre-populate map with essential locations
     // Check if there was already a pending route on start
     WidgetsBinding.instance.addPostFrameCallback((_) => _handleExternalNavigation());
   }
@@ -1163,6 +1164,7 @@ class _LocationScreenState extends State<LocationScreen> {
   }
 
   void _showCategoryMarkers(String category) async {
+    // If selecting the same category, toggle it off and show all markers from the pool
     if (_selectedCategory == category) {
       setState(() {
         _selectedCategory = null;
@@ -1175,6 +1177,11 @@ class _LocationScreenState extends State<LocationScreen> {
     setState(() {
       _isLoading = true;
       _selectedCategory = category;
+      // Immediately filter existing markers to show what we already have
+      final keyword = _getTypeKeyword(category);
+      _markers = _buildNavigableMarkers(
+        _allMarkers.where((m) => m.infoWindow.snippet?.toUpperCase().contains(keyword) ?? false).toSet()
+      );
     });
 
     try {
@@ -1183,21 +1190,11 @@ class _LocationScreenState extends State<LocationScreen> {
         throw 'Location services are disabled.';
       }
 
-      Position currentPos;
-      LatLng fetchPos;
-      try {
-        currentPos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.best,
-          timeLimit: const Duration(seconds: 8),
-        );
-        fetchPos = LatLng(currentPos.latitude, currentPos.longitude);
-      } catch (_) {
-        if (_userPosition.latitude != 28.6139) {
-          fetchPos = _userPosition;
-        } else {
-          rethrow; 
-        }
-      }
+      Position currentPos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 8),
+      );
+      LatLng fetchPos = LatLng(currentPos.latitude, currentPos.longitude);
       
       if (mounted) {
         setState(() {
@@ -1227,58 +1224,38 @@ class _LocationScreenState extends State<LocationScreen> {
         typeLabel = 'SHELTER';
       }
 
-      if (places.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _markers.clear();
-            _closestVisible = null;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('No $category found nearby.')),
-          );
-        }
-        return;
-      }
-
-      // Convert results to Markers
-      Set<Marker> newMarkers = {};
+      // Convert new results to Markers and add them to the PERSISTENT set (_allMarkers)
+      final Set<Marker> newDiscovered = {};
       for (var place in places) {
-        final m = Marker(
-          markerId: MarkerId(place['name'] + place['location'].toString()),
-          position: place['location'],
-          infoWindow: InfoWindow(
-            title: place['name'],
-            snippet: 'Type: $typeLabel | Address: ${place['address']}',
+        newDiscovered.add(
+          Marker(
+            markerId: MarkerId('google_${place['name']}_${place['location'].latitude}'),
+            position: place['location'],
+            infoWindow: InfoWindow(
+              title: place['name'],
+              snippet: 'Type: $typeLabel | Address: ${place['address']}',
+            ),
+            icon: BitmapDescriptor.defaultMarkerWithHue(hue),
           ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(hue),
         );
-        newMarkers.add(m.copyWith(onTapParam: () => _showLocationSheet(m)));
       }
-
-      // Closest is simply the first result since getNearbyPlaces sorts by distance!
-      Marker? closest = newMarkers.first;
-      double minDistance = Geolocator.distanceBetween(
-        _userPosition.latitude,
-        _userPosition.longitude,
-        closest.position.latitude,
-        closest.position.longitude,
-      );
 
       if (mounted) {
         setState(() {
-          _markers = newMarkers;
-          _closestVisible = closest;
+          _allMarkers.addAll(newDiscovered);
+          // Refilter to include the new ones
+          final keyword = _getTypeKeyword(category);
+          _markers = _buildNavigableMarkers(
+            _allMarkers.where((m) => m.infoWindow.snippet?.toUpperCase().contains(keyword) ?? false).toSet()
+          );
+          
+          if (_markers.isNotEmpty) {
+            _closestVisible = _markers.first;
+            _moveToLocation(_closestVisible!.position);
+          }
+          
           _isLoading = false;
         });
-
-        if (closest != null) {
-          _moveToLocation(closest.position);
-          Future.delayed(const Duration(milliseconds: 500), () {
-            _mapController?.showMarkerInfoWindow(closest!.markerId);
-          });
-
-        }
       }
     } catch (e) {
       if (mounted) {
@@ -1291,6 +1268,50 @@ class _LocationScreenState extends State<LocationScreen> {
         );
       }
     }
+  }
+
+  String _getTypeKeyword(String category) {
+    if (category == 'Police Station') return 'POLICE';
+    if (category == 'Hospital') return 'HOSPITAL';
+    if (category == 'Safe Shelter') return 'SHELTER';
+    return '';
+  }
+
+  Future<void> _loadInitialNearbySafespots() async {
+    try {
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low);
+      final latLng = LatLng(pos.latitude, pos.longitude);
+      
+      final police = await LocationService.getNearbyPlaces(latLng, 'police', radius: 3000);
+      final hospitals = await LocationService.getNearbyPlaces(latLng, 'hospital', radius: 3000);
+      
+      final Set<Marker> initial = {};
+      for (var p in police) {
+        initial.add(Marker(
+          markerId: MarkerId('init_google_${p['name']}'),
+          position: p['location'],
+          infoWindow: InfoWindow(title: p['name'], snippet: 'Type: POLICE | Address: ${p['address']}'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        ));
+      }
+      for (var h in hospitals) {
+        initial.add(Marker(
+          markerId: MarkerId('init_google_${h['name']}'),
+          position: h['location'],
+          infoWindow: InfoWindow(title: h['name'], snippet: 'Type: HOSPITAL | Address: ${h['address']}'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        ));
+      }
+
+      if (mounted) {
+        setState(() {
+          _allMarkers.addAll(initial);
+          if (_selectedCategory == null) {
+            _markers = _buildNavigableMarkers(_allMarkers);
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   @override
