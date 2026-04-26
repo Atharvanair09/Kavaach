@@ -78,6 +78,7 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _currentUserId = user?['id'] ?? user?['email'] ?? 'anonymous_user';
       });
+      _fetchInitialHistory();
     }
   }
 
