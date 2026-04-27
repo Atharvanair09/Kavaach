@@ -410,7 +410,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 final sessionId = sessionDir.path.split('/').last;
                                 final files = sessionDir.listSync().whereType<File>().toList();
                                 
-                                if (files.isEmpty) return const SizedBox.shrink();x``
+                                if (files.isEmpty) return const SizedBox.shrink();
                                 
                                 return Container(
                                   margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
