@@ -32,135 +32,123 @@ class SupportBubble extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) { 
     String timestamp = time != null ? DateFormat('dd MMM, HH:mm').format(time!) : '';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      child: Row(
+      margin: const EdgeInsets.only(bottom: 16, left: 1, right: 40),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [ST.primary, ST.primaryContainer],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white, width: 2.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.grey.shade200, width: 1.0),
                 ),
-              ],
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/safetext_icon.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'JARVIS',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const Spacer(),
+              if (timestamp.isNotEmpty)
+                Text(
+                  timestamp,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Divider(color: Colors.white, height: 1, thickness: 1.5),
+          const SizedBox(height: 12),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
+              letterSpacing: 0.2,
             ),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/safetext_icon.png',
-                fit: BoxFit.cover,
+          ),
+          if (safePlaces != null && safePlaces!.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _SmallMap(places: safePlaces!),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  final first = safePlaces!.first;
+                  final loc = first['location'] as LatLng;
+                  final name = first['name'] ?? 'Safe Haven';
+                  JourneyStateNotifier().setPendingRoute(loc, name);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Tactical route to $name started!'),
+                      backgroundColor: ST.primary,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.navigation_outlined, size: 16, color: Colors.white),
+                label: const Text(
+                  'NAVIGATE TO NEAREST',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ST.primary,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(4),
-                      topRight: Radius.circular(22),
-                      bottomRight: Radius.circular(22),
-                      bottomLeft: Radius.circular(22),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        text,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          height: 1.5,
-                          fontWeight: FontWeight.w400,
-                          color: ST.onSurface,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-
-                      if (safePlaces != null && safePlaces!.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        _SmallMap(places: safePlaces!),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              final first = safePlaces!.first;
-                              final loc = first['location'] as LatLng;
-                              final name = first['name'] ?? 'Safe Haven';
-                              JourneyStateNotifier().setPendingRoute(loc, name);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Tactical route to $name started!'),
-                                  backgroundColor: ST.primary,
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.navigation_outlined, size: 16, color: Colors.white),
-                            label: const Text(
-                              'NAVIGATE TO NEAREST',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: ST.primary,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (showEvidenceActions) ...[
-                        const SizedBox(height: 12),
-                        _EvidenceCollectionPanel(sessionId: sessionId),
-                      ],
-                    ],
-                  ),
-                ),
-                if (timestamp.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Text(
-                      timestamp,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade400,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 40), // Spacer on the right
+          ],
+          if (showEvidenceActions) ...[
+            const SizedBox(height: 16),
+            _EvidenceCollectionPanel(sessionId: sessionId),
+          ],
         ],
       ),
     );
@@ -178,90 +166,88 @@ class UserBubble extends StatelessWidget {
     String timestamp = time != null ? DateFormat('dd MMM, HH:mm').format(time!) : '';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      child: Row(
+      margin: const EdgeInsets.only(bottom: 16, left: 50, right: 1),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF3B82F6).withOpacity(0.15),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(width: 40), // Spacer on the left
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [ST.primary, Color(0xFF0052D4)],
-                    ),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(22),
-                      topRight: Radius.circular(22),
-                      bottomLeft: Radius.circular(22),
-                      bottomRight: Radius.circular(4),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        text,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          height: 1.5,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.white,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                      if (translation != null) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.only(top: 8),
-                          decoration: BoxDecoration(
-                            border: Border(top: BorderSide(color: Colors.white.withOpacity(0.2))),
-                          ),
-                          child: Text(
-                            translation!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              height: 1.4,
-                              fontStyle: FontStyle.italic,
-                              color: Colors.white.withOpacity(0.8),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+          Row(
+            children: [
+              const STUserAvatar(size: 28),
+              const SizedBox(width: 8),
+              const Text(
+                'YOU',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF3B82F6),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const Spacer(),
+              if (timestamp.isNotEmpty)
+                Text(
+                  timestamp,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF3B82F6),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (timestamp.isNotEmpty)
-                      Text(
-                        timestamp,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey.shade400,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    if (timestamp.isNotEmpty) const SizedBox(width: 6),
-                    Text(
-                      'Delivered',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(color: Color(0xFF3B82F6), height: 1, thickness: 2.0),
+          const SizedBox(height: 12),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1E3A8A),
+              letterSpacing: 0.2,
             ),
           ),
-          const SizedBox(width: 8),
-          const STUserAvatar(size: 32),
+          if (translation != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF3B82F6).withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.translate, color: Color(0xFF3B82F6), size: 14),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      translation!,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        height: 1.4,
+                        fontStyle: FontStyle.italic,
+                        color: Color(0xFF3B82F6),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

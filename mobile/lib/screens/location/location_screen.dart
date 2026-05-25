@@ -12,6 +12,8 @@ import '../../widgets/st_widgets.dart';
 import '../../services/location_service.dart';
 import '../../services/journey_service.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'dart:ui' as ui;
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LocationScreen extends StatefulWidget {
   const LocationScreen({super.key});
@@ -103,6 +105,9 @@ class _LocationScreenState extends State<LocationScreen> {
   Timer? _checkInTimer;
   Timer? _missedCheckInTimer;
   int _checkInIntervalMinutes = 0;
+  
+  BitmapDescriptor? _userProfileMarkerIcon;
+  bool _profileMarkerLoaded = false;
 
   // ── In-map route drawing ───────────────────────────────────────────────────
   static String get _orsApiKey => dotenv.get('ORS_API_KEY', fallback: '');
@@ -1076,8 +1081,54 @@ class _LocationScreenState extends State<LocationScreen> {
     _determinePosition();
     _loadHavensFromFirestore();
     _loadInitialNearbySafespots(); // Pre-populate map with essential locations
+    _loadProfileMarker();
     // Check if there was already a pending route on start
     WidgetsBinding.instance.addPostFrameCallback((_) => _handleExternalNavigation());
+  }
+
+  Future<void> _loadProfileMarker() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final photoURL = user?.photoURL;
+      if (photoURL == null || photoURL.isEmpty) return;
+
+      final response = await http.get(Uri.parse(photoURL));
+      if (response.statusCode != 200) return;
+
+      final codec = await ui.instantiateImageCodec(response.bodyBytes, targetWidth: 100, targetHeight: 100);
+      final frameInfo = await codec.getNextFrame();
+      final image = frameInfo.image;
+
+      final pictureRecorder = ui.PictureRecorder();
+      final canvas = Canvas(pictureRecorder);
+      const radius = 50.0; 
+
+      final shadowPaint = Paint()
+        ..color = Colors.black.withOpacity(0.3)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
+      canvas.drawCircle(const Offset(radius, radius + 2), radius - 2, shadowPaint);
+
+      final borderPaint = Paint()..color = ST.primary..style = PaintingStyle.fill;
+      canvas.drawCircle(const Offset(radius, radius), radius, borderPaint);
+
+      canvas.save();
+      canvas.clipPath(Path()..addOval(const Rect.fromLTWH(8, 8, (radius * 2) - 16, (radius * 2) - 16)));
+      canvas.drawImage(image, Offset.zero, Paint());
+      canvas.restore();
+
+      final picture = pictureRecorder.endRecording();
+      final img = await picture.toImage((radius * 2).toInt(), (radius * 2).toInt() + 4);
+      final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+      
+      if (byteData != null && mounted) {
+        setState(() {
+          _userProfileMarkerIcon = BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
+          _profileMarkerLoaded = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('Profile Marker generation error: $e');
+    }
   }
 
   Future<void> _determinePosition() async {
@@ -1331,6 +1382,21 @@ class _LocationScreenState extends State<LocationScreen> {
       return distA.compareTo(distB);
     });
 
+    final Set<Marker> displayMarkers = Set.from(_markers);
+    bool useProfileMarker = (_isSharingLocation || _isFollowingUser) && _profileMarkerLoaded && _userProfileMarkerIcon != null;
+    
+    if (useProfileMarker) {
+      displayMarkers.add(
+        Marker(
+          markerId: const MarkerId('user_live_profile'),
+          position: _userPosition,
+          icon: _userProfileMarkerIcon!,
+          zIndex: 999, // Show on top
+          anchor: const Offset(0.5, 0.5),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: ST.surface,
       body: Stack(
@@ -1343,11 +1409,11 @@ class _LocationScreenState extends State<LocationScreen> {
                 target: _userPosition,
                 zoom: 14.5,
               ),
-              markers: _markers,
+              markers: displayMarkers,
               polylines: _polylines,
               onMapCreated: (controller) => _mapController = controller,
               padding: const EdgeInsets.only(top: 140, bottom: 220),
-              myLocationEnabled: true,
+              myLocationEnabled: !useProfileMarker,
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
               mapToolbarEnabled: false,
@@ -1534,7 +1600,7 @@ class _LocationScreenState extends State<LocationScreen> {
 
           // 3. Bottom Category Buttons
           Positioned(
-            bottom: 110,
+            bottom: 20,
             left: 20,
             right: 20,
             child: Row(
@@ -1567,7 +1633,7 @@ class _LocationScreenState extends State<LocationScreen> {
 
           // Search Button (Floating)
           Positioned(
-            bottom: 170,
+            bottom: 80,
             right: 20,
             child: FloatingActionButton(
               heroTag: 'search_fab',
@@ -1580,7 +1646,7 @@ class _LocationScreenState extends State<LocationScreen> {
           
           // GPS Refresh
           Positioned(
-            bottom: 170,
+            bottom: 80,
             left: 20,
             child: FloatingActionButton(
               heroTag: 'gps_fab',
