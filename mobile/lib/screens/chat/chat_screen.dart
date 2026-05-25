@@ -878,7 +878,6 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                   ),
-                  9999999999999999999999999
                   const SizedBox(width: 12),
                   GestureDetector(
                     onTap: _sendMessage,
