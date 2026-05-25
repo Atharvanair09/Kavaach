@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../constants/st_style.dart';
 import '../../widgets/st_widgets.dart';
+import '../../widgets/custom_menu_overlay.dart';
 import 'chat_bubbles.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -63,6 +64,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   late stt.SpeechToText _speech;
   bool _isListening = false;
+  final ValueNotifier<String> _speechTextNotifier = ValueNotifier<String>("");
+  final ValueNotifier<double> _soundLevelNotifier = ValueNotifier<double>(0.0);
 
   @override
   void initState() {
@@ -129,19 +132,56 @@ class _ChatScreenState extends State<ChatScreen> {
       bool available = await _speech.initialize(
         onStatus: (status) {
           if (status == 'done' || status == 'notListening') {
-            setState(() => _isListening = false);
+            if (mounted) {
+              setState(() => _isListening = false);
+              _speechTextNotifier.value = "";
+              _soundLevelNotifier.value = 0.0;
+            }
           }
         },
         onError: (errorNotification) => debugPrint('Error: $errorNotification'),
       );
       if (available) {
         setState(() => _isListening = true);
+        _speechTextNotifier.value = "";
+        _soundLevelNotifier.value = 0.0;
+        
+        Navigator.of(context).push(
+          PageRouteBuilder(
+            opaque: false, // Transparent background
+            pageBuilder: (context, _, __) => VoiceVisualizerOverlay(
+              speech: _speech,
+              textNotifier: _speechTextNotifier,
+              soundLevelNotifier: _soundLevelNotifier,
+              onStop: () {
+                 _speech.stop();
+                 setState(() => _isListening = false);
+                 if (_speechTextNotifier.value.isNotEmpty) {
+                   setState(() {
+                      _controller.text = _speechTextNotifier.value;
+                      _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
+                   });
+                 }
+              },
+            ),
+            transitionsBuilder: (context, animation, _, child) {
+               return FadeTransition(opacity: animation, child: child);
+            }
+          ),
+        );
+
         _speech.listen(
           onResult: (result) {
-            setState(() {
-              _controller.text = result.recognizedWords;
-              _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
-            });
+            _speechTextNotifier.value = result.recognizedWords;
+            if (result.finalResult && mounted) {
+               setState(() {
+                 _controller.text = result.recognizedWords;
+                 _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
+               });
+            }
+          },
+          onSoundLevelChange: (level) {
+             _soundLevelNotifier.value = level;
           },
         );
       } else {
@@ -152,6 +192,9 @@ class _ChatScreenState extends State<ChatScreen> {
     } else {
       setState(() => _isListening = false);
       _speech.stop();
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
     }
   }
 
@@ -694,11 +737,14 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   Row(
                     children: [
-                      Image.asset(
-                        'assets/safetext_icon.png',
-                        width: 32,
-                        height: 32,
-                        fit: BoxFit.contain,
+                      GestureDetector(
+                        onTap: _showHistoryDialog,
+                        child: Image.asset(
+                          'assets/safetext_icon.png',
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Column(
@@ -727,16 +773,23 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ],
                   ),
-                  GestureDetector(
-                    onTap: _showHistoryDialog,
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: ST.primary.withOpacity(0.08),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.history_rounded, color: ST.primary, size: 24),
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.menu_open_rounded, color: ST.onSurface, size: 30),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        PageRouteBuilder(
+                          pageBuilder: (context, animation, secondaryAnimation) => const CustomMenuOverlay(),
+                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                            const begin = Offset(0.0, -1.0);
+                            const end = Offset.zero;
+                            const curve = Curves.easeInOutCubic;
+                            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                            var offsetAnimation = animation.drive(tween);
+                            return SlideTransition(position: offsetAnimation, child: child);
+                          },
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -825,18 +878,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: _listen,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      color: Colors.transparent,
-                      child: Icon(
-                        _isListening ? Icons.mic : Icons.mic_none,
-                        color: _isListening ? Colors.red : Colors.grey.shade400,
-                        size: 26,
-                      ),
-                    ),
-                  ),
+                  9999999999999999999999999
                   const SizedBox(width: 12),
                   GestureDetector(
                     onTap: _sendMessage,
@@ -1182,6 +1224,183 @@ class _SosSuggestionCard extends StatelessWidget {
               elevation: 0,
             ),
             child: const Text('TRIGGER SOS NOW', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class VoiceVisualizerOverlay extends StatefulWidget {
+  final stt.SpeechToText speech;
+  final ValueNotifier<String> textNotifier;
+  final ValueNotifier<double> soundLevelNotifier;
+  final VoidCallback onStop;
+
+  const VoiceVisualizerOverlay({
+    super.key,
+    required this.speech,
+    required this.textNotifier,
+    required this.soundLevelNotifier,
+    required this.onStop,
+  });
+
+  @override
+  State<VoiceVisualizerOverlay> createState() => _VoiceVisualizerOverlayState();
+}
+
+class _VoiceVisualizerOverlayState extends State<VoiceVisualizerOverlay> with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+       vsync: this,
+       duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOutSine)
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black.withOpacity(0.92),
+      body: Stack(
+        children: [
+          // Background top glow
+          Positioned(
+            top: -100,
+            left: -50,
+            right: -50,
+            height: 400,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFFB82981).withOpacity(0.4),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          SafeArea(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Spacer(),
+                
+                // The Orb
+                GestureDetector(
+                  onTap: () {
+                    widget.onStop();
+                    if (Navigator.of(context).canPop()) {
+                       Navigator.pop(context);
+                    }
+                  },
+                  child: Center(
+                    child: ValueListenableBuilder<double>(
+                      valueListenable: widget.soundLevelNotifier,
+                      builder: (context, soundLevel, child) {
+                        // Normalize sound level to scale
+                        final dynamicScale = 1.0 + (soundLevel.clamp(0, 50) / 100);
+                        
+                        return AnimatedBuilder(
+                          animation: _pulseAnimation,
+                          builder: (context, child) {
+                            return Transform.scale(
+                              scale: _pulseAnimation.value * dynamicScale,
+                              child: Container(
+                                width: 220,
+                                height: 220,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: const RadialGradient(
+                                    colors: [
+                                      Color(0xFFE052A0),
+                                      Color(0xFF8A2387),
+                                      Color(0xFF4A148C),
+                                    ],
+                                    stops: [0.2, 0.6, 1.0],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFE052A0).withOpacity(0.4),
+                                      blurRadius: 40 + (soundLevel * 2),
+                                      spreadRadius: 10 + soundLevel,
+                                    ),
+                                    BoxShadow(
+                                      color: const Color(0xFF4A148C).withOpacity(0.5),
+                                      blurRadius: 80,
+                                      spreadRadius: -10,
+                                    ),
+                                  ],
+                                ),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.2),
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                
+                const Spacer(),
+                
+                // Transcribed Text
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
+                  child: ValueListenableBuilder<String>(
+                    valueListenable: widget.textNotifier,
+                    builder: (context, text, child) {
+                      return Text(
+                        text.isEmpty ? "Listening..." : text,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                
+                // Bottom hint
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24.0),
+                  child: Text(
+                    "Tap orb to stop",
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.4),
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

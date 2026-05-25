@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../constants/st_style.dart';
 import '../auth_service.dart';
 import '../auth_gate.dart';
+import 'custom_menu_overlay.dart';
 
 class STUserAvatar extends StatefulWidget {
   final double size;
@@ -82,62 +83,21 @@ class STProfileButton extends StatelessWidget {
   const STProfileButton({super.key});
 
   void _showProfile(BuildContext context, Map<String, dynamic>? user) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(
-              radius: 40,
-              backgroundImage: user?['picture'] != null
-                  ? NetworkImage(user!['picture'])
-                  : null,
-              child: user?['picture'] == null
-                  ? const Icon(Icons.person, size: 40)
-                  : null,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              user?['name'] ?? 'User Name',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              user?['email'] ?? 'user@example.com',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 32),
-            STButton(
-              label: 'Sign Out',
-              onTap: () async {
-                await AuthService.signOut();
-                if (context.mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const AuthGate()),
-                    (route) => false,
-                  );
-                }
-              },
-              primary: false,
-            ),
-          ],
-        ),
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const CustomMenuOverlay(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(0.0, -1.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOutCubic;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var offsetAnimation = animation.drive(tween);
+          return SlideTransition(position: offsetAnimation, child: child);
+        },
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {

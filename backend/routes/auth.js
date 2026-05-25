@@ -187,6 +187,7 @@ router.post("/signup", async (req, res) => {
 // --- Manual Login Endpoint ---
 router.post("/login", async (req, res) => {
   try {
+    console.log("📥 [POST] /auth/login - Request Received:", req.body);
     const { email, password } = req.body;
     
     if (!email || !password) {

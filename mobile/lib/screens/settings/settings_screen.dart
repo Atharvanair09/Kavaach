@@ -955,7 +955,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           if (context.mounted) {
             Navigator.pushAndRemoveUntil(
               context,
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
               (route) => false,
             );
           }

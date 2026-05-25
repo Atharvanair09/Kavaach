@@ -90,10 +90,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           Navigator.pop(context);
                           if (result != null) {
                             final hasPin = await AuthService.hasAppPin();
-                            Navigator.pushReplacement(
+                            Navigator.pushAndRemoveUntil(
                               context,
                               MaterialPageRoute(
                                   builder: (_) => hasPin ? const PinScreen() : const HomeScreen()),
+                              (route) => false,
                             );
                           }
                         } catch (e) {

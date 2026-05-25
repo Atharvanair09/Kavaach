@@ -17,6 +17,7 @@ class JourneyStateNotifier extends ChangeNotifier {
   double _progress = 0.0;
   int _minutesRemaining = 0;
   int _navIndex = 0;
+  List<int> _navHistory = [0];
   Map<String, dynamic>? _pendingRoute;
   int _checkInRemainingSeconds = -1;
   bool _isShared = false;
@@ -37,6 +38,7 @@ class JourneyStateNotifier extends ChangeNotifier {
   int get minutesRemaining => _minutesRemaining;
   double get distanceRemaining => _distanceRemaining;
   int get navIndex => _navIndex;
+  List<int> get navHistory => _navHistory;
   Map<String, dynamic>? get pendingRoute => _pendingRoute;
   int get checkInRemainingSeconds => _checkInRemainingSeconds;
 
@@ -46,14 +48,26 @@ class JourneyStateNotifier extends ChangeNotifier {
   }
 
   void setNavIndex(int index) {
+    if (_navHistory.isEmpty || _navHistory.last != index) {
+      _navHistory.add(index);
+    }
     _navIndex = index;
     notifyListeners();
   }
 
+  bool popNav() {
+    if (_navHistory.length > 1) {
+      _navHistory.removeLast();
+      _navIndex = _navHistory.last;
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
+
   void setPendingRoute(LatLng location, String name) {
     _pendingRoute = {'location': location, 'name': name};
-    _navIndex = 2; // Auto-switch to Map tab (Index 2)
-    notifyListeners();
+    setNavIndex(2); // Auto-switch to Map tab (Index 2)
   }
 
   void clearPendingRoute() {

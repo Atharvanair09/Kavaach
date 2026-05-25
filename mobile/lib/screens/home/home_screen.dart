@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../constants/st_style.dart';
 import '../../widgets/st_widgets.dart';
+import '../../widgets/custom_menu_overlay.dart';
 import '../chat/chat_screen.dart';
 import '../location/location_screen.dart';
 import '../fake_app/fake_app_screen.dart';
@@ -50,24 +51,27 @@ class _HomeScreenState extends State<HomeScreen> {
       listenable: JourneyStateNotifier(),
       builder: (context, _) {
         final journey = JourneyStateNotifier();
-        return Scaffold(
-          extendBody: true,
-          backgroundColor: ST.surface,
-          body: IndexedStack(
-            index: journey.navIndex,
-            children: _screens,
+        return PopScope(
+          canPop: journey.navHistory.length <= 1,
+          onPopInvoked: (didPop) {
+            if (didPop) return;
+            journey.popNav();
+          },
+          child: Scaffold(
+            extendBody: true,
+            backgroundColor: ST.surface,
+            body: IndexedStack(
+              index: journey.navIndex,
+              children: _screens,
+            ),
+            floatingActionButton: journey.navIndex == 0 
+              ? const Padding(
+                  padding: EdgeInsets.only(bottom: 0),
+                  child: SOSFloatingButton(),
+                )
+              : null,
+            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           ),
-          bottomNavigationBar: STBottomNav(
-            selected: journey.navIndex,
-            onTap: (i) => journey.setNavIndex(i),
-          ),
-          floatingActionButton: journey.navIndex == 0 
-            ? const Padding(
-                padding: EdgeInsets.only(bottom: 0),
-                child: SOSFloatingButton(),
-              )
-            : null,
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         );
 
       }
@@ -89,12 +93,37 @@ class _HomeContentState extends State<_HomeContent> {
   Timer? _sosTimer;
   double _sosProgress = 0.0;
   bool _isSosActive = false;
-
+  LatLng? _userLatLng;
+  GoogleMapController? _smallMapController;
 
   @override
   void initState() {
     super.initState();
     _loadUser();
+    _fetchLocation();
+  }
+
+  Future<void> _fetchLocation() async {
+    try {
+      final position = await LocationService.getCurrentLocation().timeout(
+        const Duration(seconds: 3),
+      );
+      if (position != null && mounted) {
+        setState(() {
+          _userLatLng = LatLng(position.latitude, position.longitude);
+        });
+        _smallMapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(_userLatLng!, 14),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error fetching location for map card: $e");
+      if (mounted) {
+        setState(() {
+          _userLatLng = const LatLng(19.0760, 72.8777); // Fallback to avoid infinite loading
+        });
+      }
+    }
   }
 
   Future<void> _loadUser() async {
@@ -431,7 +460,25 @@ class _HomeContentState extends State<_HomeContent> {
             ),
           ),
           actions: [
-            const STProfileButton(),
+            IconButton(
+              icon: const Icon(Icons.menu_open_rounded, color: ST.onSurface, size: 30),
+              onPressed: () {
+                Navigator.of(context).push(
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) => const CustomMenuOverlay(),
+                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                      const begin = Offset(0.0, -1.0);
+                      const end = Offset.zero;
+                      const curve = Curves.easeInOutCubic;
+                      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                      var offsetAnimation = animation.drive(tween);
+                      return SlideTransition(position: offsetAnimation, child: child);
+                    },
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 8),
           ],
         ),
         SliverPadding(
@@ -588,7 +635,6 @@ class _HomeContentState extends State<_HomeContent> {
               ),
               const SizedBox(height: 20),
 
-              // 3. Grid Row (Emergency Circle & Safe Routes)
               Row(
                 children: [
                   Expanded(
@@ -600,8 +646,7 @@ class _HomeContentState extends State<_HomeContent> {
                   ),
                   const SizedBox(width: 20),
                   Expanded(
-                    child: _buildActionCard(
-                      icon: Icons.map,
+                    child: _buildMapActionCard(
                       label: 'Safe Routes',
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LocationScreen())),
                     ),
@@ -706,6 +751,103 @@ class _HomeContentState extends State<_HomeContent> {
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
                 height: 1.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapActionCard({required String label, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 150,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (_userLatLng == null)
+              Container(
+                color: const Color(0xFFE2E8F0),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0052D3)),
+                  ),
+                ),
+              )
+            else
+              GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: _userLatLng!,
+                  zoom: 14,
+                ),
+                zoomControlsEnabled: false,
+                compassEnabled: false,
+                mapToolbarEnabled: false,
+                myLocationButtonEnabled: false,
+                scrollGesturesEnabled: false,
+                tiltGesturesEnabled: false,
+                rotateGesturesEnabled: false,
+                zoomGesturesEnabled: false,
+                onMapCreated: (GoogleMapController controller) {
+                  _smallMapController = controller;
+                  controller.setMapStyle('''[
+                    {"featureType": "water", "elementType": "geometry", "stylers": [{"color": "#a2daf2"}]},
+                    {"featureType": "landscape.man_made", "elementType": "geometry", "stylers": [{"color": "#f7f1df"}]},
+                    {"featureType": "landscape.natural", "elementType": "geometry", "stylers": [{"color": "#d0e3b4"}]},
+                    {"featureType": "poi.park", "elementType": "geometry", "stylers": [{"color": "#bde3cb"}]},
+                    {"featureType": "poi.medical", "elementType": "geometry", "stylers": [{"color": "#fbd3da"}]},
+                    {"featureType": "poi.business", "stylers": [{"visibility": "on"}]},
+                    {"featureType": "road.highway", "elementType": "geometry.fill", "stylers": [{"color": "#ffe15f"}]},
+                    {"featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{"color": "#efd151"}]},
+                    {"featureType": "road.arterial", "elementType": "geometry.fill", "stylers": [{"color": "#ffffff"}]},
+                    {"featureType": "road.local", "elementType": "geometry.fill", "stylers": [{"color": "white"}, {"visibility": "on"}]},
+                    {"featureType": "transit.station.airport", "elementType": "geometry.fill", "stylers": [{"color": "#cfb2db"}]}
+                  ]''');
+                },
+              ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.0),
+                    Colors.black.withOpacity(0.6),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
