@@ -64,8 +64,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   late stt.SpeechToText _speech;
   bool _isListening = false;
-  final ValueNotifier<String> _speechTextNotifier = ValueNotifier<String>("");
-  final ValueNotifier<double> _soundLevelNotifier = ValueNotifier<double>(0.0);
+  double _soundLevel = 0.0;
 
   @override
   void initState() {
@@ -132,57 +131,32 @@ class _ChatScreenState extends State<ChatScreen> {
       bool available = await _speech.initialize(
         onStatus: (status) {
           if (status == 'done' || status == 'notListening') {
-            if (mounted) {
-              setState(() => _isListening = false);
-              _speechTextNotifier.value = "";
-              _soundLevelNotifier.value = 0.0;
-            }
+            setState(() {
+              _isListening = false;
+              _soundLevel = 0.0;
+            });
           }
         },
-        onError: (errorNotification) => debugPrint('Error: $errorNotification'),
+        onError: (errorNotification) {
+          debugPrint('Error: $errorNotification');
+          setState(() {
+            _isListening = false;
+            _soundLevel = 0.0;
+          });
+        }
       );
       if (available) {
         setState(() => _isListening = true);
-        _speechTextNotifier.value = "";
-        _soundLevelNotifier.value = 0.0;
-        
-        Navigator.of(context).push(
-          PageRouteBuilder(
-            opaque: false, // Transparent background
-            pageBuilder: (context, _, __) => VoiceVisualizerOverlay(
-              speech: _speech,
-              textNotifier: _speechTextNotifier,
-              soundLevelNotifier: _soundLevelNotifier,
-              onStop: () {
-                 _speech.stop();
-                 setState(() => _isListening = false);
-                 if (_speechTextNotifier.value.isNotEmpty) {
-                   setState(() {
-                      _controller.text = _speechTextNotifier.value;
-                      _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
-                   });
-                 }
-              },
-            ),
-            transitionsBuilder: (context, animation, _, child) {
-               return FadeTransition(opacity: animation, child: child);
-            }
-          ),
-        );
-
         _speech.listen(
           onResult: (result) {
-            _speechTextNotifier.value = result.recognizedWords;
-            if (result.finalResult && mounted) {
-               setState(() {
-                 _controller.text = result.recognizedWords;
-                 _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
-               });
-            }
+            setState(() {
+              _controller.text = result.recognizedWords;
+              _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
+            });
           },
           onSoundLevelChange: (level) {
-             _soundLevelNotifier.value = level;
-          },
+            setState(() => _soundLevel = level);
+          }
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -190,11 +164,11 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       }
     } else {
-      setState(() => _isListening = false);
+      setState(() {
+        _isListening = false;
+        _soundLevel = 0.0;
+      });
       _speech.stop();
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
     }
   }
 
@@ -727,9 +701,11 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ST.surface,
-      body: SafeArea(
-        child: Column(
-          children: [
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
               child: Row(
@@ -878,6 +854,18 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                   ),
+                  GestureDetector(
+                    onTap: _listen,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      color: Colors.transparent,
+                      child: Icon(
+                        _isListening ? Icons.mic : Icons.mic_none,
+                        color: _isListening ? Colors.red : Colors.grey.shade400,
+                        size: 26,
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 12),
                   GestureDetector(
                     onTap: _sendMessage,
@@ -896,9 +884,108 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
-          ],
+              ],
+            ),
+          ),
+          if (_isListening) _buildListeningOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListeningOverlay() {
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: _listen,
+        child: Container(
+          color: Colors.black.withOpacity(0.9),
+          child: SafeArea(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Spacer(),
+                _buildAudioVisualizer(),
+                const SizedBox(height: 60),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    _controller.text.isEmpty ? "Listening..." : _controller.text,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      height: 1.5,
+                      fontFamily: 'Inter',
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  "Tap anywhere to stop",
+                  style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+                ),
+                const SizedBox(height: 30),
+              ],
+            ),
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAudioVisualizer() {
+    final normalized = (_soundLevel > 0 ? _soundLevel : 0.0) / 10.0;
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: normalized),
+      duration: const Duration(milliseconds: 100),
+      builder: (context, value, child) {
+        final size = 180.0 + (value * 25.0);
+        return Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [
+                const Color(0xFFD946EF).withOpacity(0.6),
+                const Color(0xFFD946EF).withOpacity(0.0),
+              ],
+              stops: const [0.4, 1.0],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFD946EF).withOpacity(0.5 + (value * 0.08).clamp(0.0, 0.5)),
+                blurRadius: 50 + (value * 15),
+                spreadRadius: 15 + (value * 8),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Container(
+              width: size * 0.5,
+              height: size * 0.5,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.15 + (value * 0.03).clamp(0.0, 0.4)),
+                border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFD946EF).withOpacity(0.4),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.mic,
+                color: Colors.white,
+                size: 38,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1223,183 +1310,6 @@ class _SosSuggestionCard extends StatelessWidget {
               elevation: 0,
             ),
             child: const Text('TRIGGER SOS NOW', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class VoiceVisualizerOverlay extends StatefulWidget {
-  final stt.SpeechToText speech;
-  final ValueNotifier<String> textNotifier;
-  final ValueNotifier<double> soundLevelNotifier;
-  final VoidCallback onStop;
-
-  const VoiceVisualizerOverlay({
-    super.key,
-    required this.speech,
-    required this.textNotifier,
-    required this.soundLevelNotifier,
-    required this.onStop,
-  });
-
-  @override
-  State<VoiceVisualizerOverlay> createState() => _VoiceVisualizerOverlayState();
-}
-
-class _VoiceVisualizerOverlayState extends State<VoiceVisualizerOverlay> with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-       vsync: this,
-       duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOutSine)
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black.withOpacity(0.92),
-      body: Stack(
-        children: [
-          // Background top glow
-          Positioned(
-            top: -100,
-            left: -50,
-            right: -50,
-            height: 400,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFFB82981).withOpacity(0.4),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-          
-          SafeArea(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Spacer(),
-                
-                // The Orb
-                GestureDetector(
-                  onTap: () {
-                    widget.onStop();
-                    if (Navigator.of(context).canPop()) {
-                       Navigator.pop(context);
-                    }
-                  },
-                  child: Center(
-                    child: ValueListenableBuilder<double>(
-                      valueListenable: widget.soundLevelNotifier,
-                      builder: (context, soundLevel, child) {
-                        // Normalize sound level to scale
-                        final dynamicScale = 1.0 + (soundLevel.clamp(0, 50) / 100);
-                        
-                        return AnimatedBuilder(
-                          animation: _pulseAnimation,
-                          builder: (context, child) {
-                            return Transform.scale(
-                              scale: _pulseAnimation.value * dynamicScale,
-                              child: Container(
-                                width: 220,
-                                height: 220,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: const RadialGradient(
-                                    colors: [
-                                      Color(0xFFE052A0),
-                                      Color(0xFF8A2387),
-                                      Color(0xFF4A148C),
-                                    ],
-                                    stops: [0.2, 0.6, 1.0],
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFFE052A0).withOpacity(0.4),
-                                      blurRadius: 40 + (soundLevel * 2),
-                                      spreadRadius: 10 + soundLevel,
-                                    ),
-                                    BoxShadow(
-                                      color: const Color(0xFF4A148C).withOpacity(0.5),
-                                      blurRadius: 80,
-                                      spreadRadius: -10,
-                                    ),
-                                  ],
-                                ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.2),
-                                      width: 2,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                
-                const Spacer(),
-                
-                // Transcribed Text
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
-                  child: ValueListenableBuilder<String>(
-                    valueListenable: widget.textNotifier,
-                    builder: (context, text, child) {
-                      return Text(
-                        text.isEmpty ? "Listening..." : text,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          height: 1.4,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                
-                // Bottom hint
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 24.0),
-                  child: Text(
-                    "Tap orb to stop",
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.4),
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
