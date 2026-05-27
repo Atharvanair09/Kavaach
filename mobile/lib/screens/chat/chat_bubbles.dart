@@ -76,7 +76,7 @@ class SupportBubble extends StatelessWidget {
               const Text(
                 'JARVIS',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 15,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
                   letterSpacing: 0.5,
@@ -100,7 +100,7 @@ class SupportBubble extends StatelessWidget {
           Text(
             text,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 15,
               height: 1.4,
               fontWeight: FontWeight.w500,
               color: Colors.white,
@@ -189,7 +189,7 @@ class UserBubble extends StatelessWidget {
               const Text(
                 'YOU',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 15,
                   fontWeight: FontWeight.w900,
                   color: Color(0xFF3B82F6),
                   letterSpacing: 0.5,
@@ -213,7 +213,7 @@ class UserBubble extends StatelessWidget {
           Text(
             text,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 15,
               height: 1.4,
               fontWeight: FontWeight.w600,
               color: Color(0xFF1E3A8A),
