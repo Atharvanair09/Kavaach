@@ -570,6 +570,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     itemCount: sessions.length,
                     itemBuilder: (context, index) {
                       final data = sessions[index] as Map<String, dynamic>;
+                      
                       List<Map<String, dynamic>> messages;
                       DateTime time;
 
@@ -583,7 +584,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       }
 
                       if (messages.isEmpty) return const SizedBox.shrink();
+                      
                       messages.sort((a,b) => (DateTime.tryParse(b['time']?.toString() ?? '') ?? DateTime.now()).compareTo(DateTime.tryParse(a['time']?.toString() ?? '') ?? DateTime.now()));
+                      
                       final lastMsg = messages.first;
                       
                       return InkWell(
@@ -591,6 +594,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           setState(() {
                             _messages.clear();
                             _sessionId = data['sessionId'] ?? "session_${DateTime.now().millisecondsSinceEpoch}";
+                            
                             final chronological = messages.reversed.toList();
                             for (var m in chronological) {
                                _messages.add(MessageData(
@@ -677,18 +681,18 @@ class _ChatScreenState extends State<ChatScreen> {
           RichText(
             text: TextSpan(
               style: const TextStyle(
-                fontSize: 36,
+                fontSize: 44,
                 fontWeight: FontWeight.w500,
                 fontFamily: 'Rockwell',
               ),
               children: [
                 const TextSpan(
                   text: 'Hello, ',
-                  style: TextStyle(color: Color(0xFF4285F4)),
+                  style: TextStyle(color: Color(0xFF2B2C2E)),
                 ),
                 TextSpan(
                   text: _userName ?? 'there',
-                  style: const TextStyle(color: Color(0xFFD946EF)),
+                  style: const TextStyle(color: Color(0xFF4285F4)),
                 ),
               ],
             ),
@@ -698,8 +702,8 @@ class _ChatScreenState extends State<ChatScreen> {
             'what would you like to talk about?',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey.shade500,
+              fontSize: 22,
+              color: Color(0xFF2B2C2E),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -726,16 +730,23 @@ class _ChatScreenState extends State<ChatScreen> {
                     icon: const Icon(Icons.chat_bubble_outline, color: ST.onSurface),
                     onPressed: _showHistoryDialog,
                   ),
-                  GestureDetector(
-                    onTap: () {},
-                    child: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: const Color(0xFF4285F4),
-                      child: Text(
-                        (_userName ?? 'A')[0].toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.menu_open_rounded, color: ST.onSurface, size: 30),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        PageRouteBuilder(
+                          pageBuilder: (context, animation, secondaryAnimation) => const CustomMenuOverlay(),
+                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                            const begin = Offset(0.0, -1.0);
+                            const end = Offset.zero;
+                            const curve = Curves.easeInOutCubic;
+                            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                            var offsetAnimation = animation.drive(tween);
+                            return SlideTransition(position: offsetAnimation, child: child);
+                          },
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

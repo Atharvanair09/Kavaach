@@ -1600,7 +1600,7 @@ class _LocationScreenState extends State<LocationScreen> {
 
           // 3. Bottom Category Buttons
           Positioned(
-            bottom: 20,
+            bottom: 85,
             left: 20,
             right: 20,
             child: Row(
@@ -1633,28 +1633,28 @@ class _LocationScreenState extends State<LocationScreen> {
 
           // Search Button (Floating)
           Positioned(
-            bottom: 80,
+            bottom: 20,
             right: 20,
-            child: FloatingActionButton(
-              heroTag: 'search_fab',
-              onPressed: _showCustomDestinationSearch,
-              backgroundColor: Colors.white,
-              elevation: 4,
-              child: const Icon(Icons.search, color: ST.primary),
-            ),
-          ),
-          
-          // GPS Refresh
-          Positioned(
-            bottom: 80,
             left: 20,
-            child: FloatingActionButton(
-              heroTag: 'gps_fab',
-              mini: true,
-              onPressed: _determinePosition,
-              backgroundColor: Colors.white,
-              elevation: 4,
-              child: const Icon(Icons.my_location, color: ST.primary, size: 18),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                FloatingActionButton(
+                  heroTag: 'gps_fab',
+                  mini: true,
+                  onPressed: _determinePosition,
+                  backgroundColor: Color(0xFF0D67FF),
+                  elevation: 4,
+                  child: const Icon(Icons.my_location, color: Color(0xFFFFFFFF), size: 18),
+                ),
+                FloatingActionButton(
+                  heroTag: 'search_fab',
+                  onPressed: _showCustomDestinationSearch,
+                  backgroundColor: Color(0xFF0D67FF),
+                  elevation: 4,
+                  child: const Icon(Icons.search, color: Color(0xFFFFFFFF)),
+                ),
+              ],
             ),
           ),
         ],
@@ -1706,7 +1706,7 @@ class _FilterChip extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 18,
+              size: 22,
               color: isSelected ? Colors.white : activeColor,
             ),
             const SizedBox(width: 8),
@@ -1715,7 +1715,7 @@ class _FilterChip extends StatelessWidget {
               style: TextStyle(
                 color: isSelected ? Colors.white : const Color(0xFF1E293B),
                 fontWeight: FontWeight.w800,
-                fontSize: 13,
+                fontSize: 14,
                 letterSpacing: 0.2,
               ),
             ),
