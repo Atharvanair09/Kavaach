@@ -53,6 +53,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<MessageData> _messages = [];
   String? _currentUserId;
+  String? _userName;
   String _nearbySafePlacesContext = "";
   List<Map<String, dynamic>> _nearbySafePlacesList = [];
   String? _sessionId;
@@ -79,6 +80,8 @@ class _ChatScreenState extends State<ChatScreen> {
     if (mounted) {
       setState(() {
         _currentUserId = user?['id'] ?? user?['email'] ?? 'anonymous_user';
+        final fullName = user?['name']?.toString() ?? '';
+        _userName = fullName.isNotEmpty ? fullName.split(' ')[0] : 'there';
       });
       _fetchInitialHistory();
     }
@@ -86,43 +89,47 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _fetchInitialHistory() async {
     if (_currentUserId == null) return;
-    final history = await ApiService.getChatHistory(_currentUserId!);
-    if (mounted && history.isNotEmpty) {
-      setState(() {
-        _messages.clear();
-        for (var item in history.reversed) { // Backend returns desc, we want asc for long list
-          final msg = item as Map<String, dynamic>;
-          final userText = msg['message'] as String? ?? '';
-          final botText = msg['reply'] as String? ?? '';
-          final time = DateTime.tryParse(msg['time']?.toString() ?? '') ?? DateTime.now();
+    try {
+      final history = await ApiService.getChatHistory(_currentUserId!);
+      if (mounted && history.isNotEmpty) {
+        setState(() {
+          _messages.clear();
+          for (var item in history.reversed) {
+            final msg = item as Map<String, dynamic>;
+            final userText = msg['message'] as String? ?? '';
+            final botText = msg['reply'] as String? ?? '';
+            final time = DateTime.tryParse(msg['time']?.toString() ?? '') ?? DateTime.now();
 
-          if (userText.isNotEmpty) {
-            _messages.add(MessageData(
-              id: "hist_u_${_messages.length}",
-              userId: _currentUserId!,
-              text: userText,
-              translation: msg['messageEng'],
-              isUser: true,
-              time: time,
-            ));
+            if (userText.isNotEmpty) {
+              _messages.add(MessageData(
+                id: "hist_u_${_messages.length}",
+                userId: _currentUserId!,
+                text: userText,
+                translation: msg['messageEng'],
+                isUser: true,
+                time: time,
+              ));
+            }
+            if (botText.isNotEmpty) {
+              _messages.add(MessageData(
+                id: "hist_b_${_messages.length}",
+                userId: _currentUserId!,
+                text: botText,
+                translation: msg['replyEng'],
+                isUser: false,
+                category: msg['category'] ?? 'general',
+                risk: msg['risk'] ?? 'low',
+                ui: msg['ui'] ?? 'green',
+                action: msg['action'] ?? 'none',
+                time: time,
+              ));
+            }
           }
-          if (botText.isNotEmpty) {
-            _messages.add(MessageData(
-              id: "hist_b_${_messages.length}",
-              userId: _currentUserId!,
-              text: botText,
-              translation: msg['replyEng'],
-              isUser: false,
-              category: msg['category'] ?? 'general',
-              risk: msg['risk'] ?? 'low',
-              ui: msg['ui'] ?? 'green',
-              action: msg['action'] ?? 'none',
-              time: time,
-            ));
-          }
-        }
-      });
-      _scrollToBottom();
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      debugPrint("Error fetching history: $e");
     }
   }
 
@@ -261,7 +268,6 @@ class _ChatScreenState extends State<ChatScreen> {
         );
 
         if (data['userTranslation'] != null) {
-          // If the backend translated the user's message, we update the last user message to show it
           setState(() {
             final lastUserMsgIndex = _messages.lastIndexWhere((m) => m.isUser);
             if (lastUserMsgIndex != -1) {
@@ -339,10 +345,7 @@ class _ChatScreenState extends State<ChatScreen> {
       },
     );
     try {
-      // Note: url_launcher would be needed here, or specialized SMS plugin.
-      // For now, we use a generic method that the user can expand.
       debugPrint('Launching SMS: $smsLaunchUri');
-      // await launchUrl(smsLaunchUri);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Opening SMS app...')),
       );
@@ -363,30 +366,16 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  /// Fires the silent SOS in the background.
-  /// Covert by design — no loud UI, no alarming language visible on screen.
   Future<void> _triggerSilentSos() async {
     debugPrint('CRITICAL [JARVIS]: HIGH RISK DETECTED — firing silent SOS and live location dispatch.');
-
-    // 1. Silently capture current GPS coordinates
     try {
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      debugPrint(
-        'CRITICAL [JARVIS]: Location captured — Lat: ' +
-        position.latitude.toString() + ', Lng: ' +
-        position.longitude.toString() +
-        '. Dispatching to emergency contacts (stub).'
-      );
-      // TODO: replace with real dispatch:
-      // await SmsService.sendEmergencySms(position);
-      // await FirebaseFirestore.instance.collection('sos_events').add({ ... });
     } catch (e) {
       debugPrint('CRITICAL [JARVIS]: GPS capture failed for SOS — ' + e.toString());
     }
 
-    // 2. Show a covert snackbar that looks like a normal chat notification
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -410,11 +399,8 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  /// Special alert for "being followed" detections.
-  /// Sends a specific 'following' type to the dashboard for yellow marker rendering.
   Future<void> _triggerFollowingAlert() async {
     debugPrint('CRITICAL [JARVIS]: FOLLOWING DETECTED — notifying admin dashboard.');
-
     try {
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -447,7 +433,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ],
             ),
-            backgroundColor: const Color(0xFFEAB308), // Yellow-ish
+            backgroundColor: const Color(0xFFEAB308),
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -460,11 +446,8 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  /// Special alert for "uncomfortable" / cab-harassment detections.
-  /// Sends a specific 'uncomfortable' type to the dashboard for orange marker rendering.
   Future<void> _triggerUncomfortableAlert() async {
     debugPrint('CRITICAL [JARVIS]: UNCOMFORTABLE SCENARIO — notifying admin dashboard.');
-
     try {
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -497,7 +480,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ],
             ),
-            backgroundColor: const Color(0xFFF97316), // Orange
+            backgroundColor: const Color(0xFFF97316),
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -587,27 +570,20 @@ class _ChatScreenState extends State<ChatScreen> {
                     itemCount: sessions.length,
                     itemBuilder: (context, index) {
                       final data = sessions[index] as Map<String, dynamic>;
-                      
-                      // Hybrid Support: Handle both new 'Session' objects and old 'Message' objects
                       List<Map<String, dynamic>> messages;
                       DateTime time;
 
                       if (data.containsKey('messages')) {
-                        // New Session Format
                         final rawList = data['messages'] as List? ?? [];
                         messages = rawList.cast<Map<String, dynamic>>();
                         time = DateTime.tryParse(data['time']?.toString() ?? '') ?? DateTime.now();
                       } else {
-                        // Legacy Message Format
                         messages = [data];
                         time = DateTime.tryParse(data['time']?.toString() ?? '') ?? DateTime.now();
                       }
 
                       if (messages.isEmpty) return const SizedBox.shrink();
-                      
-                      // Sort messages within session
                       messages.sort((a,b) => (DateTime.tryParse(b['time']?.toString() ?? '') ?? DateTime.now()).compareTo(DateTime.tryParse(a['time']?.toString() ?? '') ?? DateTime.now()));
-                      
                       final lastMsg = messages.first;
                       
                       return InkWell(
@@ -615,11 +591,8 @@ class _ChatScreenState extends State<ChatScreen> {
                           setState(() {
                             _messages.clear();
                             _sessionId = data['sessionId'] ?? "session_${DateTime.now().millisecondsSinceEpoch}";
-                            
-                            // Re-add messages in chronological order (backend returns them sorted, but we want to display properly)
                             final chronological = messages.reversed.toList();
                             for (var m in chronological) {
-                               // Add user part
                                _messages.add(MessageData(
                                  id: m['id'] ?? "u_${m['time']}",
                                  userId: _currentUserId!,
@@ -628,7 +601,6 @@ class _ChatScreenState extends State<ChatScreen> {
                                  isUser: true,
                                  time: DateTime.tryParse(m['time']?.toString() ?? '') ?? DateTime.now(),
                                ));
-                               // Add bot part
                                _messages.add(MessageData(
                                  id: "${m['id']}_bot",
                                  userId: "jarvis",
@@ -697,188 +669,166 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Widget _buildInitialGreeting() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'Rockwell',
+              ),
+              children: [
+                const TextSpan(
+                  text: 'Hello, ',
+                  style: TextStyle(color: Color(0xFF4285F4)),
+                ),
+                TextSpan(
+                  text: _userName ?? 'there',
+                  style: const TextStyle(color: Color(0xFFD946EF)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'what would you like to talk about?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ST.surface,
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
           SafeArea(
             child: Column(
               children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: _showHistoryDialog,
-                        child: Image.asset(
-                          'assets/safetext_icon.png',
-                          width: 32,
-                          height: 32,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'JARVIS',
-                            style: TextStyle(
-                              fontFamily: 'Rockwell',
-                              fontSize: 26,
-                              fontWeight: FontWeight.w900,
-                              color: ST.onSurface,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          Text(
-                            'SECURE SAFETY ASSISTANT',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.grey.shade500,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
                   IconButton(
-                    icon: const Icon(Icons.menu_open_rounded, color: ST.onSurface, size: 30),
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        PageRouteBuilder(
-                          pageBuilder: (context, animation, secondaryAnimation) => const CustomMenuOverlay(),
-                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                            const begin = Offset(0.0, -1.0);
-                            const end = Offset.zero;
-                            const curve = Curves.easeInOutCubic;
-                            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                            var offsetAnimation = animation.drive(tween);
-                            return SlideTransition(position: offsetAnimation, child: child);
-                          },
-                        ),
-                      );
-                    },
+                    icon: const Icon(Icons.chat_bubble_outline, color: ST.onSurface),
+                    onPressed: _showHistoryDialog,
+                  ),
+                  GestureDetector(
+                    onTap: () {},
+                    child: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: const Color(0xFF4285F4),
+                      child: Text(
+                        (_userName ?? 'A')[0].toUpperCase(),
+                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 32, thickness: 0.5, indent: 24, endIndent: 24),
             // Messages
             Expanded(
               child: CustomPaint(
                 painter: DotGridPainter(),
-                child: ListView.builder(
+                child: _messages.isEmpty && !_isTyping
+                    ? _buildInitialGreeting()
+                    : ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  itemCount: _messages.length + (_isTyping ? 1 : 0) + 1,
+                  itemCount: _messages.length + (_isTyping ? 1 : 0),
                   itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return SupportBubble(
-                        text: "I'm Jarvis, your personal safety assistant. I'm here with you. How are you feeling about your current surroundings?",
-                        time: DateTime.now(),
-                      );
-                    }
+                    if (index >= _messages.length) return const _TypingIndicator();
+                    final m = _messages[index];
                     
-                    final msgIndex = index - 1;
-                    if (msgIndex < _messages.length) {
-                      final m = _messages[msgIndex];
-                      if (m.isUser) return UserBubble(text: m.text, translation: m.translation, time: m.time);
-                      
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SupportBubble(
-                            text: m.text, 
-                            translation: m.translation, 
-                            time: m.time,
-                            safePlaces: (m.action == 'show_safe_places' || 
-                                         m.action == 'trigger_sos' || 
-                                         m.action == 'notify_following' || 
-                                         m.category == 'stalking' || 
-                                         m.category == 'abuse' || 
-                                         m.category == 'danger') ? _nearbySafePlacesList : null,
-                            showEvidenceActions: (m.category == 'stalking' || 
-                                                 m.category == 'abuse' || 
-                                                 m.category == 'harassment' || 
-                                                 m.action == 'collect_evidence'),
-                            sessionId: _sessionId,
-                          ),
-                        ],
-                      );
-                    }
+                    if (m.isUser) return UserBubble(text: m.text, translation: m.translation, time: m.time);
                     
-                    return const _TypingIndicator();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SupportBubble(
+                          text: m.text, 
+                          translation: m.translation, 
+                          time: m.time,
+                          safePlaces: (m.action == 'show_safe_places' || 
+                                       m.action == 'trigger_sos' || 
+                                       m.action == 'notify_following' || 
+                                       m.category == 'stalking' || 
+                                       m.category == 'abuse' || 
+                                       m.category == 'danger') ? _nearbySafePlacesList : null,
+                          showEvidenceActions: (m.category == 'stalking' || 
+                                               m.category == 'abuse' || 
+                                               m.category == 'harassment' || 
+                                               m.action == 'collect_evidence'),
+                          sessionId: _sessionId,
+                        ),
+                      ],
+                    );
                   },
                 ),
               ),
             ),
-            // Input Area
-            Container(
-              margin: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: ST.radiusMd,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
+            // Gemini-style Input Area
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Row(
                 children: [
-                  Icon(Icons.add_circle, color: Colors.grey.shade400, size: 28),
-                  const SizedBox(width: 12),
                   Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      onSubmitted: (_) => _sendMessage(),
-                      decoration: InputDecoration(
-                        hintText: 'Ask Jarvis...',
-                        hintStyle: TextStyle(
-                          fontSize: 15,
-                          color: Colors.grey.shade400,
-                        ),
-                        border: InputBorder.none,
-                        isDense: true,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F4F9),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _controller,
+                              onSubmitted: (_) => _sendMessage(),
+                              decoration: const InputDecoration(
+                                hintText: 'Ask Jarvis',
+                                border: InputBorder.none,
+                                hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.mic_none, color: Colors.grey.shade700),
+                            onPressed: _listen,
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.camera_alt_outlined, color: Colors.grey.shade700),
+                            onPressed: () {},
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: _listen,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      color: Colors.transparent,
-                      child: Icon(
-                        _isListening ? Icons.mic : Icons.mic_none,
-                        color: _isListening ? Colors.red : Colors.grey.shade400,
-                        size: 26,
-                      ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF0F4F9),
+                      shape: BoxShape.circle,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  GestureDetector(
-                    onTap: _sendMessage,
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [ST.primary, ST.primaryContainer],
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.send, color: Colors.white, size: 20),
+                    child: IconButton(
+                      icon: const Icon(Icons.auto_awesome, color: Color(0xFF4285F4), size: 20),
+                      onPressed: _sendMessage,
                     ),
                   ),
                 ],
@@ -1017,7 +967,6 @@ class DotGridPainter extends CustomPainter {
   bool shouldRepaint(_) => false;
 }
 
-// Animated "Jarvis is thinking…" bubble shown while awaiting backend reply.
 class _TypingIndicator extends StatefulWidget {
   const _TypingIndicator();
 
@@ -1109,212 +1058,3 @@ class _TypingIndicatorState extends State<_TypingIndicator>
     );
   }
 }
-
-class _SafePlacesCard extends StatelessWidget {
-  final List<Map<String, dynamic>> places;
-
-  const _SafePlacesCard({required this.places});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(left: 40, bottom: 24, right: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 20, offset: const Offset(0, 4)),
-        ],
-        border: Border.all(color: ST.primary.withOpacity(0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: ST.primary.withOpacity(0.1), shape: BoxShape.circle),
-                child: const Icon(Icons.map_outlined, color: ST.primary, size: 18),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'CLOSEST SAFE HAVENS',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: ST.primary, letterSpacing: 1),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...places.map((place) => _buildPlaceItem(context, place)).toList(),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: Text(
-              'Jarvis has identified these locations as the nearest reachable safe points. Tap any to start navigation.',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500, height: 1.4, fontStyle: FontStyle.italic),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlaceItem(BuildContext context, Map<String, dynamic> place) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: () {
-          final loc = place['location'] as LatLng;
-          final name = place['name'] ?? 'Safe Haven';
-          JourneyStateNotifier().setPendingRoute(loc, name);
-        },
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    place['name'] ?? 'Safe Location',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: ST.onSurface),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Police Station • Approx. 600m away',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    final loc = place['location'] as LatLng;
-                    final name = place['name'] ?? 'Safe Haven';
-                    JourneyStateNotifier().setPendingRoute(loc, name);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Navigation to $name started!'),
-                        backgroundColor: ST.primary,
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: ST.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'NAVIGATE',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        color: ST.primary,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: const [
-                            Icon(Icons.check_circle, color: Colors.white, size: 18),
-                            SizedBox(width: 10),
-                            Text('Trip shared with your trusted circle'),
-                          ],
-                        ),
-                        backgroundColor: const Color(0xFF16A34A),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.share_outlined, size: 14, color: ST.primary),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SosSuggestionCard extends StatelessWidget {
-  const _SosSuggestionCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(left: 40, bottom: 16, right: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2), // Very light red
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.red.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(color: Colors.red.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                child: const Icon(Icons.emergency_share, color: Colors.white, size: 18),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'SOS SUGGESTION',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.red, letterSpacing: 1),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Your situation appears to be high risk. Jarvis can immediately alert your emergency contacts and local authorities with your live location.',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ST.onSurface, height: 1.4),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
-              // In this app, trigger_sos might already be firing silently, 
-              // but we provide a manual confirmation button as well.
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Emergency SOS Triggered!')),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 44),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-            ),
-            child: const Text('TRIGGER SOS NOW', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
