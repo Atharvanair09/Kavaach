@@ -1400,7 +1400,7 @@ class _LocationScreenState extends State<LocationScreen> {
     return Scaffold(
       backgroundColor: ST.surface,
       body: Stack(
-        children: [
+        children: <Widget>[
           // 1. Background Map (Full Screen)
           Positioned.fill(
             child: GoogleMap(
@@ -1417,50 +1417,6 @@ class _LocationScreenState extends State<LocationScreen> {
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
               mapToolbarEnabled: false,
-            ),
-          ),
-
-          // 2. Route to Safest Button (Top Right)
-          Positioned(
-            top: 60,
-            right: 20,
-            child: GestureDetector(
-              onTap: () {
-                if (carouselMarkers.isNotEmpty) {
-                  final best = carouselMarkers.first;
-                  _drawRouteOnMap(best.position, best.infoWindow.title ?? 'Safest Zone');
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0D67FF), // Vibrant blue from image
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF0D67FF).withOpacity(0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.directions_run, color: Colors.white, size: 20),
-                    SizedBox(width: 10),
-                    Text(
-                      'Route to Safest',
-                      style: TextStyle(
-                        fontFamily: 'Rockwell',
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
           ),
 
@@ -1634,27 +1590,61 @@ class _LocationScreenState extends State<LocationScreen> {
           // Search Button (Floating)
           Positioned(
             bottom: 20,
-            right: 20,
-            left: 20,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                FloatingActionButton(
-                  heroTag: 'gps_fab',
-                  mini: true,
-                  onPressed: _determinePosition,
-                  backgroundColor: Color(0xFF0D67FF),
-                  elevation: 4,
-                  child: const Icon(Icons.my_location, color: Color(0xFFFFFFFF), size: 18),
+            right: 330,
+            left: 25,
+            child: FloatingActionButton(
+              heroTag: 'gps_fab',
+              onPressed: _determinePosition,
+              backgroundColor: Color(0xFF0D67FF),
+              elevation: 4,
+              child: const Icon(Icons.my_location, color: Color(0xFFFFFFFF)),
+            ),
+          ),
+
+          Positioned(
+            bottom: 20,
+            right: 130,
+            left: 90,
+            child: FloatingActionButton(
+              heroTag: 'search_fab',
+              onPressed: _showCustomDestinationSearch,
+              backgroundColor: Color(0xFF0D67FF),
+              elevation: 4,
+              child: const Icon(Icons.search, color: Color(0xFFFFFFFF)),
+            ),
+          ),
+
+          Positioned(
+            bottom: 20,
+            right: 25,
+            left: 300,
+            child: GestureDetector(
+              onTap: () {
+                if (carouselMarkers.isNotEmpty) {
+                  final best = carouselMarkers.first;
+                  _drawRouteOnMap(best.position, best.infoWindow.title ?? 'Safest Zone');
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D67FF), // Vibrant blue from image
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0D67FF).withOpacity(0.3),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-                FloatingActionButton(
-                  heroTag: 'search_fab',
-                  onPressed: _showCustomDestinationSearch,
-                  backgroundColor: Color(0xFF0D67FF),
-                  elevation: 4,
-                  child: const Icon(Icons.search, color: Color(0xFFFFFFFF)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.directions_run, color: Colors.white, size: 25),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
