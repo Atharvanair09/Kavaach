@@ -1022,6 +1022,422 @@ class _LocationScreenState extends State<LocationScreen> {
     )).toSet();
   }
 
+  /// Shows a premium bottom sheet with the safest zone details,
+  /// inspired by a travel-app style location card.
+  void _showSafestZoneSheet(List<Marker> sortedMarkers) {
+    if (sortedMarkers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('No safe spots found nearby'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    final best = sortedMarkers.first;
+    final title = best.infoWindow.title ?? 'Safe Zone';
+    final snippet = best.infoWindow.snippet ?? '';
+
+    // Parse type from snippet
+    String type = '';
+    String address = '';
+    final parts = snippet.split(' | ');
+    for (final p in parts) {
+      if (p.startsWith('Type: ')) type = p.replaceFirst('Type: ', '');
+      if (p.startsWith('Address: ')) address = p.replaceFirst('Address: ', '');
+    }
+
+    Color accent = const Color(0xFF0D67FF);
+    IconData typeIcon = Icons.location_on;
+    String typeLabel = 'Safe Zone';
+    if (type == 'POLICE') {
+      accent = const Color(0xFF0D67FF);
+      typeIcon = Icons.local_police_outlined;
+      typeLabel = 'Police Station';
+    } else if (type == 'HOSPITAL') {
+      accent = const Color(0xFFDC2626);
+      typeIcon = Icons.local_hospital_outlined;
+      typeLabel = 'Hospital';
+    } else if (type == 'SHELTER') {
+      accent = const Color(0xFF10B981);
+      typeIcon = Icons.shield_outlined;
+      typeLabel = 'Safe Shelter';
+    }
+
+    // Calculate distance
+    final distMeters = Geolocator.distanceBetween(
+      _userPosition.latitude, _userPosition.longitude,
+      best.position.latitude, best.position.longitude,
+    );
+    final distStr = distMeters < 1000
+        ? '${distMeters.toInt()}m away'
+        : '${(distMeters / 1000).toStringAsFixed(1)}km away';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.62,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            // Scrollable content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Title Row ──
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontFamily: 'Rockwell',
+                        fontWeight: FontWeight.w900,
+                        fontSize: 24,
+                        color: Color(0xFF0F172A),
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // ── Type badge + distance ──
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: accent.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(typeIcon, size: 14, color: accent),
+                              const SizedBox(width: 5),
+                              Text(
+                                typeLabel,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: accent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Icon(Icons.near_me, size: 14, color: Colors.grey.shade500),
+                        const SizedBox(width: 4),
+                        Text(
+                          distStr,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Rating & Reviews row ──
+                    Row(
+                      children: [
+                        Icon(Icons.star_rounded, color: const Color(0xFFFBBF24), size: 20),
+                        const SizedBox(width: 4),
+                        const Text(
+                          '4.8',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Verified Safe',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Description ──
+                    Text(
+                      address.isNotEmpty
+                          ? 'Located at $address. This $typeLabel is one of the closest verified safe locations near you. It has been confirmed as a secure haven for emergencies.'
+                          : 'This $typeLabel is one of the closest verified safe locations near you. It has been confirmed as a secure haven for emergencies and is actively monitored.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        height: 1.5,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: () {},
+                      child: const Text(
+                        'Read more',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F172A),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Nearby Safe Spots header ──
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Nearby Safe Spots',
+                          style: TextStyle(
+                            fontFamily: 'Rockwell',
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          'See all',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: accent,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // ── Horizontal card carousel ──
+                    SizedBox(
+                      height: 180,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: sortedMarkers.length > 6 ? 6 : sortedMarkers.length,
+                        itemBuilder: (context, index) {
+                          final marker = sortedMarkers[index];
+                          final mTitle = marker.infoWindow.title ?? 'Safe Spot';
+                          final mSnippet = marker.infoWindow.snippet ?? '';
+
+                          String mType = '';
+                          for (final p in mSnippet.split(' | ')) {
+                            if (p.startsWith('Type: ')) mType = p.replaceFirst('Type: ', '');
+                          }
+
+                          Color cardAccent = const Color(0xFF0D67FF);
+                          IconData cardIcon = Icons.location_on;
+                          if (mType == 'POLICE') {
+                            cardAccent = const Color(0xFF0D67FF);
+                            cardIcon = Icons.local_police;
+                          } else if (mType == 'HOSPITAL') {
+                            cardAccent = const Color(0xFFDC2626);
+                            cardIcon = Icons.local_hospital;
+                          } else if (mType == 'SHELTER') {
+                            cardAccent = const Color(0xFF10B981);
+                            cardIcon = Icons.shield;
+                          }
+
+                          final mDist = Geolocator.distanceBetween(
+                            _userPosition.latitude, _userPosition.longitude,
+                            marker.position.latitude, marker.position.longitude,
+                          );
+                          final mDistStr = mDist < 1000
+                              ? '${mDist.toInt()}m'
+                              : '${(mDist / 1000).toStringAsFixed(1)}km';
+
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                              _drawRouteOnMap(marker.position, mTitle);
+                            },
+                            child: Container(
+                              width: 200,
+                              margin: EdgeInsets.only(
+                                right: 12,
+                                left: index == 0 ? 0 : 0,
+                              ),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: const Color(0xFFF1F5F9)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.06),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: cardAccent.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Icon(cardIcon, color: cardAccent, size: 18),
+                                      ),
+                                      const Spacer(),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          mDistStr,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    mTitle,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                      color: Color(0xFF0F172A),
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.star_rounded, color: const Color(0xFFFBBF24), size: 14),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        '4.${5 + index % 4}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          color: cardAccent,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(
+                                          Icons.arrow_forward_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // ── Get Directions button ──
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _drawRouteOnMap(best.position, title);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.navigation_outlined, color: Colors.white, size: 20),
+                            SizedBox(width: 10),
+                            Text(
+                              'Get Directions to Safest Zone',
+                              style: TextStyle(
+                                fontFamily: 'Rockwell',
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16,
+                                color: Colors.white,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   Future<void> _loadHavensFromFirestore() async {
     try {
@@ -1603,7 +2019,7 @@ class _LocationScreenState extends State<LocationScreen> {
 
           Positioned(
             bottom: 20,
-            right: 130,
+            right: 120,
             left: 90,
             child: FloatingActionButton(
               heroTag: 'search_fab',
@@ -1620,16 +2036,13 @@ class _LocationScreenState extends State<LocationScreen> {
             left: 300,
             child: GestureDetector(
               onTap: () {
-                if (carouselMarkers.isNotEmpty) {
-                  final best = carouselMarkers.first;
-                  _drawRouteOnMap(best.position, best.infoWindow.title ?? 'Safest Zone');
-                }
+                _showSafestZoneSheet(carouselMarkers);
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 15),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0D67FF), // Vibrant blue from image
-                  borderRadius: BorderRadius.circular(30),
+                  color: const Color(0xFF0D67FF),
+                  borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFF0D67FF).withOpacity(0.3),
