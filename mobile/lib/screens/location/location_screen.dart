@@ -1224,6 +1224,43 @@ class _LocationScreenState extends State<LocationScreen> {
                     ),
                     const SizedBox(height: 24),
 
+                    // ── Get Directions button ──
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _drawRouteOnMap(best.position, title);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.navigation_outlined, color: Colors.white, size: 20),
+                            SizedBox(width: 10),
+                            Text(
+                              'Get Directions to Safest Zone',
+                              style: TextStyle(
+                                fontFamily: 'Rockwell',
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16,
+                                color: Colors.white,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
                     // ── Nearby Safe Spots header ──
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1389,43 +1426,6 @@ class _LocationScreenState extends State<LocationScreen> {
                             ),
                           );
                         },
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ── Get Directions button ──
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _drawRouteOnMap(best.position, title);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.navigation_outlined, color: Colors.white, size: 20),
-                            SizedBox(width: 10),
-                            Text(
-                              'Get Directions to Safest Zone',
-                              style: TextStyle(
-                                fontFamily: 'Rockwell',
-                                fontWeight: FontWeight.w800,
-                                fontSize: 16,
-                                color: Colors.white,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ],
