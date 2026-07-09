@@ -46,3 +46,5 @@ logs/
 
 # Large model files (optional)
 *.ckpt
+ml-model/model/kavaach/model.safetensors
+*.safetensors
