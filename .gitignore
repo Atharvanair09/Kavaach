@@ -22,3 +22,27 @@ mobile/android/build/
 
 .env
 .idea/
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
+bert_gpu/
+
+# Training outputs
+ml-model/model/kavaach/checkpoint-*/
+
+# Optimizer states
+optimizer.pt
+scheduler.pt
+rng_state.pth
+
+# TensorBoard
+runs/
+logs/
+
+# Large model files (optional)
+*.ckpt
